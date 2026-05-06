@@ -4,6 +4,7 @@ import type { ThreadSummary } from "../../../types";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
 import { ThreadRow } from "./ThreadRow";
 import { buildThreadRowVisibility } from "./threadRowVisibility";
+import { useI18n } from "@/features/i18n/i18n";
 
 type ThreadListRow = {
   thread: ThreadSummary;
@@ -62,6 +63,7 @@ export function ThreadList({
   onSelectThread,
   onShowThreadMenu,
 }: ThreadListProps) {
+  const { t } = useI18n();
   const indentUnit = nested ? 10 : 14;
   const [collapsedThreadKeys, setCollapsedThreadKeys] = useState<Set<string>>(new Set());
 
@@ -150,7 +152,7 @@ export function ThreadList({
             onToggleExpanded(workspaceId);
           }}
         >
-          {isExpanded ? "Show less" : "More..."}
+          {isExpanded ? t("thread.showLess") : t("thread.more")}
         </button>
       )}
       {showLoadOlder && nextCursor && (isExpanded || totalThreadRoots <= 3) && (
@@ -163,10 +165,10 @@ export function ThreadList({
           disabled={isPaging}
         >
           {isPaging
-            ? "Loading..."
+            ? t("thread.loading")
             : totalThreadRoots === 0
-              ? "Search older..."
-              : "Load older..."}
+              ? t("thread.searchOlder")
+              : t("thread.loadOlder")}
         </button>
       )}
     </div>

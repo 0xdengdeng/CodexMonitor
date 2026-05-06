@@ -44,6 +44,7 @@ import {
 import { useDiffFileSelection } from "../hooks/useDiffFileSelection";
 import type { GitPanelMode } from "../types";
 import type { PerFileDiffGroup } from "../utils/perFileThreadDiffs";
+import { useI18n } from "@/features/i18n/i18n";
 
 type GitDiffPanelProps = {
   workspaceId?: string | null;
@@ -233,6 +234,7 @@ export function GitDiffPanel({
   syncError = null,
   commitsAhead = 0,
 }: GitDiffPanelProps) {
+  const { t } = useI18n();
   const [dismissedErrorSignatures, setDismissedErrorSignatures] = useState<Set<string>>(
     new Set(),
   );
@@ -643,7 +645,7 @@ export function GitDiffPanel({
       onFilePanelModeChange={onFilePanelModeChange}
       headerClassName="git-panel-header"
       headerRight={
-        <div className="git-panel-actions" role="group" aria-label="Git panel">
+        <div className="git-panel-actions" role="group" aria-label={t("git.panel")}>
           <div className="git-panel-select">
             <span className="git-panel-select-icon" aria-hidden>
               <ModeIcon />
@@ -652,13 +654,13 @@ export function GitDiffPanel({
               className="git-panel-select-input"
               value={mode}
               onChange={(event) => onModeChange(event.target.value as GitDiffPanelProps["mode"])}
-              aria-label="Git panel view"
+              aria-label={t("git.panelView")}
             >
-              <option value="diff">Diff</option>
-              <option value="perFile">Agent edits</option>
-              <option value="log">Log</option>
-              <option value="issues">Issues</option>
-              <option value="prs">PRs</option>
+              <option value="diff">{t("git.diff")}</option>
+              <option value="perFile">{t("git.agentEdits")}</option>
+              <option value="log">{t("git.log")}</option>
+              <option value="issues">{t("git.issues")}</option>
+              <option value="prs">{t("git.prs")}</option>
             </select>
           </div>
         </div>
