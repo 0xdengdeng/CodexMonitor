@@ -164,8 +164,10 @@ pub fn run() {
             }
             #[cfg(desktop)]
             {
-                app.handle()
-                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+                if crate::shared::brand_core::APP_UPDATER_ENABLED {
+                    app.handle()
+                        .plugin(tauri_plugin_updater::Builder::new().build())?;
+                }
             }
             Ok(())
         });

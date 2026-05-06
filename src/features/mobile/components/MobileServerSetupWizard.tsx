@@ -47,7 +47,7 @@ export function MobileServerSetupWizard({
         <h2 className="mobile-setup-wizard-title">Connect to your desktop backend</h2>
         <p className="mobile-setup-wizard-subtitle">
           Complete this setup before using the app. Use the same connection details configured on
-          your desktop CodexMonitor server settings.
+          your desktop 企业 AI 开发工作台 server settings.
         </p>
       </div>
 

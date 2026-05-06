@@ -2,6 +2,12 @@ import { lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import successSoundUrl from "@/assets/success-notification.mp3";
 import errorSoundUrl from "@/assets/error-notification.mp3";
 import { MainAppShell } from "@app/components/MainAppShell";
+import { PlatformLoginPage } from "@/features/auth/components/PlatformLoginPage";
+import {
+  loadPlatformSession,
+  savePlatformSession,
+  type PlatformLoginInput,
+} from "@/features/auth/platformSession";
 import { useThreads } from "@threads/hooks/useThreads";
 import { usePullRequestComposer } from "@/features/git/hooks/usePullRequestComposer";
 import { useAutoExitEmptyDiff } from "@/features/git/hooks/useAutoExitEmptyDiff";
@@ -53,6 +59,7 @@ import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThread
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import type {
   ComposerEditorSettings,
+  LanguagePreference,
   ServiceTier,
   WorkspaceInfo,
 } from "@/types";
@@ -79,6 +86,7 @@ import {
 } from "@app/orchestration/useWorkspaceOrchestration";
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
+import { APP_UPDATER_ENABLED } from "@/config/brand";
 import { subscribeTrayOpenThread } from "@services/events";
 
 const SettingsView = lazy(() =>
@@ -120,6 +128,12 @@ export default function MainApp() {
     clearDebugEntries,
     shouldReduceTransparency,
   } = useAppBootstrapOrchestration();
+  const [platformSession, setPlatformSession] = useState(() =>
+    loadPlatformSession(),
+  );
+  const handlePlatformLogin = useCallback((input: PlatformLoginInput) => {
+    setPlatformSession(savePlatformSession(input));
+  }, []);
   const {
     threadListSortKey,
     setThreadListSortKey,
@@ -182,7 +196,7 @@ export default function MainApp() {
     queueSaveSettings,
     refreshWorkspaces,
   });
-  const updaterEnabled = !isMobileRuntime;
+  const updaterEnabled = APP_UPDATER_ENABLED && !isMobileRuntime;
 
   const workspacesById = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
@@ -1809,6 +1823,20 @@ export default function MainApp() {
     !activeWorkspace?.connected
       ? "disconnected"
       : remoteThreadConnectionState;
+  const handleChangeLanguage = useCallback(
+    (language: LanguagePreference) => {
+      if (language === appSettings.language) {
+        return;
+      }
+      const nextSettings = {
+        ...appSettings,
+        language,
+      };
+      setAppSettings(nextSettings);
+      void queueSaveSettings(nextSettings);
+    },
+    [appSettings, queueSaveSettings, setAppSettings],
+  );
   const mainAppShellProps = useMainAppShellProps({
     shell: {
       appClassName,
@@ -1870,12 +1898,24 @@ export default function MainApp() {
     },
     topbar: {
       isCompact,
+      language: appSettings.language,
       desktopTopbarLeftNode,
       hasActiveWorkspace: Boolean(activeWorkspace),
       backendMode: appSettings.backendMode,
       remoteThreadConnectionState: compactThreadConnectionState,
+      onChangeLanguage: handleChangeLanguage,
     },
   });
+
+  if (!platformSession) {
+    return (
+      <PlatformLoginPage
+        language={appSettings.language}
+        onChangeLanguage={handleChangeLanguage}
+        onSubmit={handlePlatformLogin}
+      />
+    );
+  }
 
   return <MainAppShell {...mainAppShellProps} />;
 }

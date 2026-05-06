@@ -38,7 +38,7 @@ describe("Home", () => {
           {
             message: "Ship the dashboard refresh",
             timestamp: Date.now(),
-            projectName: "CodexMonitor",
+            projectName: "Platform App",
             groupName: "Frontend",
             workspaceId: "workspace-1",
             threadId: "thread-1",
@@ -49,8 +49,8 @@ describe("Home", () => {
       />,
     );
 
-    expect(screen.getByText("Latest agents")).toBeTruthy();
-    expect(screen.getByText("CodexMonitor")).toBeTruthy();
+    expect(screen.getByText("最近 AI 任务")).toBeTruthy();
+    expect(screen.getByText("Platform App")).toBeTruthy();
     expect(screen.getByText("Frontend")).toBeTruthy();
     const message = screen.getByText("Ship the dashboard refresh");
     const card = message.closest("button");
@@ -60,15 +60,18 @@ describe("Home", () => {
     }
     fireEvent.click(card);
     expect(onSelectThread).toHaveBeenCalledWith("workspace-1", "thread-1");
-    expect(screen.getByText("Running")).toBeTruthy();
+    expect(screen.getByText("处理中")).toBeTruthy();
   });
 
   it("shows the empty state when there are no latest runs", () => {
     render(<Home {...baseProps} />);
 
-    expect(screen.getByText("No agent activity yet")).toBeTruthy();
+    expect(screen.getByText("今天想让 AI 帮你开发什么？")).toBeTruthy();
+    expect(screen.getByText("新建任务")).toBeTruthy();
+    expect(screen.getAllByText("导入项目").length).toBeGreaterThan(0);
+    expect(screen.getByText("还没有 AI 任务记录")).toBeTruthy();
     expect(
-      screen.getByText("Start a thread to see the latest responses here."),
+      screen.getByText("导入项目并描述需求后，最近处理记录会出现在这里。"),
     ).toBeTruthy();
   });
 
@@ -291,7 +294,7 @@ describe("Home", () => {
     expect(screen.getByText("Unlimited")).toBeTruthy();
     expect(screen.getByText("Pro")).toBeTruthy();
     expect(screen.getByText(/user@example\.com/)).toBeTruthy();
-    expect(screen.queryByText("Workspace CodexMonitor")).toBeNull();
+    expect(screen.queryByText("Workspace 企业 AI 开发工作台")).toBeNull();
 
     const todayCard = screen.getByText("Today").closest(".home-usage-card");
     expect(todayCard).toBeTruthy();

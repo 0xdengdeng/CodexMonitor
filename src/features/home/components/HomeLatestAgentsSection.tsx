@@ -15,7 +15,7 @@ export function HomeLatestAgentsSection({
   return (
     <div className="home-latest">
       <div className="home-latest-header">
-        <div className="home-latest-label">Latest agents</div>
+        <div className="home-latest-label">最近 AI 任务</div>
       </div>
       {latestAgentRuns.length > 0 ? (
         <div className="home-latest-grid">
@@ -38,10 +38,10 @@ export function HomeLatestAgentsSection({
                 </div>
               </div>
               <div className="home-latest-message">
-                {run.message.trim() || "Agent replied."}
+                {run.message.trim() || "AI 已回复。"}
               </div>
               {run.isProcessing && (
-                <div className="home-latest-status">Running</div>
+                <div className="home-latest-status">处理中</div>
               )}
             </button>
           ))}
@@ -61,9 +61,9 @@ export function HomeLatestAgentsSection({
         </div>
       ) : (
         <div className="home-latest-empty">
-          <div className="home-latest-empty-title">No agent activity yet</div>
+          <div className="home-latest-empty-title">还没有 AI 任务记录</div>
           <div className="home-latest-empty-subtitle">
-            Start a thread to see the latest responses here.
+            导入项目并描述需求后，最近处理记录会出现在这里。
           </div>
         </div>
       )}

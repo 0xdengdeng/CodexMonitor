@@ -2,10 +2,12 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use serde::Deserialize;
-use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::menu::MenuItem;
+use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, WebviewUrl, WebviewWindowBuilder};
 use tauri::{Manager, Runtime};
+
+use crate::shared::brand_core::APP_DISPLAY_NAME;
 
 pub struct MenuItemRegistry<R: Runtime> {
     items: Mutex<HashMap<String, MenuItem<R>>>,
@@ -336,7 +338,7 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
                 return;
             }
             let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("index.html".into()))
-                .title("About Codex Monitor")
+                .title(format!("About {APP_DISPLAY_NAME}"))
                 .resizable(false)
                 .inner_size(360.0, 240.0)
                 .center()

@@ -1,19 +1,13 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
-
-const GITHUB_URL = "https://github.com/Dimillian/CodexMonitor";
-const TWITTER_URL = "https://x.com/dimillian";
+import { PRODUCT_NAME } from "@/config/brand";
 
 export function AboutView() {
   const [version, setVersion] = useState<string | null>(null);
 
-  const handleOpenGitHub = () => {
-    void openUrl(GITHUB_URL);
-  };
-
-  const handleOpenTwitter = () => {
-    void openUrl(TWITTER_URL);
+  const handleOpenProject = () => {
+    void openUrl("https://github.com/0xdengdeng/CodexMonitor");
   };
 
   useEffect(() => {
@@ -44,35 +38,27 @@ export function AboutView() {
           <img
             className="about-icon"
             src="/app-icon.png"
-            alt="Codex Monitor icon"
+            alt={`${PRODUCT_NAME} icon`}
           />
-          <div className="about-title">Codex Monitor</div>
+          <div className="about-title">{PRODUCT_NAME}</div>
         </div>
         <div className="about-version">
           {version ? `Version ${version}` : "Version —"}
         </div>
         <div className="about-tagline">
-          Monitor the situation of your Codex agents
+          企业内部的 AI 开发工具入口
         </div>
         <div className="about-divider" />
         <div className="about-links">
           <button
             type="button"
             className="about-link"
-            onClick={handleOpenGitHub}
+            onClick={handleOpenProject}
           >
-            GitHub
-          </button>
-          <span className="about-link-sep">|</span>
-          <button
-            type="button"
-            className="about-link"
-            onClick={handleOpenTwitter}
-          >
-            Twitter
+            Project
           </button>
         </div>
-        <div className="about-footer">Made with ♥ by Codex & Dimillian</div>
+        <div className="about-footer">Powered by Codex</div>
       </div>
     </div>
   );

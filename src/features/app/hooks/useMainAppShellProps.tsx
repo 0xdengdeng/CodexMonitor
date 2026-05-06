@@ -1,6 +1,8 @@
 import { SidebarCollapseButton } from "@/features/layout/components/SidebarToggleControls";
 import type { ComponentProps } from "react";
 import { MainAppShell } from "@app/components/MainAppShell";
+import { LanguageSwitcher } from "@app/components/LanguageSwitcher";
+import type { LanguagePreference } from "@/types";
 
 type UseMainAppShellPropsArgs = {
   shell: Pick<
@@ -19,10 +21,12 @@ type UseMainAppShellPropsArgs = {
   appLayout: Omit<ComponentProps<typeof MainAppShell>["appLayoutProps"], "desktopTopbarLeftNode" | "topbarActionsNode">;
   topbar: {
     isCompact: boolean;
+    language: LanguagePreference;
     desktopTopbarLeftNode: ComponentProps<typeof MainAppShell>["appLayoutProps"]["desktopTopbarLeftNode"];
     hasActiveWorkspace: boolean;
     backendMode: "local" | "remote";
     remoteThreadConnectionState: "live" | "polling" | "disconnected";
+    onChangeLanguage: (language: LanguagePreference) => void | Promise<void>;
   };
 };
 
@@ -34,30 +38,40 @@ export function useMainAppShellProps({
 }: UseMainAppShellPropsArgs) {
   const showThreadConnectionIndicator =
     topbar.hasActiveWorkspace && topbar.backendMode === "remote";
-  const topbarActionsNode = showThreadConnectionIndicator ? (
-    <span
-      className={`compact-workspace-live-indicator ${
-        topbar.remoteThreadConnectionState === "live"
-          ? "is-live"
+  const connectionIndicatorNode = showThreadConnectionIndicator ? (
+      <span
+        className={`compact-workspace-live-indicator ${
+          topbar.remoteThreadConnectionState === "live"
+            ? "is-live"
+            : topbar.remoteThreadConnectionState === "polling"
+              ? "is-polling"
+              : "is-disconnected"
+        }`}
+        title={
+          topbar.remoteThreadConnectionState === "live"
+            ? "Receiving live thread events"
+            : topbar.remoteThreadConnectionState === "polling"
+              ? "Connected, syncing thread state by polling"
+              : "Disconnected from backend"
+        }
+      >
+        {topbar.remoteThreadConnectionState === "live"
+          ? "Live"
           : topbar.remoteThreadConnectionState === "polling"
-            ? "is-polling"
-            : "is-disconnected"
-      }`}
-      title={
-        topbar.remoteThreadConnectionState === "live"
-          ? "Receiving live thread events"
-          : topbar.remoteThreadConnectionState === "polling"
-            ? "Connected, syncing thread state by polling"
-            : "Disconnected from backend"
-      }
-    >
-      {topbar.remoteThreadConnectionState === "live"
-        ? "Live"
-        : topbar.remoteThreadConnectionState === "polling"
-          ? "Polling"
-          : "Disconnected"}
-    </span>
-  ) : null;
+            ? "Polling"
+            : "Disconnected"}
+      </span>
+    ) : null;
+
+  const topbarActionsNode = (
+    <>
+      {connectionIndicatorNode}
+      <LanguageSwitcher
+        language={topbar.language}
+        onChangeLanguage={topbar.onChangeLanguage}
+      />
+    </>
+  );
 
   const desktopTopbarLeftNodeWithToggle = !topbar.isCompact ? (
     <div className="topbar-leading">

@@ -108,12 +108,13 @@ const baseSettings: AppSettings = {
   lastComposerModelId: null,
   lastComposerReasoningEffort: null,
   uiScale: 1,
-  theme: "system",
+  theme: "light",
+  language: "zh-CN",
   usageShowRemaining: false,
   showMessageFilePath: true,
   chatHistoryScrollbackItems: 200,
   threadTitleAutogenerationEnabled: false,
-  automaticAppUpdateChecksEnabled: true,
+  automaticAppUpdateChecksEnabled: false,
   uiFontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   codeFontFamily:

@@ -62,6 +62,32 @@
   flex-shrink: 0;
 }
 
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 58px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-stronger);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  -webkit-app-region: no-drag;
+}
+
+.language-switcher:hover,
+.language-switcher:focus-visible {
+  background: var(--surface-control-hover);
+  border-color: var(--border-accent);
+  color: var(--text-strong);
+  transform: none;
+}
+
 .diff-view-toggle {
   display: inline-flex;
   align-items: center;
@@ -858,6 +884,7 @@
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 12px;
   flex-shrink: 0;
   -webkit-app-region: no-drag;

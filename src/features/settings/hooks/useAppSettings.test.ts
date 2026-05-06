@@ -34,6 +34,7 @@ describe("useAppSettings", () => {
       ({
         uiScale: UI_SCALE_MAX + 1,
         theme: "nope" as unknown as AppSettings["theme"],
+        language: "fr-FR" as unknown as AppSettings["language"],
         backendMode: "remote",
         remoteBackendHost: "example:1234",
         personality: "unknown",
@@ -48,7 +49,8 @@ describe("useAppSettings", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_MAX);
-    expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.theme).toBe("light");
+    expect(result.current.settings.language).toBe("zh-CN");
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
@@ -65,7 +67,8 @@ describe("useAppSettings", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_DEFAULT);
-    expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.theme).toBe("light");
+    expect(result.current.settings.language).toBe("zh-CN");
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.backendMode).toBe("local");
@@ -108,7 +111,8 @@ describe("useAppSettings", () => {
 
     expect(updateAppSettingsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        theme: "system",
+        theme: "light",
+        language: "zh-CN",
         uiScale: 0.1,
         uiFontFamily: expect.stringContaining("system-ui"),
         codeFontFamily: expect.stringContaining("ui-monospace"),

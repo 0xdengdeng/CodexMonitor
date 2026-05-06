@@ -13,6 +13,9 @@ use tauri::tray::TrayIconBuilder;
 #[cfg(target_os = "macos")]
 use tauri::{Emitter, Manager, Runtime};
 
+#[cfg(target_os = "macos")]
+use crate::shared::brand_core::APP_DISPLAY_NAME;
+
 const RECENT_THREADS_SECTION_LIMIT: usize = 3;
 #[cfg(target_os = "macos")]
 const TRAY_ID: &str = "codex-monitor-tray";
@@ -119,7 +122,7 @@ pub(crate) fn initialize<R: Runtime>(
     let menu = build_tray_menu(app, state)?;
     let builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&menu)
-        .tooltip("Codex Monitor")
+        .tooltip(APP_DISPLAY_NAME)
         .show_menu_on_left_click(true)
         .icon(load_tray_icon()?)
         .icon_as_template(true)

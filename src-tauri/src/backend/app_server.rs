@@ -14,6 +14,7 @@ use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::parse_codex_args;
+use crate::shared::brand_core::{resolve_default_codex_bin, APP_CLIENT_NAME, APP_DISPLAY_NAME};
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::types::WorkspaceEntry;
 
@@ -79,14 +80,12 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         push_thread_id(out, record.get("id"));
         push_thread_id(
             out,
-            record
-                .get("thread")
-                .and_then(|thread| {
-                    thread
-                        .get("id")
-                        .or_else(|| thread.get("threadId"))
-                        .or_else(|| thread.get("thread_id"))
-                }),
+            record.get("thread").and_then(|thread| {
+                thread
+                    .get("id")
+                    .or_else(|| thread.get("threadId"))
+                    .or_else(|| thread.get("thread_id"))
+            }),
         );
     }
 
@@ -94,12 +93,15 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         let Some(container) = container.and_then(|value| value.as_object()) else {
             return;
         };
-        push_thread_id(out, container.get("threadId").or_else(|| container.get("thread_id")));
         push_thread_id(
             out,
             container
-                .get("thread")
-                .and_then(|thread| thread.get("id")),
+                .get("threadId")
+                .or_else(|| container.get("thread_id")),
+        );
+        push_thread_id(
+            out,
+            container.get("thread").and_then(|thread| thread.get("id")),
         );
         push_thread_id(
             out,
@@ -149,7 +151,10 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
                 .or_else(|| container.get("agent_statuses")),
             out,
         );
-        if let Some(status_map) = container.get("statuses").and_then(|value| value.as_object()) {
+        if let Some(status_map) = container
+            .get("statuses")
+            .and_then(|value| value.as_object())
+        {
             out.extend(
                 status_map
                     .keys()
@@ -192,10 +197,8 @@ fn normalize_root_path(value: &str) -> String {
     }
 
     let bytes = normalized.as_bytes();
-    let is_drive_path = bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/';
+    let is_drive_path =
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
     if is_drive_path || normalized.starts_with("//") {
         normalized.to_ascii_lowercase()
     } else {
@@ -419,8 +422,8 @@ pub(crate) struct RequestContext {
 fn build_initialize_params(client_version: &str) -> Value {
     json!({
         "clientInfo": {
-            "name": "codex_monitor",
-            "title": "Codex Monitor",
+            "name": APP_CLIENT_NAME,
+            "title": APP_DISPLAY_NAME,
             "version": client_version
         },
         "capabilities": {
@@ -648,10 +651,8 @@ pub(crate) fn build_codex_command_with_bin(
     codex_args: Option<&str>,
     args: Vec<String>,
 ) -> Result<Command, String> {
-    let bin = codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "codex".into());
+    let codex_bin = resolve_default_codex_bin(codex_bin);
+    let bin = codex_bin.clone().unwrap_or_else(|| "codex".into());
 
     let path_env = build_codex_path_env(codex_bin.as_deref());
     let mut command_args = parse_codex_args(codex_args)?;
@@ -754,7 +755,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let codex_bin = default_codex_bin;
+    let codex_bin = resolve_default_codex_bin(default_codex_bin);
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
     let mut command = build_codex_command_with_bin(
@@ -903,12 +904,20 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         .and_then(Value::as_str)
                         .unwrap_or("hide");
                     if action.eq_ignore_ascii_case("hide") {
-                        session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                        session_clone
+                            .hidden_thread_ids
+                            .lock()
+                            .await
+                            .insert(tid.clone());
                     }
                 } else if method_name == Some("thread/started")
                     && thread_started_is_memory_consolidation(&value)
                 {
-                    session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                    session_clone
+                        .hidden_thread_ids
+                        .lock()
+                        .await
+                        .insert(tid.clone());
                     let payload = AppServerEvent {
                         workspace_id: routed_workspace_id.clone(),
                         message: json!({
@@ -1105,13 +1114,14 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_initialize_params, extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
-        extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
-        should_suppress_hidden_thread_event, source_subagent_kind,
+        build_initialize_params, extract_related_thread_ids,
+        extract_thread_entries_from_thread_list_result, extract_thread_id, normalize_root_path,
+        resolve_workspace_for_cwd, should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation,
     };
-    use std::collections::HashMap;
+    use crate::shared::brand_core::resolve_default_codex_bin;
     use serde_json::json;
+    use std::collections::HashMap;
 
     #[test]
     fn extract_thread_id_reads_camel_case() {
@@ -1148,10 +1158,34 @@ mod tests {
         let params = build_initialize_params("1.2.3");
         assert_eq!(
             params
+                .get("clientInfo")
+                .and_then(|client_info| client_info.get("name"))
+                .and_then(|value| value.as_str()),
+            Some("enterprise_ai_dev_workbench")
+        );
+        assert_eq!(
+            params
+                .get("clientInfo")
+                .and_then(|client_info| client_info.get("title"))
+                .and_then(|value| value.as_str()),
+            Some("企业 AI 开发工作台")
+        );
+        assert_eq!(
+            params
                 .get("capabilities")
                 .and_then(|caps| caps.get("experimentalApi"))
                 .and_then(|value| value.as_bool()),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn resolves_empty_codex_bin_to_enterprise_dev_binary_when_present() {
+        let resolved = resolve_default_codex_bin(None);
+
+        assert_eq!(
+            resolved.as_deref(),
+            Some("/Users/xiaodeng/project/openai-codex/codex-rs/target/debug/codex")
         );
     }
 
@@ -1365,8 +1399,14 @@ mod tests {
 
     #[test]
     fn hidden_thread_suppression_allows_rpc_responses() {
-        assert!(!should_suppress_hidden_thread_event(Some("thread/archived"), true));
-        assert!(!should_suppress_hidden_thread_event(Some("thread/updated"), true));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/archived"),
+            true
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/updated"),
+            true
+        ));
         assert!(!should_suppress_hidden_thread_event(None, true));
     }
 

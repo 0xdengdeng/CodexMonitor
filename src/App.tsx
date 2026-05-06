@@ -1,5 +1,7 @@
 import { lazy, Suspense } from "react";
 import "./styles/base.css";
+import "./styles/enterprise-theme.css";
+import "./styles/auth.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";
 import "./styles/ds-toast.css";
