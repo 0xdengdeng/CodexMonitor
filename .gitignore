@@ -31,6 +31,7 @@ CodexMonitor.zip
 .codexmonitor/
 .agent/
 .agents/
+.superpowers/
 .claude/
 .cursor/
 public/assets/material-icons/
