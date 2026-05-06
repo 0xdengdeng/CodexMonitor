@@ -34,6 +34,7 @@ describe("useAppSettings", () => {
       ({
         uiScale: UI_SCALE_MAX + 1,
         theme: "nope" as unknown as AppSettings["theme"],
+        interfaceLanguage: "fr-FR",
         backendMode: "remote",
         remoteBackendHost: "example:1234",
         personality: "unknown",
@@ -49,6 +50,7 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_MAX);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.interfaceLanguage).toBe("system");
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
@@ -66,6 +68,7 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_DEFAULT);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.interfaceLanguage).toBe("system");
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.backendMode).toBe("local");

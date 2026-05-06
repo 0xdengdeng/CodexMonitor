@@ -835,6 +835,47 @@ describe("Sidebar", () => {
     expect(workspaceNames[1]).toBe("Beta Project");
   });
 
+  it("renders project rows with a dedicated secondary summary line", () => {
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "CodexMonitor",
+            path: "/tmp/codex-monitor",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "CodexMonitor",
+                path: "/tmp/codex-monitor",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [{ id: "thread-1", name: "Main thread", updatedAt: 100 }],
+        }}
+      />,
+    );
+
+    const row = container.querySelector(".workspace-row");
+    const summary = row?.querySelector(".workspace-meta-summary");
+
+    expect(summary?.textContent).toContain("1 conversation");
+    expect(summary?.textContent).toContain("Updated");
+  });
+
   it("does not show a workspace activity indicator when a thread is processing", () => {
     render(
       <Sidebar

@@ -39,6 +39,7 @@ export function WorkspaceCard({
   children,
 }: WorkspaceCardProps) {
   const contentCollapsedClass = isCollapsed ? " collapsed" : "";
+  const summaryId = summary ? `${workspace.id}-workspace-summary` : undefined;
 
   return (
     <div className="workspace-card">
@@ -54,6 +55,7 @@ export function WorkspaceCard({
             onSelectWorkspace(workspace.id);
           }
         }}
+        aria-describedby={summaryId}
       >
         <div className="workspace-copy">
           <div className="workspace-name-row">
@@ -68,12 +70,19 @@ export function WorkspaceCard({
                 data-tauri-drag-region="false"
                 aria-label={isCollapsed ? "Show agents" : "Hide agents"}
                 aria-expanded={!isCollapsed}
+                type="button"
               >
                 <span className="workspace-toggle-icon">›</span>
               </button>
             </div>
           </div>
-          {summary && <div className="workspace-summary">{summary}</div>}
+          {summary && (
+            <div className="workspace-meta">
+              <div className="workspace-summary workspace-meta-summary" id={summaryId}>
+                {summary}
+              </div>
+            </div>
+          )}
         </div>
         <div className="workspace-actions">
           <button
@@ -100,6 +109,7 @@ export function WorkspaceCard({
             data-tauri-drag-region="false"
             aria-label="Add agent options"
             aria-expanded={addMenuOpen}
+            type="button"
           >
             +
           </button>

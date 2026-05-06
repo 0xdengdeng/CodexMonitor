@@ -11,6 +11,7 @@ import type {
   UsageMetric,
   UsageWorkspaceOption,
 } from "../homeTypes";
+import { useI18n } from "@/features/i18n/i18n";
 
 type HomeProps = {
   onAddWorkspace: () => void;
@@ -51,12 +52,14 @@ export function Home({
   accountInfo,
   onSelectThread,
 }: HomeProps) {
+  const { t } = useI18n();
+
   return (
     <div className="home">
       <div className="home-hero">
-        <div className="home-title">Codex Monitor</div>
+        <div className="home-title">{t("home.title")}</div>
         <div className="home-subtitle">
-          Orchestrate agents across your local projects.
+          {t("home.subtitle")}
         </div>
       </div>
       <HomeLatestAgentsSection

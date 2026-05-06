@@ -21,6 +21,10 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import {
+  SUPPORTED_INTERFACE_LANGUAGES,
+  useI18n,
+} from "@/features/i18n/i18n";
 
 type SettingsDisplaySectionProps = {
   appSettings: AppSettings;
@@ -69,6 +73,7 @@ export function SettingsDisplaySection({
   onTestNotificationSound,
   onTestSystemNotification,
 }: SettingsDisplaySectionProps) {
+  const { t } = useI18n();
   const scrollbackUnlimited = appSettings.chatHistoryScrollbackItems === null;
   const [scrollbackDraft, setScrollbackDraft] = useState(() => {
     const value = appSettings.chatHistoryScrollbackItems;
@@ -186,6 +191,33 @@ export function SettingsDisplaySection({
           <option value="light">Light</option>
           <option value="dark">Dark</option>
           <option value="dim">Dim</option>
+        </select>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="interface-language-select">
+          {t("settings.display.interfaceLanguage.label")}
+        </label>
+        <select
+          id="interface-language-select"
+          className="settings-select"
+          value={appSettings.interfaceLanguage}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              interfaceLanguage:
+                event.target.value as AppSettings["interfaceLanguage"],
+            })
+          }
+        >
+          {SUPPORTED_INTERFACE_LANGUAGES.map((language) => (
+            <option key={language} value={language}>
+              {language === "system"
+                ? t("settings.display.interfaceLanguage.system")
+                : language === "zh-CN"
+                  ? t("settings.display.interfaceLanguage.chinese")
+                  : t("settings.display.interfaceLanguage.english")}
+            </option>
+          ))}
         </select>
       </div>
       <SettingsToggleRow

@@ -17,6 +17,7 @@ import { SettingsNav } from "./SettingsNav";
 import type { CodexSection } from "./settingsTypes";
 import { SETTINGS_SECTION_LABELS } from "./settingsViewConstants";
 import { SettingsSectionContainers } from "./sections/SettingsSectionContainers";
+import { useI18n } from "@/features/i18n/i18n";
 
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
@@ -99,6 +100,7 @@ export function SettingsView({
   onRemoveDictationModel,
   initialSection,
 }: SettingsViewProps) {
+  const { t } = useI18n();
   const {
     activeSection,
     showMobileDetail,
@@ -154,13 +156,13 @@ export function SettingsView({
     >
       <div className="settings-titlebar">
         <div className="settings-title" id="settings-modal-title">
-          Settings
+          {t("settings.title")}
         </div>
         <button
           type="button"
           className="ghost icon-button settings-close"
           onClick={onClose}
-          aria-label="Close settings"
+          aria-label={t("settings.close")}
         >
           <X aria-hidden />
         </button>
@@ -186,7 +188,7 @@ export function SettingsView({
                   aria-label="Back to settings sections"
                 >
                   <ChevronLeft aria-hidden />
-                  Sections
+                  {t("settings.mobile.sections")}
                 </button>
                 <div className="settings-mobile-detail-title">{activeSectionLabel}</div>
               </div>

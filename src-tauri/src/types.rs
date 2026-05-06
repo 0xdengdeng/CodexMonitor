@@ -490,6 +490,11 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_theme", rename = "theme")]
     pub(crate) theme: String,
     #[serde(
+        default = "default_interface_language",
+        rename = "interfaceLanguage"
+    )]
+    pub(crate) interface_language: String,
+    #[serde(
         default = "default_usage_show_remaining",
         rename = "usageShowRemaining"
     )]
@@ -704,6 +709,10 @@ fn default_ui_scale() -> f64 {
 }
 
 fn default_theme() -> String {
+    "system".to_string()
+}
+
+fn default_interface_language() -> String {
     "system".to_string()
 }
 
@@ -1155,6 +1164,7 @@ impl Default for AppSettings {
             last_composer_reasoning_effort: None,
             ui_scale: 1.0,
             theme: default_theme(),
+            interface_language: default_interface_language(),
             usage_show_remaining: default_usage_show_remaining(),
             show_message_file_path: default_show_message_file_path(),
             chat_history_scrollback_items: default_chat_history_scrollback_items(),
@@ -1321,6 +1331,7 @@ mod tests {
         assert!(settings.last_composer_reasoning_effort.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
+        assert_eq!(settings.interface_language, "system");
         assert!(!settings.usage_show_remaining);
         assert!(settings.show_message_file_path);
         assert_eq!(settings.chat_history_scrollback_items, Some(200));
