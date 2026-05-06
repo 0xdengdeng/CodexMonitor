@@ -45,3 +45,26 @@ fn macos_private_api_feature_matches_config() {
         );
     }
 }
+
+#[test]
+fn bundled_codex_resource_is_packaged() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let config_path = manifest_dir.join("tauri.conf.json");
+    let config_contents = fs::read_to_string(&config_path)
+        .unwrap_or_else(|error| panic!("Failed to read {config_path:?}: {error}"));
+    let config: Value = serde_json::from_str(&config_contents)
+        .unwrap_or_else(|error| panic!("Failed to parse tauri.conf.json: {error}"));
+    let resources = config
+        .get("bundle")
+        .and_then(|bundle| bundle.get("resources"))
+        .and_then(|value| value.as_array())
+        .unwrap_or_else(|| panic!("tauri.conf.json bundle.resources must be an array"));
+
+    assert!(
+        resources.iter().any(|entry| entry
+            .as_str()
+            .map(|value| value == "resources/codex-bundled/*")
+            .unwrap_or(false)),
+        "tauri.conf.json bundle.resources must include resources/codex-bundled/*"
+    );
+}
