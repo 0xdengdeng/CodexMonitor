@@ -726,7 +726,7 @@ fn default_chat_history_scrollback_items() -> Option<u32> {
 }
 
 fn default_automatic_app_update_checks_enabled() -> bool {
-    true
+    false
 }
 
 fn default_ui_font_family() -> String {

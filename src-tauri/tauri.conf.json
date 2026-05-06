@@ -43,6 +43,9 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": false,
+    "resources": [
+      "resources/codex-bundled/*"
+    ],
     "iOS": {
       "frameworks": [
         "libz.tbd",
