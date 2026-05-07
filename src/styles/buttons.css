@@ -5,12 +5,15 @@
 
 button {
   border: none;
-  border-radius: 10px;
+  border-radius: var(--cm-control-radius, 10px);
   padding: 8px 14px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, filter 0.15s ease;
+  letter-spacing: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    filter 0.15s ease;
   -webkit-app-region: no-drag;
 }
 
@@ -20,20 +23,24 @@ button:disabled {
 }
 
 .primary {
-  background: linear-gradient(135deg, #62b7ff, #4fe3a3);
-  color: #0b0f1a;
-  box-shadow: 0 12px 22px var(--shadow-accent);
+  border: 1px solid var(--button-primary-border, transparent);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  box-shadow: var(--button-primary-shadow, 0 12px 22px var(--shadow-accent));
 }
 
 .secondary {
-  background: var(--surface-card-strong);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
+  background: var(--button-secondary-bg, var(--surface-card-strong));
   color: inherit;
+  box-shadow: var(--control-shadow, none);
 }
 
 .ghost {
-  background: transparent;
+  background: color-mix(in srgb, var(--surface-control) 34%, transparent);
   color: var(--text-muted);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--button-secondary-border, var(--border-strong));
+  box-shadow: var(--control-shadow, none);
 }
 
 .icon-button {
@@ -50,7 +57,26 @@ button:disabled {
 
 button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 12px 18px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 20px rgba(5, 12, 24, 0.18);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--button-primary-bg-hover, var(--button-primary-bg));
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--button-secondary-bg-hover, var(--surface-control-hover));
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--button-ghost-bg-hover, var(--surface-hover));
+  border-color: var(--border-stronger);
+  color: var(--text-strong);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
 }
 
 button:active:not(:disabled) {
@@ -68,5 +94,5 @@ button:active:not(:disabled) {
 }
 
 .ghost:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--button-ghost-bg-hover, var(--surface-hover));
 }

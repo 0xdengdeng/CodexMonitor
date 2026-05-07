@@ -1,29 +1,29 @@
 @import "./themes.css";
 
 .app.reduced-transparency {
-  --surface-sidebar: rgba(18, 18, 18, 0.92);
-  --surface-sidebar-opaque: rgb(18, 18, 18);
-  --surface-topbar: rgba(10, 14, 20, 0.94);
-  --surface-right-panel: rgba(9, 12, 20, 0.92);
-  --surface-composer: rgba(10, 14, 20, 0.94);
-  --surface-messages: rgba(8, 10, 16, 0.94);
-  --surface-card: rgba(30, 32, 40, 0.94);
-  --surface-card-strong: rgba(38, 40, 48, 0.96);
-  --surface-card-muted: rgba(24, 26, 34, 0.9);
-  --surface-item: rgba(28, 30, 38, 0.88);
-  --surface-control: rgba(40, 44, 55, 0.7);
-  --surface-control-hover: rgba(54, 60, 72, 0.8);
-  --surface-control-disabled: rgba(40, 44, 55, 0.5);
-  --surface-hover: rgba(46, 50, 62, 0.7);
-  --surface-active: rgba(100, 200, 255, 0.18);
-  --surface-approval: rgba(12, 16, 26, 0.92);
-  --surface-debug: rgba(12, 16, 26, 0.92);
-  --surface-command: rgba(12, 14, 20, 0.95);
-  --surface-diff-card: rgba(14, 18, 28, 0.9);
-  --surface-bubble: rgba(42, 46, 58, 0.9);
-  --surface-bubble-user: rgba(77, 153, 255, 0.55);
-  --surface-context-core: rgba(16, 20, 30, 0.96);
-  --surface-popover: rgba(16, 20, 30, 0.995);
+  --surface-sidebar: rgba(13, 20, 32, 0.96);
+  --surface-sidebar-opaque: rgb(13, 20, 32);
+  --surface-topbar: rgba(11, 17, 28, 0.96);
+  --surface-right-panel: rgba(12, 19, 31, 0.94);
+  --surface-composer: rgba(11, 17, 28, 0.96);
+  --surface-messages: rgba(9, 14, 24, 0.94);
+  --surface-card: rgba(30, 42, 61, 0.9);
+  --surface-card-strong: rgba(37, 51, 72, 0.96);
+  --surface-card-muted: rgba(25, 36, 54, 0.9);
+  --surface-item: rgba(23, 34, 52, 0.88);
+  --surface-control: rgba(35, 49, 70, 0.82);
+  --surface-control-hover: rgba(48, 68, 97, 0.9);
+  --surface-control-disabled: rgba(25, 36, 54, 0.62);
+  --surface-hover: rgba(44, 62, 90, 0.76);
+  --surface-active: rgba(110, 168, 255, 0.22);
+  --surface-approval: rgba(13, 21, 34, 0.94);
+  --surface-debug: rgba(12, 19, 31, 0.94);
+  --surface-command: rgba(12, 18, 29, 0.97);
+  --surface-diff-card: rgba(16, 24, 39, 0.92);
+  --surface-bubble: rgba(35, 48, 69, 0.92);
+  --surface-bubble-user: rgba(54, 106, 191, 0.58);
+  --surface-context-core: rgba(11, 17, 28, 0.97);
+  --surface-popover: rgba(15, 23, 36, 0.995);
 }
 
 * {
@@ -80,6 +80,8 @@ body {
   --cm-border-contrast: color-mix(in srgb, var(--border-subtle) 100%, transparent);
   --cm-border-accent: color-mix(in srgb, var(--border-accent) 36%, transparent);
   --cm-border-accent-strong: color-mix(in srgb, var(--border-accent) 46%, transparent);
+  --cm-control-radius: var(--control-radius, 10px);
+  --cm-control-focus-ring: 0 0 0 3px var(--control-focus-ring, rgba(110, 168, 255, 0.2));
   transition: grid-template-columns 220ms ease;
   font-family: var(--ui-font-family);
 }

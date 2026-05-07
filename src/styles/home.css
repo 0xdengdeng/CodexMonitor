@@ -112,11 +112,23 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
-  border-radius: 999px;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  border-radius: var(--cm-control-radius, 10px);
+  background: var(--surface-control);
+  border: 1px solid var(--button-secondary-border, var(--border-subtle));
+  box-shadow: var(--control-shadow, none);
   min-width: 0;
   max-width: 100%;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.home-usage-select-wrap:hover,
+.home-usage-select-wrap:focus-within {
+  background: var(--surface-control-hover);
+  border-color: var(--border-strong);
+}
+
+.home-usage-select-wrap:focus-within {
+  box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
 }
 
 .home-usage-select {

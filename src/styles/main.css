@@ -200,25 +200,27 @@
 
 .launch-script-textarea {
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--border-muted);
+  border-radius: var(--cm-control-radius, 10px);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
   background: var(--surface-control);
   color: var(--text-strong);
   padding: 8px;
   font-size: 12px;
   resize: vertical;
   min-height: 96px;
+  box-shadow: var(--control-shadow, none);
 }
 
 .launch-script-input {
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--border-muted);
+  border-radius: var(--cm-control-radius, 10px);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
   background: var(--surface-control);
   color: var(--text-strong);
   padding: 6px 8px;
   font-size: 12px;
   margin-bottom: 8px;
+  box-shadow: var(--control-shadow, none);
 }
 
 .launch-script-help {
@@ -629,25 +631,27 @@
 }
 
 .worktree-info-input {
-  border: 1px solid var(--border-muted);
-  background: rgba(12, 16, 26, 0.94);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
+  background: var(--surface-control);
   color: var(--text-stronger);
-  border-radius: 8px;
+  border-radius: var(--cm-control-radius, 10px);
   padding: 6px 8px;
   font-size: 12px;
   flex: 1;
+  box-shadow: var(--control-shadow, none);
 }
 
 .worktree-info-input:focus {
   outline: none;
-  border-color: var(--border-strong);
+  border-color: var(--border-accent);
+  box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
 }
 
 .worktree-info-confirm {
-  border: 1px solid var(--border-muted);
-  background: rgba(12, 16, 26, 0.94);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
+  background: var(--button-secondary-bg, var(--surface-control));
   color: var(--text-stronger);
-  border-radius: 8px;
+  border-radius: var(--cm-control-radius, 10px);
   width: 28px;
   height: 28px;
   padding: 0;
@@ -673,7 +677,7 @@
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--cm-control-radius, 10px);
 }
 
 .workspace-branch-menu {
@@ -780,22 +784,25 @@
 }
 
 .branch-input {
-  border: 1px solid var(--border-muted);
-  border-radius: 8px;
-  background: var(--surface-card);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
+  border-radius: var(--cm-control-radius, 10px);
+  background: var(--surface-control);
   color: var(--text-stronger);
   padding: 6px 8px;
   font-size: 12px;
+  box-shadow: var(--control-shadow, none);
 }
 
 .branch-input:focus {
-  outline: 1px solid var(--border-strong);
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
 }
 
 .branch-create-button {
-  border: none;
-  border-radius: 8px;
-  background: var(--surface-card-strong);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
+  border-radius: var(--cm-control-radius, 10px);
+  background: var(--button-secondary-bg, var(--surface-card-strong));
   color: var(--text-stronger);
   padding: 6px 8px;
   font-size: 12px;
@@ -803,7 +810,7 @@
 }
 
 .branch-create-button:hover {
-  background: var(--surface-control-hover);
+  background: var(--button-secondary-bg-hover, var(--surface-control-hover));
 }
 
 .branch-create-button:disabled {
