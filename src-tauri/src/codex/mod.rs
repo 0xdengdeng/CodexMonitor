@@ -7,9 +7,12 @@ use tauri::{AppHandle, Emitter, State};
 pub(crate) mod args;
 pub(crate) mod config;
 pub(crate) mod home;
+pub(crate) mod runtime;
 
-use crate::backend::app_server::spawn_workspace_session as spawn_workspace_session_inner;
 pub(crate) use crate::backend::app_server::WorkspaceSession;
+use crate::backend::app_server::{
+    check_codex_installation, spawn_workspace_session as spawn_workspace_session_inner,
+};
 use crate::backend::events::AppServerEvent;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
@@ -17,6 +20,22 @@ use crate::shared::agents_config_core;
 use crate::shared::codex_core::{self, insert_optional_nullable_string};
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
+
+async fn resolve_command_codex_runtime(
+    state: &AppState,
+    app: &AppHandle,
+    requested_codex_bin: Option<String>,
+) -> Result<runtime::ResolvedCodexRuntime, String> {
+    let configured_codex_bin = if requested_codex_bin
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty())
+    {
+        requested_codex_bin
+    } else {
+        state.app_settings.lock().await.codex_bin.clone()
+    };
+    runtime::resolve_codex_runtime(app, configured_codex_bin)
+}
 
 fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, params: Value) {
     let _ = app.emit(
@@ -39,10 +58,11 @@ pub(crate) async fn spawn_workspace_session(
     codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
+    let codex_bin = runtime::resolve_effective_codex_bin(&app_handle, default_codex_bin)?;
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
-        default_codex_bin,
+        Some(codex_bin),
         codex_args,
         codex_home,
         client_version,
@@ -56,9 +76,15 @@ pub(crate) async fn codex_doctor(
     codex_bin: Option<String>,
     codex_args: Option<String>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
-    crate::shared::codex_aux_core::codex_doctor_core(&state.app_settings, codex_bin, codex_args)
-        .await
+    let codex_runtime = resolve_command_codex_runtime(&state, &app, codex_bin).await?;
+    crate::shared::codex_aux_core::codex_doctor_core(
+        &state.app_settings,
+        Some(codex_runtime.bin),
+        codex_args,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -66,9 +92,31 @@ pub(crate) async fn codex_update(
     codex_bin: Option<String>,
     codex_args: Option<String>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
-    crate::shared::codex_update_core::codex_update_core(&state.app_settings, codex_bin, codex_args)
-        .await
+    let codex_runtime = resolve_command_codex_runtime(&state, &app, codex_bin).await?;
+    if codex_runtime.source == runtime::CodexRuntimeSource::Bundled {
+        let version = check_codex_installation(Some(codex_runtime.bin))
+            .await
+            .ok()
+            .flatten();
+        return Ok(json!({
+            "ok": true,
+            "method": "bundled",
+            "package": null,
+            "beforeVersion": version,
+            "afterVersion": version,
+            "upgraded": false,
+            "output": "Bundled Codex runtime is managed by CodexMonitor app updates.",
+            "details": "Bundled Codex runtime is managed by CodexMonitor app updates."
+        }));
+    }
+    crate::shared::codex_update_core::codex_update_core(
+        &state.app_settings,
+        Some(codex_runtime.bin),
+        codex_args,
+    )
+    .await
 }
 
 #[tauri::command]

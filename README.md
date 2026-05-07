@@ -52,7 +52,7 @@ CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local
 - Rust toolchain (stable)
 - CMake (required for native dependencies; dictation/Whisper uses it)
 - LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
-- Codex CLI installed and available as `codex` in `PATH` (or configure a custom Codex binary in app/workspace settings)
+- A local Codex source checkout at `../Codex` (or set `CODEX_MONITOR_CODEX_REPO` to your Codex fork)
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for GitHub Issues/PR integrations (optional)
 
@@ -75,6 +75,11 @@ Run in dev mode:
 ```bash
 npm run tauri:dev
 ```
+
+`npm run tauri:dev` builds the Codex CLI from `../Codex/codex-rs`, copies it into
+`src-tauri/binaries/` as the bundled `codex-runtime` sidecar, and then launches
+Tauri. Use `CODEX_MONITOR_CODEX_REPO=/path/to/Codex` for a different fork, or
+`CODEX_MONITOR_CODEX_BIN=/path/to/codex` to copy a prebuilt runtime.
 
 ## iOS Support (WIP)
 
@@ -296,7 +301,7 @@ src-tauri/
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
 - CLI sessions appear if their `cwd` matches the workspace path; they are not live-streamed unless resumed.
-- The app uses `codex app-server` over stdio; see `src-tauri/src/lib.rs` and `src-tauri/src/codex/`.
+- The app uses the bundled `codex-runtime app-server` sidecar over stdio by default; custom Codex binary settings still override the bundled runtime for development.
 - The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/codex_monitor_daemon/rpc/`.
 - Shared domain logic lives in `src-tauri/src/shared/` (notably `src-tauri/src/shared/git_ui_core/` and `src-tauri/src/shared/workspaces_core/`).
 - Codex home resolves from workspace settings (if set), then legacy `.codexmonitor/`, then `$CODEX_HOME`/`~/.codex`.

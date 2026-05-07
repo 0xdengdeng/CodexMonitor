@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "sync:material-icons": "node scripts/sync-material-icons.mjs",
+    "sync:codex-runtime": "node scripts/sync-codex-runtime.mjs",
+    "sync:codex-runtime:release": "node scripts/sync-codex-runtime.mjs --release",
     "postinstall": "npm run sync:material-icons",
     "predev": "npm run sync:material-icons",
     "dev": "vite",
@@ -26,13 +28,13 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",
-    "pretauri:dev": "npm run sync:material-icons",
+    "pretauri:dev": "npm run sync:material-icons && npm run sync:codex-runtime",
     "tauri:dev": "npm run doctor:strict && tauri dev",
-    "pretauri:build": "npm run sync:material-icons",
+    "pretauri:build": "npm run sync:material-icons && npm run sync:codex-runtime:release",
     "tauri:build": "npm run doctor:strict && tauri build",
-    "pretauri:dev:win": "npm run sync:material-icons",
+    "pretauri:dev:win": "npm run sync:material-icons && npm run sync:codex-runtime",
     "tauri:dev:win": "npm run doctor:win && tauri dev --config src-tauri/tauri.windows.conf.json",
-    "pretauri:build:win": "npm run sync:material-icons",
+    "pretauri:build:win": "npm run sync:material-icons && npm run sync:codex-runtime:release",
     "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json"
   },
   "dependencies": {
