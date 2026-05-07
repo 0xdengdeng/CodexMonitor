@@ -1,12 +1,15 @@
 import { readGlobalAgentsMd, writeGlobalAgentsMd } from "@services/tauri";
 import { useFileEditor } from "@/features/shared/hooks/useFileEditor";
+import { useI18n } from "@/features/i18n/i18n";
 
 export function useGlobalAgentsMd() {
+  const { t } = useI18n();
+
   return useFileEditor({
     key: "global-agents",
     read: readGlobalAgentsMd,
     write: writeGlobalAgentsMd,
-    readErrorTitle: "Couldn’t load global AGENTS.md",
-    writeErrorTitle: "Couldn’t save global AGENTS.md",
+    readErrorTitle: t("settings.editor.loadGlobalAgentsFailed"),
+    writeErrorTitle: t("settings.editor.saveGlobalAgentsFailed"),
   });
 }

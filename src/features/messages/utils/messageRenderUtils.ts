@@ -8,6 +8,30 @@ export type ToolSummary = {
   output?: string;
 };
 
+export type ToolSummaryCopy = {
+  command: string;
+  commandFallback: string;
+  hook: string;
+  image: string;
+  read: string;
+  searched: string;
+  searching: string;
+  theWeb: string;
+  tool: string;
+};
+
+const defaultToolSummaryCopy: ToolSummaryCopy = {
+  command: "command",
+  commandFallback: "Command",
+  hook: "hook",
+  image: "image",
+  read: "read",
+  searched: "searched",
+  searching: "searching",
+  theWeb: "the web",
+  tool: "tool",
+};
+
 export type StatusTone = "completed" | "processing" | "failed" | "unknown";
 
 export type ParsedReasoning = {
@@ -339,12 +363,13 @@ export function cleanCommandText(commandText: string) {
 export function buildToolSummary(
   item: Extract<ConversationItem, { kind: "tool" }>,
   commandText: string,
+  copy: ToolSummaryCopy = defaultToolSummaryCopy,
 ): ToolSummary {
   if (item.toolType === "commandExecution") {
     const cleanedCommand = cleanCommandText(commandText);
     return {
-      label: "command",
-      value: cleanedCommand || "Command",
+      label: copy.command,
+      value: cleanedCommand || copy.commandFallback,
       detail: "",
       output: item.output || "",
     };
@@ -352,23 +377,26 @@ export function buildToolSummary(
 
   if (item.toolType === "webSearch") {
     return {
-      label: statusToneFromText(item.status) === "processing" ? "searching" : "searched",
-      value: item.detail || "the web",
+      label:
+        statusToneFromText(item.status) === "processing"
+          ? copy.searching
+          : copy.searched,
+      value: item.detail || copy.theWeb,
     };
   }
 
   if (item.toolType === "imageView") {
     const file = basename(item.detail || "");
     return {
-      label: "read",
-      value: file || "image",
+      label: copy.read,
+      value: file || copy.image,
     };
   }
 
   if (item.toolType === "hook") {
     return {
-      label: "hook",
-      value: item.title.replace(/^Hook:\s*/i, "").trim() || item.title || "hook",
+      label: copy.hook,
+      value: item.title.replace(/^Hook:\s*/i, "").trim() || item.title || copy.hook,
       detail: item.detail || "",
       output: item.output || "",
     };
@@ -388,7 +416,10 @@ export function buildToolSummary(
     const args = parseToolArgs(item.detail);
     if (toolName.toLowerCase().includes("search")) {
       return {
-        label: statusToneFromText(item.status) === "processing" ? "searching" : "searched",
+        label:
+          statusToneFromText(item.status) === "processing"
+            ? copy.searching
+            : copy.searched,
         value:
           firstStringField(args, ["query", "pattern", "text"]) || item.detail,
       };
@@ -397,14 +428,14 @@ export function buildToolSummary(
       const targetPath =
         firstStringField(args, ["path", "file", "filename"]) || item.detail;
       return {
-        label: "read",
+        label: copy.read,
         value: basename(targetPath),
         detail: targetPath && targetPath !== basename(targetPath) ? targetPath : "",
       };
     }
     if (toolName) {
       return {
-        label: "tool",
+        label: copy.tool,
         value: toolName,
         detail: item.detail || "",
       };
@@ -412,7 +443,7 @@ export function buildToolSummary(
   }
 
   return {
-    label: "tool",
+    label: copy.tool,
     value: item.title || "",
     detail: item.detail || "",
     output: item.output || "",

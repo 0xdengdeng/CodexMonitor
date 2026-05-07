@@ -10,6 +10,7 @@ import {
   PopoverMenuItem,
   PopoverSurface,
 } from "../../design-system/components/popover/PopoverPrimitives";
+import { useI18n } from "@/features/i18n/i18n";
 
 type ComposerMobileActionsMenuProps = {
   disabled: boolean;
@@ -46,6 +47,9 @@ export function ComposerMobileActionsMenu({
   setMobileActionsOpen,
   showDictationAction,
 }: ComposerMobileActionsMenuProps) {
+  const { t } = useI18n();
+  const moreActionsLabel = t("composer.moreActions");
+
   return (
     <div
       className={`composer-mobile-menu${mobileActionsOpen ? " is-open" : ""}`}
@@ -58,8 +62,8 @@ export function ComposerMobileActionsMenu({
         disabled={disabled}
         aria-expanded={mobileActionsOpen}
         aria-haspopup="menu"
-        aria-label="More actions"
-        title="More actions"
+        aria-label={moreActionsLabel}
+        title={moreActionsLabel}
       >
         <Plus size={14} aria-hidden />
       </button>
@@ -70,7 +74,7 @@ export function ComposerMobileActionsMenu({
             disabled={disabled || !onAddAttachment}
             icon={<ImagePlus size={14} />}
           >
-            Add image
+            {t("composer.addImage")}
           </PopoverMenuItem>
           {onToggleExpand && (
             <PopoverMenuItem
@@ -80,7 +84,7 @@ export function ComposerMobileActionsMenu({
                 isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />
               }
             >
-              {isExpanded ? "Collapse input" : "Expand input"}
+              {isExpanded ? t("composer.collapseInput") : t("composer.expandInput")}
             </PopoverMenuItem>
           )}
           {showDictationAction && (

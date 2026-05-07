@@ -34,6 +34,7 @@ import { WorkspaceHomeGitInitBanner } from "./WorkspaceHomeGitInitBanner";
 import { buildIconPath } from "./workspaceHomeHelpers";
 import { useWorkspaceHomeSuggestionsStyle } from "../hooks/useWorkspaceHomeSuggestionsStyle";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
+import { useI18n } from "@/features/i18n/i18n";
 
 type WorkspaceHomeProps = {
   workspace: WorkspaceInfo;
@@ -160,6 +161,7 @@ export function WorkspaceHome({
   onAgentMdRefresh,
   onAgentMdSave,
 }: WorkspaceHomeProps) {
+  const { t } = useI18n();
   const [showIcon, setShowIcon] = useState(true);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
@@ -329,21 +331,21 @@ export function WorkspaceHome({
   };
 
   const agentMdStatus = agentMdLoading
-    ? "Loading…"
+    ? t("settings.common.loading")
     : agentMdSaving
-      ? "Saving…"
+      ? t("settings.common.saving")
       : agentMdExists
         ? ""
-        : "Not found";
+        : t("settings.editor.notFound");
   const agentMdMetaParts: string[] = [];
   if (agentMdStatus) {
     agentMdMetaParts.push(agentMdStatus);
   }
   if (agentMdTruncated) {
-    agentMdMetaParts.push("Truncated");
+    agentMdMetaParts.push(t("settings.editor.truncated"));
   }
   const agentMdMeta = agentMdMetaParts.join(" · ");
-  const agentMdSaveLabel = agentMdExists ? "Save" : "Create";
+  const agentMdSaveLabel = agentMdExists ? t("settings.common.save") : t("settings.common.create");
   const agentMdSaveDisabled = agentMdLoading || agentMdSaving || !agentMdDirty;
   const agentMdRefreshDisabled = agentMdLoading || agentMdSaving;
 
@@ -376,7 +378,7 @@ export function WorkspaceHome({
           <ComposerInput
             text={prompt}
             disabled={isSubmitting}
-            sendLabel="Send"
+            sendLabel={t("workspace.home.send")}
             canStop={false}
             canSend={prompt.trim().length > 0 || activeImages.length > 0}
             isProcessing={isSubmitting}
@@ -440,7 +442,7 @@ export function WorkspaceHome({
       <div className="workspace-home-agent">
         {agentMdTruncated && (
           <div className="workspace-home-agent-warning">
-            Showing the first part of a large file.
+            {t("workspace.home.largeFileWarning")}
           </div>
         )}
         <FileEditorCard
@@ -448,7 +450,7 @@ export function WorkspaceHome({
           meta={agentMdMeta}
           error={agentMdError}
           value={agentMdContent}
-          placeholder="Add workspace instructions for the agent…"
+          placeholder={t("workspace.home.agentMdPlaceholder")}
           disabled={agentMdLoading}
           refreshDisabled={agentMdRefreshDisabled}
           saveDisabled={agentMdSaveDisabled}

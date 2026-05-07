@@ -16,6 +16,7 @@ import {
 } from "../../design-system/components/popover/PopoverPrimitives";
 import { GENERIC_APP_ICON, getKnownOpenAppIcon } from "../utils/openAppIcons";
 import { useMenuController } from "../hooks/useMenuController";
+import { useI18n } from "@/features/i18n/i18n";
 
 type OpenTarget = {
   id: string;
@@ -39,6 +40,7 @@ export function OpenAppMenu({
   onSelectOpenAppId,
   iconById = {},
 }: OpenAppMenuProps) {
+  const { t } = useI18n();
   const openMenu = useMenuController();
   const { isOpen: openMenuOpen, containerRef: openMenuRef } = openMenu;
   const availableTargets =
@@ -71,7 +73,7 @@ export function OpenAppMenu({
       DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID)
         ?.label ??
       DEFAULT_OPEN_APP_TARGETS[0]?.label ??
-      "Open",
+      t("openApp.open"),
     icon: getKnownOpenAppIcon(DEFAULT_OPEN_APP_ID) ?? GENERIC_APP_ICON,
     target:
       DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID) ??
@@ -104,7 +106,7 @@ export function OpenAppMenu({
       },
     });
     pushErrorToast({
-      title: "Couldn’t open workspace",
+      title: t("openApp.openWorkspaceFailed"),
       message,
     });
     console.warn("Failed to open workspace in target app", {
@@ -177,10 +179,10 @@ export function OpenAppMenu({
 
   const selectedCanOpen = canOpenTarget(selectedOpenTarget);
   const openLabel = selectedCanOpen
-    ? `Open in ${selectedOpenTarget.label}`
+    ? t("openApp.openIn", { app: selectedOpenTarget.label })
     : selectedOpenTarget.target.kind === "command"
-      ? "Set command in Settings"
-      : "Set app name in Settings";
+      ? t("openApp.setCommand")
+      : t("openApp.setAppName");
 
   return (
     <SplitActionMenu
@@ -194,7 +196,7 @@ export function OpenAppMenu({
           onClick={handleOpen}
           disabled={!selectedCanOpen}
           data-tauri-drag-region="false"
-          aria-label={`Open in ${selectedOpenTarget.label}`}
+          aria-label={t("openApp.openIn", { app: selectedOpenTarget.label })}
           title={openLabel}
           data-tooltip={openLabel}
           data-tooltip-placement="bottom"
@@ -213,9 +215,9 @@ export function OpenAppMenu({
       isOpen={openMenuOpen}
       onToggle={openMenu.toggle}
       toggleClassName="ghost main-header-action open-app-toggle ds-tooltip-trigger"
-      toggleAriaLabel="Select editor"
-      toggleTitle="Select editor"
-      toggleTooltip="Select editor"
+      toggleAriaLabel={t("openApp.selectEditor")}
+      toggleTitle={t("openApp.selectEditor")}
+      toggleTooltip={t("openApp.selectEditor")}
       toggleTooltipPlacement="bottom"
       toggleIcon={<ChevronDown size={14} aria-hidden />}
       popoverClassName="open-app-dropdown"

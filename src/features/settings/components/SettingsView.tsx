@@ -187,7 +187,7 @@ export function SettingsView({
                   type="button"
                   className="settings-mobile-back"
                   onClick={() => setShowMobileDetail(false)}
-                  aria-label="Back to settings sections"
+                  aria-label={t("settings.mobile.backToSections")}
                 >
                   <ChevronLeft aria-hidden />
                   {t("settings.mobile.sections")}

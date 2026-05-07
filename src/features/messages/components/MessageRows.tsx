@@ -36,6 +36,7 @@ import {
 } from "../utils/messageRenderUtils";
 import { Markdown } from "./Markdown";
 import { isStandaloneMarkdownTable } from "./Markdown";
+import { useI18n } from "@/features/i18n/i18n";
 
 type MarkdownFileLinkProps = {
   showMessageFilePath?: boolean;
@@ -108,6 +109,7 @@ const MessageImageGrid = memo(function MessageImageGrid({
   onOpen: (index: number) => void;
   hasText: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className={`message-image-grid${hasText ? " message-image-grid--with-text" : ""}`}
@@ -119,7 +121,7 @@ const MessageImageGrid = memo(function MessageImageGrid({
           type="button"
           className="message-image-thumb"
           onClick={() => onOpen(index)}
-          aria-label={`Open image ${index + 1}`}
+          aria-label={t("messages.openImage", { index: index + 1 })}
         >
           <img src={image.src} alt={image.label} loading="lazy" />
         </button>
@@ -137,6 +139,7 @@ const ImageLightbox = memo(function ImageLightbox({
   activeIndex: number;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const activeImage = images[activeIndex];
 
   useEffect(() => {
@@ -178,7 +181,7 @@ const ImageLightbox = memo(function ImageLightbox({
           type="button"
           className="message-image-lightbox-close"
           onClick={onClose}
-          aria-label="Close image preview"
+          aria-label={t("messages.closeImagePreview")}
         >
           <X size={16} aria-hidden />
         </button>
@@ -307,6 +310,7 @@ export const WorkingIndicator = memo(function WorkingIndicator({
   showPollingFetchStatus = false,
   pollingIntervalMs = 12000,
 }: WorkingIndicatorProps) {
+  const { t } = useI18n();
   const [elapsedMs, setElapsedMs] = useState(0);
   const [pollCountdownSeconds, setPollCountdownSeconds] = useState(() =>
     Math.max(1, Math.ceil(pollingIntervalMs / 1000)),
@@ -348,7 +352,7 @@ export const WorkingIndicator = memo(function WorkingIndicator({
           <div className="working-timer">
             <span className="working-timer-clock">{formatDurationMs(elapsedMs)}</span>
           </div>
-          <span className="working-text">{reasoningLabel || "Working…"}</span>
+          <span className="working-text">{reasoningLabel || t("messages.working")}</span>
         </div>
       )}
       {!isThinking && lastDurationMs !== null && hasItems && (
@@ -356,8 +360,8 @@ export const WorkingIndicator = memo(function WorkingIndicator({
           <span className="turn-complete-line" aria-hidden />
           <span className="turn-complete-label">
             {showPollingFetchStatus
-              ? `New message will be fetched in ${pollCountdownSeconds} seconds`
-              : `Done in ${formatDurationMs(lastDurationMs)}`}
+              ? t("messages.pollingFetch", { seconds: pollCountdownSeconds })
+              : t("messages.doneIn", { duration: formatDurationMs(lastDurationMs) })}
           </span>
           <span className="turn-complete-line" aria-hidden />
         </div>
@@ -378,6 +382,7 @@ export const MessageRow = memo(function MessageRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: MessageRowProps) {
+  const { t } = useI18n();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const selectionSnapshotRef = useRef<string | null>(null);
@@ -392,7 +397,7 @@ export const MessageRow = memo(function MessageRow({
         if (!src) {
           return null;
         }
-        return { src, label: `Image ${index + 1}` };
+        return { src, label: t("messages.imageAlt", { index: index + 1 }) };
       })
       .filter(Boolean) as MessageImage[];
   }, [item.images]);
@@ -484,8 +489,8 @@ export const MessageRow = memo(function MessageRow({
               selectionSnapshotRef.current = getSelectedMessageText();
             }}
             onClick={handleQuote}
-            aria-label="Quote message"
-            title="Quote message"
+            aria-label={t("messages.quote")}
+            title={t("messages.quote")}
           >
             <Quote size={14} aria-hidden />
           </button>
@@ -494,8 +499,8 @@ export const MessageRow = memo(function MessageRow({
           type="button"
           className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
           onClick={() => onCopy(item)}
-          aria-label="Copy message"
-          title="Copy message"
+          aria-label={t("messages.copyMessage")}
+          title={t("messages.copyMessage")}
         >
           <span className="message-copy-icon" aria-hidden>
             <Copy className="message-copy-icon-copy" size={14} />
@@ -518,7 +523,12 @@ export const ReasoningRow = memo(function ReasoningRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: ReasoningRowProps) {
-  const { summaryTitle, bodyText, hasBody } = parsed;
+  const { t } = useI18n();
+  const { bodyText, hasBody } = parsed;
+  const summaryTitle =
+    parsed.summaryTitle === "Reasoning"
+      ? t("messages.reasoning")
+      : parsed.summaryTitle;
   const reasoningTone: StatusTone = hasBody ? "completed" : "processing";
   return (
     <div className="tool-inline reasoning-inline">
@@ -527,7 +537,7 @@ export const ReasoningRow = memo(function ReasoningRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle reasoning details"
+        aria-label={t("messages.toggleReasoning")}
       />
       <div className="tool-inline-content">
         <button
@@ -569,7 +579,11 @@ export const ReviewRow = memo(function ReviewRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: ReviewRowProps) {
-  const title = item.state === "started" ? "Review started" : "Review completed";
+  const { t } = useI18n();
+  const title =
+    item.state === "started"
+      ? t("messages.reviewStarted")
+      : t("messages.reviewCompleted");
   return (
     <div className="item-card review">
       <div className="review-header">
@@ -577,7 +591,7 @@ export const ReviewRow = memo(function ReviewRow({
         <span
           className={`review-badge ${item.state === "started" ? "active" : "done"}`}
         >
-          Review
+          {t("messages.review")}
         </span>
       </div>
       {item.text && (
@@ -614,10 +628,11 @@ export const UserInputRow = memo(function UserInputRow({
   isExpanded,
   onToggle,
 }: UserInputRowProps) {
+  const { t } = useI18n();
   const first = item.questions[0];
   const previewQuestion =
-    first?.question?.trim() || first?.header?.trim() || "Input requested";
-  const firstAnswer = first?.answers[0]?.trim() || "No answer provided";
+    first?.question?.trim() || first?.header?.trim() || t("messages.inputRequested");
+  const firstAnswer = first?.answers[0]?.trim() || t("messages.noAnswer");
   const previewAnswer =
     first && first.answers.length > 1
       ? `${firstAnswer} +${first.answers.length - 1}`
@@ -631,7 +646,7 @@ export const UserInputRow = memo(function UserInputRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle answered input details"
+        aria-label={t("messages.toggleAnsweredInput")}
       />
       <div className="tool-inline-content">
         <button
@@ -641,16 +656,21 @@ export const UserInputRow = memo(function UserInputRow({
           aria-expanded={isExpanded}
         >
           <Check className="tool-inline-icon completed" size={14} aria-hidden />
-          <span className="tool-inline-label">answered:</span>
+          <span className="tool-inline-label">{t("messages.answered")}:</span>
           <span className="tool-inline-value user-input-inline-preview">
             {previewQuestion}: {previewAnswer}
-            {extraQuestions > 0 ? ` +${extraQuestions} more` : ""}
+            {extraQuestions > 0
+              ? t("messages.moreCount", { count: extraQuestions })
+              : ""}
           </span>
         </button>
         {isExpanded && (
           <div className="user-input-inline-details">
             {item.questions.map((question, index) => {
-              const title = question.question || question.header || `Question ${index + 1}`;
+              const title =
+                question.question ||
+                question.header ||
+                t("messages.question", { index: index + 1 });
               return (
                 <div
                   key={`${question.id}-${index}`}
@@ -670,7 +690,7 @@ export const UserInputRow = memo(function UserInputRow({
                     </div>
                   ) : (
                     <div className="user-input-inline-empty-answer">
-                      No answer provided.
+                      {t("messages.noAnswer")}
                     </div>
                   )}
                 </div>
@@ -694,13 +714,24 @@ export const ToolRow = memo(function ToolRow({
   onOpenThreadLink,
   onRequestAutoScroll,
 }: ToolRowProps) {
+  const { t } = useI18n();
   const isFileChange = item.toolType === "fileChange";
   const isCommand = item.toolType === "commandExecution";
   const isPlan = item.toolType === "plan";
   const commandText = isCommand
     ? item.title.replace(/^Command:\s*/i, "").trim()
     : "";
-  const summary = buildToolSummary(item, commandText);
+  const summary = buildToolSummary(item, commandText, {
+    command: t("messages.tool.command"),
+    commandFallback: t("messages.tool.commandFallback"),
+    hook: t("messages.tool.hook"),
+    image: t("messages.tool.image"),
+    read: t("messages.tool.read"),
+    searched: t("messages.tool.searched"),
+    searching: t("messages.tool.searching"),
+    theWeb: t("messages.tool.theWeb"),
+    tool: t("messages.tool.tool"),
+  });
   const changeNames = (item.changes ?? [])
     .map((change) => basename(change.path))
     .filter(Boolean);
@@ -708,9 +739,9 @@ export const ToolRow = memo(function ToolRow({
   const tone = toolStatusTone(item, hasChanges);
   const ToolIcon = toolIconForSummary(item, summary);
   const summaryLabel = isFileChange
-    ? changeNames.length > 1
-      ? "files edited"
-      : "file edited"
+      ? changeNames.length > 1
+      ? t("messages.filesEdited")
+      : t("messages.fileEdited")
     : isCommand
       ? ""
       : summary.label;
@@ -718,7 +749,7 @@ export const ToolRow = memo(function ToolRow({
   const summaryValue = isFileChange
     ? changeNames.length > 1
       ? `${changeNames[0]} +${changeNames.length - 1}`
-      : changeNames[0] || "changes"
+      : changeNames[0] || t("messages.changes")
     : summary.value;
   const shouldFadeCommand =
     isCommand && !isExpanded && (summaryValue?.length ?? 0) > 80;
@@ -767,16 +798,17 @@ export const ToolRow = memo(function ToolRow({
       try {
         await exportMarkdownFile(output, buildPlanExportFileName(item.id));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to export plan.";
+        const message =
+          error instanceof Error ? error.message : t("messages.planExportUnable");
         pushErrorToast({
-          title: "Plan export failed",
+          title: t("messages.planExportFailed"),
           message,
         });
       } finally {
         setIsExportingPlan(false);
       }
     },
-    [item.id, summary.output],
+    [item.id, summary.output, t],
   );
 
   return (
@@ -786,7 +818,7 @@ export const ToolRow = memo(function ToolRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle tool details"
+        aria-label={t("messages.toggleToolDetails")}
       />
       <div className="tool-inline-content">
         <button
@@ -888,7 +920,7 @@ export const ToolRow = memo(function ToolRow({
               onClick={handlePlanExport}
               disabled={isExportingPlan}
             >
-              {isExportingPlan ? "Exporting..." : "Export .md"}
+              {isExportingPlan ? t("messages.exporting") : t("messages.exportMarkdown")}
             </button>
           </div>
         )}
@@ -898,7 +930,11 @@ export const ToolRow = memo(function ToolRow({
 });
 
 export const ExploreRow = memo(function ExploreRow({ item }: ExploreRowProps) {
-  const title = item.status === "exploring" ? "Exploring" : "Explored";
+  const { t } = useI18n();
+  const title =
+    item.status === "exploring"
+      ? t("messages.exploring")
+      : t("messages.explored");
   return (
     <div className="tool-inline explore-inline">
       <div className="tool-inline-bar-toggle" aria-hidden />
@@ -916,7 +952,11 @@ export const ExploreRow = memo(function ExploreRow({ item }: ExploreRowProps) {
         <div className="explore-inline-list">
           {item.entries.map((entry, index) => (
             <div key={`${entry.kind}-${entry.label}-${index}`} className="explore-inline-item">
-              <span className="explore-inline-kind">{exploreKindLabel(entry.kind)}</span>
+              <span className="explore-inline-kind">
+                {t(`messages.exploreKind.${entry.kind}`, {
+                  fallback: exploreKindLabel(entry.kind),
+                })}
+              </span>
               <span className="explore-inline-label">{entry.label}</span>
               {entry.detail && entry.detail !== entry.label && (
                 <span className="explore-inline-detail">{entry.detail}</span>

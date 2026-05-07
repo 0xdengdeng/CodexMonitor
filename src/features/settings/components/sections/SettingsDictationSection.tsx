@@ -162,8 +162,8 @@ export function SettingsDictationSection({
         >
           <option value="">{t("settings.dictation.off")}</option>
           <option value="alt">{optionKeyLabel}</option>
-          <option value="shift">Shift</option>
-          <option value="control">Control</option>
+          <option value="shift">{t("settings.dictation.shift")}</option>
+          <option value="control">{t("settings.dictation.control")}</option>
           <option value="meta">{metaKeyLabel}</option>
         </select>
         <div className="settings-help">

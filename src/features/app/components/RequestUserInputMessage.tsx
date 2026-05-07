@@ -3,6 +3,7 @@ import type {
   RequestUserInputRequest,
   RequestUserInputResponse,
 } from "../../../types";
+import { useI18n } from "@/features/i18n/i18n";
 
 type RequestUserInputMessageProps = {
   requests: RequestUserInputRequest[];
@@ -23,6 +24,7 @@ export function RequestUserInputMessage({
   activeWorkspaceId,
   onSubmit,
 }: RequestUserInputMessageProps) {
+  const { t } = useI18n();
   const activeRequests = useMemo(
     () =>
       requests.filter((request) => {
@@ -116,13 +118,13 @@ export function RequestUserInputMessage({
       <div
         className="bubble request-user-input-card"
         role="group"
-        aria-label="User input requested"
+        aria-label={t("requestInput.aria")}
       >
         <div className="request-user-input-header">
-          <div className="request-user-input-title">Input requested</div>
+          <div className="request-user-input-title">{t("requestInput.title")}</div>
           {totalRequests > 1 ? (
             <div className="request-user-input-queue">
-              {`Request 1 of ${totalRequests}`}
+              {t("requestInput.queue", { total: totalRequests })}
             </div>
           ) : null}
         </div>
@@ -133,10 +135,10 @@ export function RequestUserInputMessage({
               const selectedIndex = selections[questionId];
               const options = question.options ?? [];
               const notePlaceholder = question.isOther
-                ? "Type your answer (optional)"
+                ? t("requestInput.typeAnswer")
                 : options.length
-                ? "Add notes (optional)"
-                : "Type your answer (optional)";
+                ? t("requestInput.addNotes")
+                : t("requestInput.typeAnswer");
               return (
                 <section key={questionId} className="request-user-input-question">
                   {question.header ? (
@@ -184,13 +186,13 @@ export function RequestUserInputMessage({
             })
           ) : (
             <div className="request-user-input-empty">
-              No questions provided.
+              {t("requestInput.noQuestions")}
             </div>
           )}
         </div>
         <div className="request-user-input-actions">
           <button className="primary" onClick={handleSubmit}>
-            Submit
+            {t("requestInput.submit")}
           </button>
         </div>
       </div>

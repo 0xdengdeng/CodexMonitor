@@ -1,6 +1,7 @@
 import { SidebarCollapseButton } from "@/features/layout/components/SidebarToggleControls";
 import type { ComponentProps } from "react";
 import { MainAppShell } from "@app/components/MainAppShell";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseMainAppShellPropsArgs = {
   shell: Pick<
@@ -32,6 +33,7 @@ export function useMainAppShellProps({
   appLayout,
   topbar,
 }: UseMainAppShellPropsArgs) {
+  const { t } = useI18n();
   const showThreadConnectionIndicator =
     topbar.hasActiveWorkspace && topbar.backendMode === "remote";
   const topbarActionsNode = showThreadConnectionIndicator ? (
@@ -45,17 +47,17 @@ export function useMainAppShellProps({
       }`}
       title={
         topbar.remoteThreadConnectionState === "live"
-          ? "Receiving live thread events"
+          ? t("connection.liveTitle")
           : topbar.remoteThreadConnectionState === "polling"
-            ? "Connected, syncing thread state by polling"
-            : "Disconnected from backend"
+            ? t("connection.pollingTitle")
+            : t("connection.disconnectedTitle")
       }
     >
       {topbar.remoteThreadConnectionState === "live"
-        ? "Live"
+        ? t("connection.live")
         : topbar.remoteThreadConnectionState === "polling"
-          ? "Polling"
-          : "Disconnected"}
+          ? t("connection.polling")
+          : t("connection.disconnected")}
     </span>
   ) : null;
 

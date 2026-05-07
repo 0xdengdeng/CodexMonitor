@@ -10,25 +10,47 @@ type UsageLabels = {
   showWeekly: boolean;
 };
 
+export type UsageLabelsCopy = {
+  availableCredits: string;
+  remaining: string;
+  resets: string;
+  unlimited: string;
+  used: string;
+};
+
+const defaultUsageLabelsCopy: UsageLabelsCopy = {
+  availableCredits: "Available credits: {value}",
+  remaining: "{percent}% remaining",
+  resets: "Resets {time}",
+  unlimited: "Unlimited",
+  used: "{percent}% used",
+};
+
 const clampPercent = (value: number) =>
   Math.min(Math.max(Math.round(value), 0), 100);
 
-function formatResetLabel(resetsAt?: number | null) {
+function formatResetLabel(
+  resetsAt: number | null | undefined,
+  copy: UsageLabelsCopy,
+) {
   if (typeof resetsAt !== "number" || !Number.isFinite(resetsAt)) {
     return null;
   }
   const resetMs = resetsAt > 1_000_000_000_000 ? resetsAt : resetsAt * 1000;
   const relative = formatRelativeTime(resetMs).replace(/^in\s+/i, "");
-  return `Resets ${relative}`;
+  return copy.resets.replace("{time}", relative);
 }
 
-function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
+function formatCreditsLabel(
+  accountRateLimits: RateLimitSnapshot | null,
+  copy: UsageLabelsCopy,
+) {
   const credits = accountRateLimits?.credits ?? null;
   if (!credits?.hasCredits) {
     return null;
   }
   if (credits.unlimited) {
-    return "Available credits: Unlimited";
+    return copy.availableCredits.replace("{value}", copy.unlimited);
   }
   const balance = credits.balance?.trim() ?? "";
   if (!balance) {
@@ -36,12 +58,14 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
   }
   const intValue = Number.parseInt(balance, 10);
   if (Number.isFinite(intValue) && intValue > 0) {
-    return `Available credits: ${intValue}`;
+    return copy.availableCredits.replace("{value}", String(intValue));
   }
   const floatValue = Number.parseFloat(balance);
   if (Number.isFinite(floatValue) && floatValue > 0) {
     const rounded = Math.round(floatValue);
-    return rounded > 0 ? `Available credits: ${rounded}` : null;
+    return rounded > 0
+      ? copy.availableCredits.replace("{value}", String(rounded))
+      : null;
   }
   return null;
 }
@@ -49,6 +73,7 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
 export function getUsageLabels(
   accountRateLimits: RateLimitSnapshot | null,
   showRemaining: boolean,
+  copy: UsageLabelsCopy = defaultUsageLabelsCopy,
 ): UsageLabels {
   const usagePercent = accountRateLimits?.primary?.usedPercent;
   const globalUsagePercent = accountRateLimits?.secondary?.usedPercent;
@@ -68,9 +93,20 @@ export function getUsageLabels(
   return {
     sessionPercent,
     weeklyPercent,
-    sessionResetLabel: formatResetLabel(accountRateLimits?.primary?.resetsAt),
-    weeklyResetLabel: formatResetLabel(accountRateLimits?.secondary?.resetsAt),
-    creditsLabel: formatCreditsLabel(accountRateLimits),
+    sessionResetLabel: formatResetLabel(accountRateLimits?.primary?.resetsAt, copy),
+    weeklyResetLabel: formatResetLabel(accountRateLimits?.secondary?.resetsAt, copy),
+    creditsLabel: formatCreditsLabel(accountRateLimits, copy),
     showWeekly: Boolean(accountRateLimits?.secondary),
   };
+}
+
+export function formatUsagePercentLabel(
+  percent: number,
+  showRemaining: boolean,
+  copy: UsageLabelsCopy = defaultUsageLabelsCopy,
+) {
+  return (showRemaining ? copy.remaining : copy.used).replace(
+    "{percent}",
+    String(percent),
+  );
 }

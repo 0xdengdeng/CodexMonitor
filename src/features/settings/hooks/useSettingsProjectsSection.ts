@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import type { AppSettings, WorkspaceGroup, WorkspaceInfo } from "@/types";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseSettingsProjectsSectionArgs = {
   appSettings: AppSettings;
@@ -63,6 +64,7 @@ export const useSettingsProjectsSection = ({
   onDeleteWorkspaceGroup,
   onAssignWorkspaceGroup,
 }: UseSettingsProjectsSectionArgs): SettingsProjectsSectionProps => {
+  const { t } = useI18n();
   const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
   const [newGroupName, setNewGroupName] = useState("");
   const [groupError, setGroupError] = useState<string | null>(null);
@@ -151,13 +153,15 @@ export const useSettingsProjectsSection = ({
       groupedWorkspaces.find((entry) => entry.id === group.id)?.workspaces ?? [];
     const detail =
       groupProjects.length > 0
-        ? `\n\nProjects in this group will move to "${ungroupedLabel}".`
+        ? `\n\n${t("settings.projects.deleteGroupMoveDetail", {
+            group: ungroupedLabel,
+          })}`
         : "";
-    const confirmed = await ask(`Delete "${group.name}"?${detail}`, {
-      title: "Delete Group",
+    const confirmed = await ask(`${t("settings.projects.deleteGroupMessage", { name: group.name })}${detail}`, {
+      title: t("settings.projects.deleteGroupTitle"),
       kind: "warning",
-      okLabel: "Delete",
-      cancelLabel: "Cancel",
+      okLabel: t("settings.common.delete"),
+      cancelLabel: t("settings.common.cancel"),
     });
     if (!confirmed) {
       return;

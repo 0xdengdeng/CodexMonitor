@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import type {
   ReviewPromptState,
   ReviewPromptStep,
@@ -40,6 +41,7 @@ const PresetStep = memo(function PresetStep({
   highlightedPresetIndex: number;
   onHighlightPreset: (index: number) => void;
 }) {
+  const { t } = useI18n();
   const optionClass = (index: number) =>
     `review-inline-option${index === highlightedPresetIndex ? " is-selected" : ""}`;
   return (
@@ -51,8 +53,8 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(0)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Review against a base branch</span>
-        <span className="review-inline-option-subtitle">(PR Style)</span>
+        <span className="review-inline-option-title">{t("reviewInline.baseBranch")}</span>
+        <span className="review-inline-option-subtitle">{t("reviewInline.prStyle")}</span>
       </button>
       <button
         type="button"
@@ -61,7 +63,7 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(1)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Review uncommitted changes</span>
+        <span className="review-inline-option-title">{t("reviewInline.uncommitted")}</span>
       </button>
       <button
         type="button"
@@ -70,7 +72,7 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(2)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Review a commit</span>
+        <span className="review-inline-option-title">{t("reviewInline.commit")}</span>
       </button>
       <button
         type="button"
@@ -79,7 +81,7 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(3)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Custom review instructions</span>
+        <span className="review-inline-option-title">{t("reviewInline.custom")}</span>
       </button>
     </div>
   );
@@ -102,6 +104,7 @@ const BaseBranchStep = memo(function BaseBranchStep({
   highlightedBranchIndex: number;
   onHighlightBranch: (index: number) => void;
 }) {
+  const { t } = useI18n();
   const branches = reviewPrompt.branches;
   return (
     <div className="review-inline-section">
@@ -112,7 +115,7 @@ const BaseBranchStep = memo(function BaseBranchStep({
           onClick={onShowPreset}
           disabled={reviewPrompt.isSubmitting}
         >
-          Back
+          {t("common.back")}
         </button>
         <button
           type="button"
@@ -120,15 +123,15 @@ const BaseBranchStep = memo(function BaseBranchStep({
           onClick={() => void onConfirmBranch()}
           disabled={reviewPrompt.isSubmitting || !reviewPrompt.selectedBranch.trim()}
         >
-          Start review
+          {t("reviewInline.startReview")}
         </button>
       </div>
-      <div className="review-inline-hint">Pick a recent local branch:</div>
-      <div className="review-inline-list" role="listbox" aria-label="Base branches">
+      <div className="review-inline-hint">{t("reviewInline.pickBranch")}</div>
+      <div className="review-inline-list" role="listbox" aria-label={t("reviewInline.baseBranches")}>
         {reviewPrompt.isLoadingBranches ? (
-          <div className="review-inline-empty">Loading branches…</div>
+          <div className="review-inline-empty">{t("reviewInline.loadingBranches")}</div>
         ) : branches.length === 0 ? (
-          <div className="review-inline-empty">No branches found.</div>
+          <div className="review-inline-empty">{t("reviewInline.noBranches")}</div>
         ) : (
           branches.map((branch, index) => {
             const selected = index === highlightedBranchIndex;
@@ -173,6 +176,7 @@ const CommitStep = memo(function CommitStep({
   highlightedCommitIndex: number;
   onHighlightCommit: (index: number) => void;
 }) {
+  const { t } = useI18n();
   const commits = reviewPrompt.commits;
   return (
     <div className="review-inline-section">
@@ -183,7 +187,7 @@ const CommitStep = memo(function CommitStep({
           onClick={onShowPreset}
           disabled={reviewPrompt.isSubmitting}
         >
-          Back
+          {t("common.back")}
         </button>
         <button
           type="button"
@@ -191,15 +195,15 @@ const CommitStep = memo(function CommitStep({
           onClick={() => void onConfirmCommit()}
           disabled={reviewPrompt.isSubmitting || !reviewPrompt.selectedCommitSha}
         >
-          Start review
+          {t("reviewInline.startReview")}
         </button>
       </div>
-      <div className="review-inline-hint">Select a recent commit:</div>
-      <div className="review-inline-list" role="listbox" aria-label="Commits">
+      <div className="review-inline-hint">{t("reviewInline.selectCommit")}</div>
+      <div className="review-inline-list" role="listbox" aria-label={t("reviewInline.commits")}>
         {reviewPrompt.isLoadingCommits ? (
-          <div className="review-inline-empty">Loading commits…</div>
+          <div className="review-inline-empty">{t("reviewInline.loadingCommits")}</div>
         ) : commits.length === 0 ? (
-          <div className="review-inline-empty">No commits found.</div>
+          <div className="review-inline-empty">{t("reviewInline.noCommits")}</div>
         ) : (
           commits.map((commit, index) => {
             const title = commit.summary || commit.sha;
@@ -242,6 +246,7 @@ const CustomStep = memo(function CustomStep({
   onUpdateCustomInstructions: (value: string) => void;
   onConfirmCustom: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   const canSubmit = reviewPrompt.customInstructions.trim().length > 0;
   return (
     <div className="review-inline-section">
@@ -252,7 +257,7 @@ const CustomStep = memo(function CustomStep({
           onClick={onShowPreset}
           disabled={reviewPrompt.isSubmitting}
         >
-          Back
+          {t("common.back")}
         </button>
         <button
           type="button"
@@ -260,18 +265,18 @@ const CustomStep = memo(function CustomStep({
           onClick={() => void onConfirmCustom()}
           disabled={reviewPrompt.isSubmitting || !canSubmit}
         >
-          Start review
+          {t("reviewInline.startReview")}
         </button>
       </div>
       <label className="review-inline-label" htmlFor="review-inline-custom-instructions">
-        Instructions
+        {t("reviewInline.instructions")}
       </label>
       <textarea
         id="review-inline-custom-instructions"
         className="review-inline-textarea"
         value={reviewPrompt.customInstructions}
         onChange={(event) => onUpdateCustomInstructions(event.target.value)}
-        placeholder="Focus on correctness, edge cases, and missing tests."
+        placeholder={t("reviewInline.instructionsPlaceholder")}
         autoFocus
         rows={6}
       />
@@ -299,21 +304,22 @@ export const ReviewInlinePrompt = memo(function ReviewInlinePrompt({
   onUpdateCustomInstructions,
   onConfirmCustom,
 }: ReviewInlinePromptProps) {
+  const { t } = useI18n();
   const { step, error, isSubmitting } = reviewPrompt;
 
   const title = useMemo(() => {
     switch (step) {
       case "baseBranch":
-        return "Select a base branch";
+        return t("reviewInline.selectBaseBranch");
       case "commit":
-        return "Select a commit to review";
+        return t("reviewInline.selectCommitToReview");
       case "custom":
-        return "Custom review instructions";
+        return t("reviewInline.custom");
       case "preset":
       default:
-        return "Select a review preset";
+        return t("reviewInline.selectPreset");
     }
-  }, [step]);
+  }, [step, t]);
 
   return (
     <div className="review-inline" role="dialog" aria-label={title}>
@@ -362,7 +368,7 @@ export const ReviewInlinePrompt = memo(function ReviewInlinePrompt({
 
       <div className="review-inline-actions">
         <button type="button" className="ghost review-inline-button" onClick={onClose}>
-          Close
+          {t("common.close")}
         </button>
       </div>
     </div>

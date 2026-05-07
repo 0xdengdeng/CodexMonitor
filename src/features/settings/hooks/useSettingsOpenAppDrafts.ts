@@ -9,6 +9,7 @@ import {
   isOpenAppTargetComplete,
   normalizeOpenAppTargets,
 } from "@settings/components/settingsViewHelpers";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseSettingsOpenAppDraftsParams = {
   appSettings: AppSettings;
@@ -19,6 +20,7 @@ export const useSettingsOpenAppDrafts = ({
   appSettings,
   onUpdateAppSettings,
 }: UseSettingsOpenAppDraftsParams) => {
+  const { t } = useI18n();
   const [openAppDrafts, setOpenAppDrafts] = useState<OpenAppDraft[]>(() =>
     buildOpenAppDrafts(appSettings.openAppTargets),
   );
@@ -117,7 +119,7 @@ export const useSettingsOpenAppDrafts = ({
   const handleAddOpenApp = () => {
     const newTarget: OpenAppDraft = {
       id: createOpenAppId(),
-      label: "New App",
+      label: t("settings.openApps.newApp"),
       kind: "app",
       appName: "",
       command: null,

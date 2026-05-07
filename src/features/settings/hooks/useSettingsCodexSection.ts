@@ -12,6 +12,7 @@ import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
 import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseSettingsCodexSectionArgs = {
   appSettings: AppSettings;
@@ -82,6 +83,7 @@ export const useSettingsCodexSection = ({
   onRunDoctor,
   onRunCodexUpdate,
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
+  const { t } = useI18n();
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -134,6 +136,14 @@ export const useSettingsCodexSection = ({
     exists: globalAgentsExists,
     truncated: globalAgentsTruncated,
     isDirty: globalAgentsDirty,
+    copy: {
+      loading: t("settings.common.loading"),
+      saving: t("settings.common.saving"),
+      notFound: t("settings.editor.notFound"),
+      truncated: t("settings.editor.truncated"),
+      save: t("settings.common.save"),
+      create: t("settings.common.create"),
+    },
   });
 
   const globalConfigEditorMeta = buildEditorContentMeta({
@@ -142,6 +152,14 @@ export const useSettingsCodexSection = ({
     exists: globalConfigExists,
     truncated: globalConfigTruncated,
     isDirty: globalConfigDirty,
+    copy: {
+      loading: t("settings.common.loading"),
+      saving: t("settings.common.saving"),
+      notFound: t("settings.editor.notFound"),
+      truncated: t("settings.editor.truncated"),
+      save: t("settings.common.save"),
+      create: t("settings.common.create"),
+    },
   });
 
   useEffect(() => {
@@ -216,7 +234,7 @@ export const useSettingsCodexSection = ({
             afterVersion: null,
             upgraded: false,
             output: null,
-            details: "Codex updates are not available in this build.",
+            details: t("settings.codex.updateUnavailable"),
           },
         });
         return;

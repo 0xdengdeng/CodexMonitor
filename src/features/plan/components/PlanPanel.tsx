@@ -1,4 +1,5 @@
 import type { TurnPlan } from "../../../types";
+import { useI18n } from "@/features/i18n/i18n";
 
 type PlanPanelProps = {
   plan: TurnPlan | null;
@@ -25,15 +26,16 @@ function statusLabel(status: TurnPlan["steps"][number]["status"]) {
 }
 
 export function PlanPanel({ plan, isProcessing }: PlanPanelProps) {
+  const { t } = useI18n();
   const progress = plan ? formatProgress(plan) : "";
   const steps = plan?.steps ?? [];
   const showEmpty = !steps.length && !plan?.explanation;
-  const emptyLabel = isProcessing ? "Waiting on a plan..." : "No active plan.";
+  const emptyLabel = isProcessing ? t("plan.waiting") : t("plan.empty");
 
   return (
     <aside className="plan-panel">
       <div className="plan-header">
-        <span>Plan</span>
+        <span>{t("plan.title")}</span>
         {progress && <span className="plan-progress">{progress}</span>}
       </div>
       {plan?.explanation && (

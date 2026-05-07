@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { SettingsSection } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { useI18n } from "@/features/i18n/i18n";
 import type { WorkspaceInfo } from "@/types";
 import { pushErrorToast } from "@services/toasts";
 
@@ -44,22 +45,22 @@ export function SettingsEnvironmentsSection({
   onSetWorktreesFolderDraft,
   onSaveEnvironmentSetup,
 }: SettingsEnvironmentsSectionProps) {
+  const { t } = useI18n();
   const hasAnyChanges =
     environmentDirty || globalWorktreesFolderDirty || worktreesFolderDirty;
   const hasProjects = mainWorkspaces.length > 0;
 
   return (
     <SettingsSection
-      title="Environments"
-      subtitle="Configure per-project setup scripts and worktree locations."
+      title={t("settings.environments.title")}
+      subtitle={t("settings.environments.subtitle")}
     >
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="settings-global-worktrees-folder">
-          Global worktrees root
+          {t("settings.environments.globalWorktreesRoot")}
         </label>
         <div className="settings-help">
-          Default location for new worktrees when a project does not override it. Each
-          project gets its own subfolder under this root.
+          {t("settings.environments.globalWorktreesHelp")}
         </div>
         <div className="settings-field-row">
           <input
@@ -80,21 +81,21 @@ export function SettingsEnvironmentsSection({
                 const selected = await open({
                   directory: true,
                   multiple: false,
-                  title: "Select global worktrees root",
+                  title: t("settings.environments.selectGlobalWorktreesRoot"),
                 });
                 if (selected && typeof selected === "string") {
                   onSetGlobalWorktreesFolderDraft(selected);
                 }
               } catch (error) {
                 pushErrorToast({
-                  title: "Failed to open folder picker",
+                  title: t("settings.environments.folderPickerFailed"),
                   message: error instanceof Error ? error.message : String(error),
                 });
               }
             }}
             disabled={environmentSaving}
           >
-            Browse
+            {t("settings.environments.browse")}
           </button>
         </div>
         {!hasProjects ? (
@@ -105,7 +106,7 @@ export function SettingsEnvironmentsSection({
               onClick={() => onSetGlobalWorktreesFolderDraft(_globalWorktreesFolderSaved ?? "")}
               disabled={environmentSaving || !globalWorktreesFolderDirty}
             >
-              Reset
+              {t("settings.common.reset")}
             </button>
             <button
               type="button"
@@ -115,7 +116,7 @@ export function SettingsEnvironmentsSection({
               }}
               disabled={environmentSaving || !globalWorktreesFolderDirty}
             >
-              {environmentSaving ? "Saving..." : "Save"}
+              {environmentSaving ? t("settings.common.saving") : t("settings.common.save")}
             </button>
           </div>
         ) : null}
@@ -125,12 +126,12 @@ export function SettingsEnvironmentsSection({
       </div>
 
       {!hasProjects ? (
-        <div className="settings-empty">No projects yet.</div>
+        <div className="settings-empty">{t("settings.projects.noProjects")}</div>
       ) : (
         <>
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-environment-project">
-              Project
+              {t("settings.environments.project")}
             </label>
             <select
               id="settings-environment-project"
@@ -151,9 +152,11 @@ export function SettingsEnvironmentsSection({
           </div>
 
           <div className="settings-field">
-            <div className="settings-field-label">Setup script</div>
+            <div className="settings-field-label">
+              {t("settings.environments.setupScript")}
+            </div>
             <div className="settings-help">
-              Runs once in a dedicated terminal after each new worktree is created.
+              {t("settings.environments.setupScriptHelp")}
             </div>
             {environmentError ? (
               <div className="settings-agents-error">{environmentError}</div>
@@ -174,24 +177,22 @@ export function SettingsEnvironmentsSection({
                   const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
                   if (!clipboard?.writeText) {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Clipboard access is unavailable in this environment. Copy the script manually instead.",
+                      title: t("settings.environments.copyFailed"),
+                      message: t("settings.environments.clipboardUnavailable"),
                     });
                     return;
                   }
 
                   void clipboard.writeText(environmentDraftScript).catch(() => {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Could not write to the clipboard. Copy the script manually instead.",
+                      title: t("settings.environments.copyFailed"),
+                      message: t("settings.environments.clipboardWriteFailed"),
                     });
                   });
                 }}
                 disabled={environmentSaving || environmentDraftScript.length === 0}
               >
-                Copy
+                {t("settings.environments.copy")}
               </button>
               <button
                 type="button"
@@ -199,7 +200,7 @@ export function SettingsEnvironmentsSection({
                 onClick={() => onSetEnvironmentDraftScript(environmentSavedScript ?? "")}
                 disabled={environmentSaving || !environmentDirty}
               >
-                Reset
+                {t("settings.common.reset")}
               </button>
               <button
                 type="button"
@@ -209,18 +210,17 @@ export function SettingsEnvironmentsSection({
                 }}
                 disabled={environmentSaving || !hasAnyChanges}
               >
-                {environmentSaving ? "Saving..." : "Save"}
+                {environmentSaving ? t("settings.common.saving") : t("settings.common.save")}
               </button>
             </div>
           </div>
 
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-worktrees-folder">
-              Worktrees folder
+              {t("settings.environments.worktreesFolder")}
             </label>
             <div className="settings-help">
-              Custom location for this project's worktrees. Leave empty to use the global root or
-              the built-in default.
+              {t("settings.environments.worktreesFolderHelp")}
             </div>
             <div className="settings-field-row">
               <input
@@ -241,21 +241,21 @@ export function SettingsEnvironmentsSection({
                     const selected = await open({
                       directory: true,
                       multiple: false,
-                      title: "Select worktrees folder",
+                      title: t("settings.environments.selectWorktreesFolder"),
                     });
                     if (selected && typeof selected === "string") {
                       onSetWorktreesFolderDraft(selected);
                     }
                   } catch (error) {
                     pushErrorToast({
-                      title: "Failed to open folder picker",
+                      title: t("settings.environments.folderPickerFailed"),
                       message: error instanceof Error ? error.message : String(error),
                     });
                   }
                 }}
                 disabled={environmentSaving}
               >
-                Browse
+                {t("settings.environments.browse")}
               </button>
             </div>
           </div>

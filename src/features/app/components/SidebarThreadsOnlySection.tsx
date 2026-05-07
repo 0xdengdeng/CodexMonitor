@@ -10,6 +10,7 @@ import {
 } from "../../design-system/components/popover/PopoverPrimitives";
 import { PinnedThreadList } from "./PinnedThreadList";
 import type { SidebarOverlayMenuAnchor, ThreadBucket } from "./sidebarTypes";
+import { useI18n } from "@/features/i18n/i18n";
 
 type SidebarThreadsOnlySectionProps = {
   threadBuckets: ThreadBucket[];
@@ -55,16 +56,17 @@ export function SidebarThreadsOnlySection({
   onToggleAddMenu,
   onCreateThreadInProject,
 }: SidebarThreadsOnlySectionProps) {
+  const { t } = useI18n();
   return (
     <div className="workspace-group">
       <div className="sidebar-section-header workspace-group-header-all-threads">
-        <div className="sidebar-section-title">Recent conversations</div>
+        <div className="sidebar-section-title">{t("sidebar.conversations.recent")}</div>
         <button
           className="ghost all-threads-add"
           onClick={onToggleAddMenu}
           data-tauri-drag-region="false"
-          aria-label="New thread in project"
-          title="New thread in project"
+          aria-label={t("sidebar.conversations.newThread")}
+          title={t("sidebar.conversations.newThread")}
           aria-expanded={addMenuOpen}
           disabled={projectOptionsForNewThread.length === 0}
         >

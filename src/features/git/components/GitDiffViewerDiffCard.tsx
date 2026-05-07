@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import {
   parsePatchFiles,
   type AnnotationSide,
@@ -116,6 +117,7 @@ export const DiffCard = memo(function DiffCard({
   pullRequestReviewLaunching = false,
   pullRequestReviewThreadId = null,
 }: DiffCardProps) {
+  const { t } = useI18n();
   const displayPath = entry.displayPath ?? entry.path;
   const { name: fileName, dir } = useMemo(
     () => splitPath(displayPath),
@@ -151,13 +153,13 @@ export const DiffCard = memo(function DiffCard({
 
   const placeholder = useMemo(() => {
     if (isLoading) {
-      return "Loading diff...";
+      return t("git.viewer.loadingDiff");
     }
     if (ignoreWhitespaceChanges && !entry.diff.trim()) {
-      return "No non-whitespace changes.";
+      return t("git.viewer.noNonWhitespaceChanges");
     }
-    return "Diff unavailable.";
-  }, [entry.diff, ignoreWhitespaceChanges, isLoading]);
+    return t("git.viewer.diffUnavailable");
+  }, [entry.diff, ignoreWhitespaceChanges, isLoading, t]);
 
   const parsedLines = useMemo(() => {
     const parsed = parseDiff(entry.diff);
@@ -211,8 +213,8 @@ export const DiffCard = memo(function DiffCard({
           <button
             type="button"
             className="diff-viewer-header-action diff-viewer-header-action--discard"
-            title="Discard changes in this file"
-            aria-label="Discard changes in this file"
+            title={t("git.discardChangesInFile")}
+            aria-label={t("git.discardChangesInFile")}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -224,7 +226,7 @@ export const DiffCard = memo(function DiffCard({
         )}
       </div>
       {useInteractiveDiff && selectedLines && reviewActions.length > 0 ? (
-        <div className="diff-viewer-review-actions" role="toolbar" aria-label="PR selection actions">
+        <div className="diff-viewer-review-actions" role="toolbar" aria-label={t("git.prSelectionActions")}>
           {reviewActions.map((action) => (
             <button
               key={action.id}
@@ -246,11 +248,11 @@ export const DiffCard = memo(function DiffCard({
             className="ghost diff-viewer-review-action"
             onClick={onClearSelection}
           >
-            Clear
+            {t("common.clear")}
           </button>
           {pullRequestReviewThreadId ? (
             <span className="diff-viewer-review-thread">
-              Last review thread: {pullRequestReviewThreadId}
+              {t("git.lastReviewThread", { threadId: pullRequestReviewThreadId })}
             </span>
           ) : null}
         </div>
@@ -267,8 +269,8 @@ export const DiffCard = memo(function DiffCard({
                     <button
                       type="button"
                       className="diff-viewer-line-action-button"
-                      aria-label="Ask for changes on hovered line"
-                      title="Ask for changes on this line"
+                      aria-label={t("git.askChangesHoveredLine")}
+                      title={t("git.askChangesThisLine")}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         event.stopPropagation();

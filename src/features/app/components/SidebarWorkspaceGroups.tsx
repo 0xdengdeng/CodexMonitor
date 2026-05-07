@@ -21,6 +21,7 @@ import type {
   ThreadRowsResult,
   WorkspaceGroupSection,
 } from "./sidebarTypes";
+import { useI18n } from "@/features/i18n/i18n";
 
 type SidebarWorkspaceGroupsProps = {
   groups: WorkspaceGroupSection[];
@@ -141,6 +142,7 @@ function SidebarWorkspaceEntry({
   onLoadOlderThreads,
   onToggleAddMenu,
 }: SidebarWorkspaceEntryProps) {
+  const { t } = useI18n();
   if (cloneChildIds.has(workspace.id)) {
     return null;
   }
@@ -194,18 +196,27 @@ function SidebarWorkspaceEntry({
     !activeThreadId;
   const draftStatusClass =
     startingDraftThreadWorkspaceId === workspace.id ? "processing" : "ready";
+  const workspaceSummary =
+    displayThreadRootCount > 0
+      ? `${t(
+          displayThreadRootCount === 1
+            ? "sidebar.conversations.count"
+            : "sidebar.conversations.countPlural",
+          { count: displayThreadRootCount },
+        )}${
+          threads[0]
+            ? ` · ${t("sidebar.conversations.updated", {
+                time: getThreadTime(threads[0]),
+              })}`
+            : ""
+        }`
+      : t("sidebar.conversations.empty");
 
   return (
     <WorkspaceCard
       workspace={workspace}
       workspaceName={renderHighlightedName(workspace.name)}
-      summary={
-        displayThreadRootCount > 0
-          ? `${displayThreadRootCount} conversation${
-              displayThreadRootCount === 1 ? "" : "s"
-            }${threads[0] ? ` · Updated ${getThreadTime(threads[0])}` : ""}`
-          : "No conversations yet"
-      }
+      summary={workspaceSummary}
       isActive={workspace.id === activeWorkspaceId}
       isCollapsed={isCollapsed}
       addMenuOpen={addMenuOpen}
@@ -236,7 +247,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Plus aria-hidden />}
             >
-              New agent
+              {t("sidebar.conversations.newAgent")}
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -247,7 +258,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<GitBranch aria-hidden />}
             >
-              New worktree agent
+              {t("workspace.worktree.title")}
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -258,7 +269,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Copy aria-hidden />}
             >
-              New clone agent
+              {t("workspace.clone.title")}
             </PopoverMenuItem>
           </PopoverSurface>,
           document.body,
@@ -279,7 +290,7 @@ function SidebarWorkspaceEntry({
           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
           <div className="thread-content">
             <div className="thread-headline">
-              <span className="thread-name">New Agent</span>
+              <span className="thread-name">{t("sidebar.conversations.newAgent")}</span>
             </div>
           </div>
         </div>
@@ -313,7 +324,7 @@ function SidebarWorkspaceEntry({
           onLoadOlderThreads={onLoadOlderThreads}
           searchQuery={normalizedQuery}
           isSearchActive={isSearchActive}
-          sectionLabel="Clone agents"
+          sectionLabel={t("sidebar.conversations.cloneAgents")}
           sectionIcon={<Copy className="worktree-header-icon" aria-hidden />}
           className="clone-section"
         />

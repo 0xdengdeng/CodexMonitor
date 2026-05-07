@@ -4,6 +4,7 @@ import type { WorkspaceInfo } from "../../../types";
 import { isMobilePlatform } from "../../../utils/platformPaths";
 import { pickWorkspacePaths } from "../../../services/tauri";
 import type { AddWorkspacesFromPathsResult } from "../../workspaces/hooks/useWorkspaceCrud";
+import { useI18n } from "@/features/i18n/i18n";
 
 const RECENT_REMOTE_WORKSPACE_PATHS_STORAGE_KEY = "mobile-remote-workspace-recent-paths";
 const RECENT_REMOTE_WORKSPACE_PATHS_LIMIT = 5;
@@ -96,6 +97,7 @@ type MobileRemoteWorkspacePathPromptState = {
 } | null;
 
 export function useWorkspaceDialogs() {
+  const { t } = useI18n();
   const [recentMobileRemoteWorkspacePaths, setRecentMobileRemoteWorkspacePaths] = useState<
     string[]
   >(() => loadRecentRemoteWorkspacePaths());
@@ -184,7 +186,7 @@ export function useWorkspaceDialogs() {
         prev
           ? {
               ...prev,
-              error: "Enter at least one absolute directory path.",
+              error: t("workspace.dialogs.pathRequired"),
             }
           : prev,
       );
@@ -192,7 +194,7 @@ export function useWorkspaceDialogs() {
     }
     setMobileRemoteWorkspacePathPrompt(null);
     resolveMobileRemoteWorkspacePathRequest(paths);
-  }, [mobileRemoteWorkspacePathPrompt, resolveMobileRemoteWorkspacePathRequest]);
+  }, [mobileRemoteWorkspacePathPrompt, resolveMobileRemoteWorkspacePathRequest, t]);
 
   useEffect(() => {
     return () => {
@@ -219,110 +221,116 @@ export function useWorkspaceDialogs() {
 
       const lines: string[] = [];
       lines.push(
-        `Added ${result.added.length} workspace${result.added.length === 1 ? "" : "s"}.`,
+        t(
+          result.added.length === 1
+            ? "workspace.dialogs.addedOne"
+            : "workspace.dialogs.addedMany",
+          { count: result.added.length },
+        ),
       );
       if (result.skippedExisting.length > 0) {
         lines.push(
-          `Skipped ${result.skippedExisting.length} already added workspace${
-            result.skippedExisting.length === 1 ? "" : "s"
-          }.`,
+          t("workspace.dialogs.skippedExisting", {
+            count: result.skippedExisting.length,
+          }),
         );
       }
       if (result.skippedInvalid.length > 0) {
         lines.push(
-          `Skipped ${result.skippedInvalid.length} invalid path${
-            result.skippedInvalid.length === 1 ? "" : "s"
-          } (not a folder).`,
+          t("workspace.dialogs.skippedInvalid", {
+            count: result.skippedInvalid.length,
+          }),
         );
       }
       if (result.failures.length > 0) {
         lines.push(
-          `Failed to add ${result.failures.length} workspace${
-            result.failures.length === 1 ? "" : "s"
-          }.`,
+          t("workspace.dialogs.failedCount", { count: result.failures.length }),
         );
         const details = result.failures
           .slice(0, 3)
           .map(({ path, message: failureMessage }) => `- ${path}: ${failureMessage}`);
         if (result.failures.length > 3) {
-          details.push(`- …and ${result.failures.length - 3} more`);
+          details.push(t("workspace.dialogs.moreFailures", { count: result.failures.length - 3 }));
         }
         lines.push("");
-        lines.push("Failures:");
+        lines.push(t("workspace.dialogs.failures"));
         lines.push(...details);
       }
 
       const title =
         result.failures.length > 0
-          ? "Some workspaces failed to add"
-          : "Some workspaces were skipped";
+          ? t("workspace.dialogs.someFailed")
+          : t("workspace.dialogs.someSkipped");
       await message(lines.join("\n"), {
         title,
         kind: result.failures.length > 0 ? "error" : "warning",
       });
     },
-    [],
+    [t],
   );
 
   const confirmWorkspaceRemoval = useCallback(
     async (workspaces: WorkspaceInfo[], workspaceId: string) => {
       const workspace = workspaces.find((entry) => entry.id === workspaceId);
-      const workspaceName = workspace?.name || "this workspace";
+      const workspaceName = workspace?.name || t("workspace.dialogs.thisWorkspace");
       const worktreeCount = workspaces.filter(
         (entry) => entry.parentId === workspaceId,
       ).length;
       const detail =
         worktreeCount > 0
-          ? `\n\nThis will also delete ${worktreeCount} worktree${
-              worktreeCount === 1 ? "" : "s"
-            } on disk.`
+          ? `\n\n${t(
+              worktreeCount === 1
+                ? "workspace.dialogs.deleteWorktreeDiskOne"
+                : "workspace.dialogs.deleteWorktreeDiskMany",
+              { count: worktreeCount },
+            )}`
           : "";
 
       return ask(
-        `Are you sure you want to delete "${workspaceName}"?\n\nThis will remove the workspace from CodexMonitor.${detail}`,
+        `${t("workspace.dialogs.confirmDeleteWorkspace", { name: workspaceName })}${detail}`,
         {
-          title: "Delete Workspace",
+          title: t("workspace.dialogs.deleteWorkspaceTitle"),
           kind: "warning",
-          okLabel: "Delete",
-          cancelLabel: "Cancel",
+          okLabel: t("settings.common.delete"),
+          cancelLabel: t("settings.common.cancel"),
         },
       );
     },
-    [],
+    [t],
   );
 
   const confirmWorktreeRemoval = useCallback(
     async (workspaces: WorkspaceInfo[], workspaceId: string) => {
       const workspace = workspaces.find((entry) => entry.id === workspaceId);
-      const workspaceName = workspace?.name || "this worktree";
+      const workspaceName = workspace?.name || t("workspace.dialogs.thisWorktree");
       return ask(
-        `Are you sure you want to delete "${workspaceName}"?\n\nThis will close the agent, remove its worktree, and delete it from CodexMonitor.`,
+        t("workspace.dialogs.confirmDeleteWorktree", { name: workspaceName }),
         {
-          title: "Delete Worktree",
+          title: t("workspace.dialogs.deleteWorktreeTitle"),
           kind: "warning",
-          okLabel: "Delete",
-          cancelLabel: "Cancel",
+          okLabel: t("settings.common.delete"),
+          cancelLabel: t("settings.common.cancel"),
         },
       );
     },
-    [],
+    [t],
   );
 
   const showWorkspaceRemovalError = useCallback(async (error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     await message(errorMessage, {
-      title: "Delete workspace failed",
+      title: t("workspace.dialogs.deleteWorkspaceFailed"),
       kind: "error",
     });
-  }, []);
+  }, [t]);
 
   const showWorktreeRemovalError = useCallback(async (error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     await message(errorMessage, {
-      title: "Delete worktree failed",
+      title: t("workspace.dialogs.deleteWorktreeFailed"),
       kind: "error",
     });
-  }, []);
+  }, [t]);
 
   return {
     requestWorkspacePaths,

@@ -6,6 +6,7 @@ import {
   RightPanelCollapseButton,
   RightPanelExpandButton,
 } from "../../layout/components/SidebarToggleControls";
+import { useI18n } from "@/features/i18n/i18n";
 
 type MainHeaderActionsProps = {
   centerMode: "chat" | "diff";
@@ -24,10 +25,11 @@ export const MainHeaderActions = memo(function MainHeaderActions({
   rightPanelCollapsed,
   sidebarToggleProps,
 }: MainHeaderActionsProps) {
+  const { t } = useI18n();
   return (
     <>
       {centerMode === "diff" && (
-        <div className="diff-view-toggle" role="group" aria-label="Diff view">
+        <div className="diff-view-toggle" role="group" aria-label={t("git.diffView")}>
           <button
             type="button"
             className={`diff-view-toggle-button${
@@ -35,8 +37,8 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             } ds-tooltip-trigger`}
             onClick={() => onSelectDiffViewStyle("split")}
             aria-pressed={gitDiffViewStyle === "split"}
-            title="Dual-panel diff"
-            data-tooltip="Dual-panel diff"
+            title={t("git.diffView.dual")}
+            data-tooltip={t("git.diffView.dual")}
             data-tooltip-placement="bottom"
             data-tauri-drag-region="false"
           >
@@ -49,8 +51,8 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             } ds-tooltip-trigger`}
             onClick={() => onSelectDiffViewStyle("unified")}
             aria-pressed={gitDiffViewStyle === "unified"}
-            title="Single-column diff"
-            data-tooltip="Single-column diff"
+            title={t("git.diffView.single")}
+            data-tooltip={t("git.diffView.single")}
             data-tooltip-placement="bottom"
             data-tauri-drag-region="false"
           >
