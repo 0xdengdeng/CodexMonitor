@@ -55,6 +55,17 @@
   --button-secondary-bg-hover: rgba(87, 102, 123, 0.88);
   --button-secondary-border: rgba(171, 190, 218, 0.2);
   --button-ghost-bg-hover: rgba(131, 185, 255, 0.12);
+  --workflow-running: #7db7d4;
+  --workflow-reviewing: #b0a4e4;
+  --workflow-waiting: #a1ccff;
+  --workflow-ready: #a0aec0;
+  --semantic-error: #e08a82;
+  --semantic-warning: #d5a35e;
+  --semantic-success: #7bc4a3;
+  --status-success: var(--semantic-success);
+  --status-warning: var(--semantic-warning);
+  --status-error: var(--semantic-error);
+  --status-unknown: rgba(226, 235, 246, 0.28);
   --select-caret: rgba(226, 235, 246, 0.62);
 }
 

@@ -61,9 +61,16 @@
   --button-secondary-bg-hover: rgba(241, 247, 255, 0.98);
   --button-secondary-border: rgba(75, 96, 130, 0.2);
   --button-ghost-bg-hover: rgba(47, 111, 237, 0.07);
-  --status-success: rgba(30, 155, 110, 0.9);
-  --status-warning: rgba(215, 120, 20, 0.9);
-  --status-error: rgba(200, 45, 45, 0.9);
+  --workflow-running: #167da3;
+  --workflow-reviewing: #6b5dd3;
+  --workflow-waiting: #2f6fed;
+  --workflow-ready: #66758f;
+  --semantic-error: #c94a43;
+  --semantic-warning: #a96800;
+  --semantic-success: #16865a;
+  --status-success: var(--semantic-success);
+  --status-warning: var(--semantic-warning);
+  --status-error: var(--semantic-error);
   --status-unknown: rgba(17, 20, 28, 0.25);
   --select-caret: rgba(15, 23, 36, 0.45);
 }

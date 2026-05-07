@@ -1,3 +1,7 @@
+import Download from "lucide-react/dist/esm/icons/download";
+import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
+import { useI18n } from "@/features/i18n/i18n";
+
 type HomeActionsProps = {
   onAddWorkspace: () => void;
   onAddWorkspaceFromUrl: () => void;
@@ -7,6 +11,8 @@ export function HomeActions({
   onAddWorkspace,
   onAddWorkspaceFromUrl,
 }: HomeActionsProps) {
+  const { t } = useI18n();
+
   return (
     <div className="home-actions">
       <button
@@ -15,9 +21,9 @@ export function HomeActions({
         data-tauri-drag-region="false"
       >
         <span className="home-icon" aria-hidden>
-          +
+          <FolderPlus />
         </span>
-        Add Workspaces
+        {t("home.actions.addWorkspace")}
       </button>
       <button
         className="home-button secondary home-add-workspace-from-url-button"
@@ -25,9 +31,9 @@ export function HomeActions({
         data-tauri-drag-region="false"
       >
         <span className="home-icon" aria-hidden>
-          ⤓
+          <Download />
         </span>
-        Add Workspace from URL
+        {t("home.actions.addWorkspaceFromUrl")}
       </button>
     </div>
   );
