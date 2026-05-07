@@ -82,11 +82,15 @@ export function useThreadItemEvents({
         onUserMessageCreated,
       });
       if (converted) {
+        const item =
+          converted.kind === "message" && converted.createdAt === undefined
+            ? { ...converted, createdAt: Date.now() }
+            : converted;
         dispatch({
           type: "upsertItem",
           workspaceId,
           threadId,
-          item: converted,
+          item,
           hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
         });
       }
@@ -174,6 +178,7 @@ export function useThreadItemEvents({
         threadId,
         itemId,
         text,
+        timestamp,
         hasCustomName,
       });
       dispatch({

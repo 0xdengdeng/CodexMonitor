@@ -3,6 +3,7 @@ import type { ConversationItem } from "../types";
 import {
   buildConversationItem,
   buildConversationItemFromThreadItem,
+  buildItemsFromThread,
   getThreadCreatedTimestamp,
   getThreadTimestamp,
   mergeThreadItems,
@@ -796,6 +797,64 @@ describe("threadItems", () => {
       expect(item.text).toBe("");
       expect(item.images).toEqual(["https://example.com/only.png"]);
     }
+  });
+
+  it("preserves message creation timestamps from thread history", () => {
+    const userItem = buildConversationItemFromThreadItem({
+      type: "userMessage",
+      id: "msg-created-user",
+      created_at: "2025-05-07T06:05:00Z",
+      content: [{ type: "text", text: "Hello" }],
+    });
+    const assistantItem = buildConversationItemFromThreadItem({
+      type: "agentMessage",
+      id: "msg-created-assistant",
+      timestamp: 1_746_599_400,
+      text: "Hi",
+    });
+
+    expect(userItem).not.toBeNull();
+    expect(assistantItem).not.toBeNull();
+    if (userItem && userItem.kind === "message") {
+      expect(userItem.createdAt).toBe(Date.parse("2025-05-07T06:05:00Z"));
+    }
+    if (assistantItem && assistantItem.kind === "message") {
+      expect(assistantItem.createdAt).toBe(1_746_599_400_000);
+    }
+  });
+
+  it("uses the turn timestamp for history messages without item timestamps", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          created_at: "2025-05-07T07:30:00Z",
+          items: [
+            {
+              type: "userMessage",
+              id: "msg-turn-user",
+              content: [{ type: "text", text: "From turn" }],
+            },
+            {
+              type: "agentMessage",
+              id: "msg-turn-assistant",
+              text: "Reply from turn",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      id: "msg-turn-user",
+      kind: "message",
+      createdAt: Date.parse("2025-05-07T07:30:00Z"),
+    });
+    expect(items[1]).toMatchObject({
+      id: "msg-turn-assistant",
+      kind: "message",
+      createdAt: Date.parse("2025-05-07T07:30:00Z"),
+    });
   });
 
   it("formats collab tool calls with receivers and agent states", () => {

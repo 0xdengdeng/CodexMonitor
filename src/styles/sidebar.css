@@ -53,8 +53,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 12, 16, 0.4);
-  backdrop-filter: blur(10px);
+  background: var(--surface-sidebar);
+  backdrop-filter: none;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -155,7 +155,7 @@
   height: 28px;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-card-strong) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-card-strong) 88%, var(--surface-sidebar));
   color: var(--text-muted);
   line-height: 1;
   border-radius: var(--sidebar-control-radius);
@@ -763,8 +763,8 @@
   position: absolute;
   inset: 0;
   border-radius: var(--sidebar-item-radius);
-  background: color-mix(in srgb, var(--surface-card-strong) 92%, white);
-  border: 1px solid color-mix(in srgb, var(--border-subtle) 88%, white);
+  background: color-mix(in srgb, var(--surface-card-strong) 86%, var(--surface-sidebar));
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 84%, var(--surface-sidebar));
   box-shadow: none;
   transition:
     background 0.2s ease,
@@ -782,15 +782,15 @@
 }
 
 .workspace-row:hover::before {
-  background: color-mix(in srgb, var(--surface-hover) 18%, white);
-  border-color: color-mix(in srgb, var(--border-strong) 72%, white);
+  background: color-mix(in srgb, var(--surface-hover) 76%, var(--surface-sidebar));
+  border-color: color-mix(in srgb, var(--border-strong) 72%, var(--surface-sidebar));
   box-shadow: 0 2px 10px rgba(15, 23, 36, 0.04);
 }
 
 .workspace-row.active::before {
-  background: color-mix(in srgb, var(--border-accent-soft) 26%, white);
-  border-color: color-mix(in srgb, var(--border-accent) 72%, white);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-accent-soft) 82%, transparent);
+  background: color-mix(in srgb, var(--border-accent-soft) 46%, var(--surface-sidebar));
+  border-color: color-mix(in srgb, var(--border-accent) 64%, var(--surface-sidebar));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-accent-soft) 70%, transparent);
 }
 
 .workspace-row.active .workspace-name {
@@ -841,7 +841,7 @@
   padding: 3px 8px;
   border-radius: var(--sidebar-small-radius);
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-card-strong) 72%, white);
+  background: color-mix(in srgb, var(--surface-card-strong) 72%, var(--surface-sidebar));
   -webkit-app-region: no-drag;
 }
 
@@ -850,7 +850,7 @@
   height: 24px;
   border-radius: var(--sidebar-control-radius);
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-card-strong) 84%, white);
+  background: color-mix(in srgb, var(--surface-card-strong) 84%, var(--surface-sidebar));
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
@@ -868,7 +868,7 @@
 
 .workspace-add:hover {
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--surface-hover) 20%, white);
+  background: color-mix(in srgb, var(--surface-hover) 74%, var(--surface-sidebar));
 }
 
 .workspace-row:hover .workspace-add,
@@ -1163,7 +1163,7 @@
 }
 
 .thread-row.active {
-  background: color-mix(in srgb, var(--surface-active) 96%, transparent);
+  background: color-mix(in srgb, var(--surface-active) 96%, var(--surface-sidebar));
   border-color: color-mix(in srgb, var(--border-accent) 42%, transparent);
   color: var(--text-strong);
 }
@@ -1338,32 +1338,32 @@
 
 .thread-state-chip.processing {
   color: var(--sidebar-status-processing);
-  background: color-mix(in srgb, var(--sidebar-status-processing) 12%, transparent);
+  background: color-mix(in srgb, var(--sidebar-status-processing) 12%, var(--surface-sidebar));
   border-color: color-mix(in srgb, var(--sidebar-status-processing) 24%, transparent);
 }
 
 .thread-state-chip.reviewing {
   color: var(--sidebar-status-reviewing);
-  background: color-mix(in srgb, var(--sidebar-status-reviewing) 13%, transparent);
+  background: color-mix(in srgb, var(--sidebar-status-reviewing) 13%, var(--surface-sidebar));
   border-color: color-mix(in srgb, var(--sidebar-status-reviewing) 25%, transparent);
 }
 
 .thread-state-chip.unread {
   color: var(--sidebar-status-unread);
-  background: color-mix(in srgb, var(--sidebar-status-unread) 11%, transparent);
+  background: color-mix(in srgb, var(--sidebar-status-unread) 11%, var(--surface-sidebar));
   border-color: color-mix(in srgb, var(--sidebar-status-unread) 24%, transparent);
 }
 
 .thread-state-chip.ready {
   color: var(--sidebar-status-ready);
-  background: color-mix(in srgb, var(--sidebar-status-ready) 10%, transparent);
+  background: color-mix(in srgb, var(--sidebar-status-ready) 10%, var(--surface-sidebar));
   border-color: color-mix(in srgb, var(--sidebar-status-ready) 22%, transparent);
 }
 
 .thread-state-chip.failed,
 .thread-state-chip.error {
   color: var(--sidebar-status-error);
-  background: color-mix(in srgb, var(--sidebar-status-error) 12%, transparent);
+  background: color-mix(in srgb, var(--sidebar-status-error) 12%, var(--surface-sidebar));
   border-color: color-mix(in srgb, var(--sidebar-status-error) 24%, transparent);
 }
 
@@ -1584,7 +1584,7 @@
 }
 
 .worktree-row.active {
-  background: color-mix(in srgb, var(--surface-active) 96%, transparent);
+  background: color-mix(in srgb, var(--surface-active) 96%, var(--surface-sidebar));
   border-color: color-mix(in srgb, var(--border-accent) 42%, transparent);
 }
 
@@ -1826,7 +1826,7 @@
   padding: 4px 10px;
   border-radius: var(--sidebar-control-radius);
   border: 1px solid var(--border-quiet);
-  background: color-mix(in srgb, var(--surface-hover) 82%, transparent);
+  background: color-mix(in srgb, var(--surface-hover) 82%, var(--surface-sidebar));
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;

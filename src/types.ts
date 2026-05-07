@@ -103,6 +103,7 @@ export type ConversationItem =
       kind: "message";
       role: "user" | "assistant";
       text: string;
+      createdAt?: number;
       images?: string[];
     }
   | {

@@ -489,10 +489,7 @@ pub(crate) struct AppSettings {
     pub(crate) ui_scale: f64,
     #[serde(default = "default_theme", rename = "theme")]
     pub(crate) theme: String,
-    #[serde(
-        default = "default_interface_language",
-        rename = "interfaceLanguage"
-    )]
+    #[serde(default = "default_interface_language", rename = "interfaceLanguage")]
     pub(crate) interface_language: String,
     #[serde(
         default = "default_usage_show_remaining",

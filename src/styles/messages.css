@@ -157,6 +157,7 @@
 .message {
   display: flex;
   margin-bottom: 0;
+  padding-bottom: 20px;
   width: 100%;
 }
 
@@ -164,8 +165,26 @@
   justify-content: flex-end;
 }
 
-.bubble {
+.message-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   max-width: min(100%, 760px);
+  min-width: 0;
+}
+
+.message.user .message-stack {
+  align-items: flex-end;
+  max-width: min(72%, 560px);
+}
+
+.message.assistant .message-stack {
+  width: 100%;
+  max-width: 100%;
+}
+
+.bubble {
+  max-width: 100%;
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid var(--cm-border-emphasis);
@@ -178,8 +197,7 @@
   transition:
     background-color 0.18s ease,
     border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    backdrop-filter 0.18s ease;
+    box-shadow 0.18s ease;
 }
 
 .message-bubble {
@@ -198,86 +216,85 @@
   margin: 0;
 }
 
-.message-copy-button {
+.message-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transform: none;
+  transition: opacity 140ms ease;
+}
+
+.message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 20px;
+  margin-top: 5px;
+  padding: 0 2px;
+  color: var(--text-faint);
+}
+
+.message.user .message-meta {
+  justify-content: flex-end;
+}
+
+.message-time {
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.message-action-button.ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  position: absolute;
-  right: 6px;
-  bottom: -12px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--surface-card-strong);
-  border: 1px solid var(--border-strong);
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 160ms ease, transform 160ms ease;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-faint);
+  box-shadow: none;
+  opacity: 0.74;
+  transform: none;
+  transition: color 120ms ease, opacity 120ms ease;
 }
 
-.message-quote-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  right: 34px;
-  bottom: -12px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--surface-card-strong);
-  border: 1px solid var(--border-strong);
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.message:hover .message-copy-button,
-.message:hover .message-quote-button {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.message-copy-icon {
-  position: relative;
+.message-action-button.ghost svg {
+  display: block;
   width: 14px;
   height: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.message-copy-icon svg {
-  position: absolute;
-  inset: 0;
-  transition: opacity 160ms ease, transform 160ms ease, filter 160ms ease;
-}
-
-.message-copy-icon-copy {
+.message:hover .message-actions,
+.message-actions:focus-within {
   opacity: 1;
-  transform: scale(1);
-  filter: blur(0);
+  transform: none;
 }
 
-.message-copy-icon-check {
-  opacity: 0;
-  transform: scale(0.82);
-  filter: blur(2px);
-  transition-delay: 60ms;
-}
-
-.message-copy-button.is-copied .message-copy-icon-copy {
-  opacity: 0;
-  transform: scale(0.82);
-  filter: blur(2px);
-}
-
-.message-copy-button.is-copied .message-copy-icon-check {
+.message-action-button.ghost:hover:not(:disabled),
+.message-action-button.ghost:focus-visible,
+.message-action-button.ghost:active:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
   opacity: 1;
-  transform: scale(1);
-  filter: blur(0);
+  transform: none;
+}
+
+.message-copy-button.ghost.is-copied {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-accent);
 }
 
 .message.user .bubble {
-  max-width: min(72%, 560px);
+  max-width: 100%;
   background: var(--cm-surface-panel-active);
   border-color: color-mix(in srgb, var(--border-accent) 28%, transparent);
 }
@@ -512,7 +529,7 @@
   border-radius: 16px;
   padding: 12px 14px;
   margin: 0;
-  background: color-mix(in srgb, var(--cm-surface-panel-soft) 88%, transparent);
+  background: color-mix(in srgb, var(--cm-surface-panel-soft) 88%, var(--surface-messages));
   display: flex;
   position: relative;
   min-width: 0;
@@ -949,7 +966,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 10px 28px rgba(7, 12, 34, 0.12);
-  backdrop-filter: saturate(1.08) brightness(1.05);
+  backdrop-filter: none;
 }
 
 .message.assistant .bubble:hover,
@@ -1136,7 +1153,7 @@
 
 .message .markdown :not(pre) > code {
   color: var(--text-stronger);
-  background: color-mix(in srgb, var(--surface-command) 82%, transparent);
+  background: color-mix(in srgb, var(--surface-command) 82%, var(--surface-bubble));
   border: 1px solid var(--border-subtle);
   padding: 1px 5px;
   border-radius: 6px;
@@ -1151,7 +1168,7 @@
   padding: 2px 7px;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-command) 82%, transparent);
+  background: color-mix(in srgb, var(--surface-command) 82%, var(--surface-bubble));
   color: var(--message-link-color);
   text-decoration: none;
   vertical-align: baseline;
@@ -1177,7 +1194,7 @@
   padding: 0 5px;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-control) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-control) 78%, var(--surface-bubble));
   color: var(--text-muted);
   font-size: 0.64em;
   line-height: 1.35;
@@ -1304,7 +1321,7 @@
   overflow-x: auto;
   border: 1px solid var(--border-strong);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-card-strong) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-card-strong) 92%, var(--surface-messages));
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
 }
 
@@ -1329,7 +1346,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: color-mix(in srgb, var(--surface-control) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-control) 90%, var(--surface-card-strong));
   border-bottom: 1px solid var(--border-strong);
   font-size: 10px;
   font-weight: 700;
@@ -1347,7 +1364,7 @@
 }
 
 .markdown .markdown-table tbody tr:hover td {
-  background: color-mix(in srgb, var(--surface-control-hover) 36%, transparent);
+  background: color-mix(in srgb, var(--surface-control-hover) 36%, var(--surface-card-strong));
 }
 
 .message .markdown .markdown-table td:first-child {
@@ -1437,7 +1454,7 @@
   margin: 0;
   padding: 6px 10px;
   border-left: 2px solid var(--border-accent-soft);
-  background: color-mix(in srgb, var(--surface-card-strong) 65%, transparent);
+  background: color-mix(in srgb, var(--surface-card-strong) 65%, var(--surface-bubble));
   border-radius: 6px;
   color: var(--text-muted);
 }

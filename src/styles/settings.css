@@ -229,7 +229,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--border-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--border-accent) 18%, var(--surface-card));
   border: 1px solid color-mix(in srgb, var(--border-accent) 45%, transparent);
 }
 

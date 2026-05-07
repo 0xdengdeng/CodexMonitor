@@ -370,6 +370,18 @@ export const WorkingIndicator = memo(function WorkingIndicator({
   );
 });
 
+function formatMessageCreatedAt(timestamp: number, language: string) {
+  try {
+    return new Intl.DateTimeFormat(language === "zh-CN" ? "zh-CN" : "en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(timestamp));
+  } catch {
+    return "";
+  }
+}
+
 export const MessageRow = memo(function MessageRow({
   item,
   isCopied,
@@ -382,11 +394,17 @@ export const MessageRow = memo(function MessageRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: MessageRowProps) {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const selectionSnapshotRef = useRef<string | null>(null);
   const hasText = item.text.trim().length > 0;
+  const messageTime = useMemo(() => {
+    if (!item.createdAt) {
+      return "";
+    }
+    return formatMessageCreatedAt(item.createdAt, language);
+  }, [item.createdAt, language]);
   const imageItems = useMemo(() => {
     if (!item.images || item.images.length === 0) {
       return [];
@@ -447,66 +465,81 @@ export const MessageRow = memo(function MessageRow({
 
   return (
     <div className={`message ${item.role}`}>
-      <div
-        ref={bubbleRef}
-        className={`bubble message-bubble${isTableOnlyAssistantMessage ? " message-bubble-table-only" : ""}`}
-      >
-        {imageItems.length > 0 && (
-          <MessageImageGrid
-            images={imageItems}
-            onOpen={setLightboxIndex}
-            hasText={hasText}
-          />
-        )}
-        {hasText && (
-          <Markdown
-            value={item.text}
-            className="markdown"
-            codeBlockStyle="message"
-            codeBlockCopyUseModifier={codeBlockCopyUseModifier}
-            showFilePath={showMessageFilePath}
-            workspacePath={workspacePath}
-            onOpenFileLink={onOpenFileLink}
-            onOpenFileLinkMenu={onOpenFileLinkMenu}
-            onOpenThreadLink={onOpenThreadLink}
-          />
-        )}
-        {lightboxIndex !== null && imageItems.length > 0 && (
-          <ImageLightbox
-            images={imageItems}
-            activeIndex={lightboxIndex}
-            onClose={() => setLightboxIndex(null)}
-          />
-        )}
-        {onQuote && hasText && (
-          <button
-            type="button"
-            className="ghost message-quote-button"
-            onMouseDown={() => {
-              selectionSnapshotRef.current = getSelectedMessageText();
-            }}
-            onTouchStart={() => {
-              selectionSnapshotRef.current = getSelectedMessageText();
-            }}
-            onClick={handleQuote}
-            aria-label={t("messages.quote")}
-            title={t("messages.quote")}
-          >
-            <Quote size={14} aria-hidden />
-          </button>
-        )}
-        <button
-          type="button"
-          className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
-          onClick={() => onCopy(item)}
-          aria-label={t("messages.copyMessage")}
-          title={t("messages.copyMessage")}
+      <div className="message-stack">
+        <div
+          ref={bubbleRef}
+          className={`bubble message-bubble${isTableOnlyAssistantMessage ? " message-bubble-table-only" : ""}`}
         >
-          <span className="message-copy-icon" aria-hidden>
-            <Copy className="message-copy-icon-copy" size={14} />
-            <Check className="message-copy-icon-check" size={14} />
-          </span>
-        </button>
+          {imageItems.length > 0 && (
+            <MessageImageGrid
+              images={imageItems}
+              onOpen={setLightboxIndex}
+              hasText={hasText}
+            />
+          )}
+          {hasText && (
+            <Markdown
+              value={item.text}
+              className="markdown"
+              codeBlockStyle="message"
+              codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+              showFilePath={showMessageFilePath}
+              workspacePath={workspacePath}
+              onOpenFileLink={onOpenFileLink}
+              onOpenFileLinkMenu={onOpenFileLinkMenu}
+              onOpenThreadLink={onOpenThreadLink}
+            />
+          )}
+          {lightboxIndex !== null && imageItems.length > 0 && (
+            <ImageLightbox
+              images={imageItems}
+              activeIndex={lightboxIndex}
+              onClose={() => setLightboxIndex(null)}
+            />
+          )}
+        </div>
+        <div className="message-meta">
+          {messageTime && item.createdAt && (
+            <time
+              className="message-time"
+              dateTime={new Date(item.createdAt).toISOString()}
+            >
+              {messageTime}
+            </time>
+          )}
+          <div className="message-actions">
+            <button
+              type="button"
+              className={`ghost message-action-button message-copy-button${isCopied ? " is-copied" : ""}`}
+              onClick={() => onCopy(item)}
+              aria-label={t("messages.copyMessage")}
+              title={t("messages.copyMessage")}
+            >
+              {isCopied ? (
+                <Check size={14} strokeWidth={2} aria-hidden />
+              ) : (
+                <Copy size={14} strokeWidth={2} aria-hidden />
+              )}
+            </button>
+            {onQuote && hasText && (
+              <button
+                type="button"
+                className="ghost message-action-button message-quote-button"
+                onMouseDown={() => {
+                  selectionSnapshotRef.current = getSelectedMessageText();
+                }}
+                onTouchStart={() => {
+                  selectionSnapshotRef.current = getSelectedMessageText();
+                }}
+                onClick={handleQuote}
+                aria-label={t("messages.quote")}
+                title={t("messages.quote")}
+              >
+                <Quote size={14} strokeWidth={2} aria-hidden />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

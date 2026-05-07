@@ -45,6 +45,7 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
       ...existing,
       ...item,
       text: incomingText.length >= existingText.length ? incomingText : existingText,
+      createdAt: item.createdAt ?? existing.createdAt,
       images: item.images?.length ? item.images : existing.images,
     };
     return next;
@@ -151,7 +152,11 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
     return remote;
   }
   if (remote.kind === "message" && local.kind === "message") {
-    return local.text.length > remote.text.length ? local : remote;
+    const chosen = local.text.length > remote.text.length ? local : remote;
+    return {
+      ...chosen,
+      createdAt: chosen.createdAt ?? remote.createdAt ?? local.createdAt,
+    };
   }
   if (remote.kind === "userInput" && local.kind === "userInput") {
     const remoteScore = remote.questions.reduce(

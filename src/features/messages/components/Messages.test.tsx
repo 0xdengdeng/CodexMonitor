@@ -174,6 +174,32 @@ describe("Messages", () => {
     expect(container.querySelector(".markdown-table-wrap")).toBeTruthy();
   });
 
+  it("renders message creation time below the bubble", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-time-1",
+        kind: "message",
+        role: "assistant",
+        text: "Timed message",
+        createdAt: new Date(2025, 4, 7, 14, 5).getTime(),
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("14:05")).toBeTruthy();
+    expect(container.querySelector(".message-time")).toBeTruthy();
+  });
+
   it("quotes a message into composer using markdown blockquote format", () => {
     const onQuoteMessage = vi.fn();
     const items: ConversationItem[] = [

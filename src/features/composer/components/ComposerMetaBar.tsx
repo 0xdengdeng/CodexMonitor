@@ -25,6 +25,10 @@ type ComposerMetaBarProps = {
   contextUsage?: ThreadTokenUsage | null;
 };
 
+function normalizeLabelValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
 export function ComposerMetaBar({
   disabled,
   collaborationModes,
@@ -75,6 +79,54 @@ export function ComposerMetaBar({
       (mode) => mode.id === "default" || mode.id === "plan",
     );
   const planSelected = selectedCollaborationModeId === (planMode?.id ?? "");
+  const formatCollaborationModeLabel = (
+    mode: { id: string; label: string } | null | undefined,
+  ) => {
+    if (!mode) {
+      return "";
+    }
+    const normalizedId = normalizeLabelValue(mode.id);
+    const normalizedLabel = normalizeLabelValue(mode.label);
+    if (normalizedId === "plan" || normalizedLabel === "plan") {
+      return t("composer.collaboration.plan");
+    }
+    if (
+      normalizedId === "default" ||
+      normalizedId === "code" ||
+      normalizedLabel === "default" ||
+      normalizedLabel === "code"
+    ) {
+      return t("composer.collaboration.default");
+    }
+    if (normalizedId === "review" || normalizedLabel === "review") {
+      return t("composer.collaboration.review");
+    }
+    return mode.label || mode.id;
+  };
+  const formatReasoningEffortLabel = (effort: string) => {
+    const normalizedEffort = normalizeLabelValue(effort).replace(/[\s_-]+/g, "");
+    switch (normalizedEffort) {
+      case "none":
+        return t("composer.reasoning.none");
+      case "minimal":
+        return t("composer.reasoning.minimal");
+      case "low":
+        return t("composer.reasoning.low");
+      case "medium":
+        return t("composer.reasoning.medium");
+      case "high":
+        return t("composer.reasoning.high");
+      case "xhigh":
+      case "extrahigh":
+        return t("composer.reasoning.xhigh");
+      default:
+        return effort;
+    }
+  };
+  const contextFreeLabel =
+    contextFreePercent === null
+      ? t("composer.contextFreeUnknown")
+      : t("composer.contextFree", { percent: Math.round(contextFreePercent) });
 
   return (
     <div className="composer-bar">
@@ -108,7 +160,7 @@ export function ComposerMetaBar({
                   </svg>
                 </span>
                 <span className="composer-plan-toggle-label">
-                  {planMode?.label || t("composer.plan")}
+                  {formatCollaborationModeLabel(planMode) || t("composer.plan")}
                 </span>
               </label>
             </div>
@@ -136,7 +188,7 @@ export function ComposerMetaBar({
               >
                 {collaborationModes.map((mode) => (
                   <option key={mode.id} value={mode.id}>
-                    {mode.label || mode.id}
+                    {formatCollaborationModeLabel(mode)}
                   </option>
                 ))}
               </select>
@@ -214,7 +266,7 @@ export function ComposerMetaBar({
             {reasoningOptions.length === 0 && <option value="">{t("composer.default")}</option>}
             {reasoningOptions.map((effort) => (
               <option key={effort} value={effort}>
-                {effort}
+                {formatReasoningEffortLabel(effort)}
               </option>
             ))}
           </select>
@@ -226,7 +278,7 @@ export function ComposerMetaBar({
             </span>
             <select
               className="composer-select composer-select--approval"
-              aria-label="Codex args profile"
+              aria-label={t("composer.codexArgsProfile")}
               disabled={disabled}
               value={selectedCodexArgsOverride ?? ""}
               onChange={(event) =>
@@ -261,32 +313,24 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--approval"
-            aria-label="Agent access"
+            aria-label={t("settings.codex.accessMode")}
             disabled={disabled}
             value={accessMode}
             onChange={(event) =>
               onSelectAccessMode(event.target.value as AccessMode)
             }
           >
-            <option value="read-only">Read only</option>
-            <option value="current">On-Request</option>
-            <option value="full-access">Full access</option>
+            <option value="read-only">{t("settings.codex.accessReadOnly")}</option>
+            <option value="current">{t("settings.codex.accessOnRequest")}</option>
+            <option value="full-access">{t("settings.codex.accessFull")}</option>
           </select>
         </div>
       </div>
       <div className="composer-context">
         <div
           className="composer-context-ring"
-          data-tooltip={
-            contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
-          }
-          aria-label={
-            contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
-          }
+          data-tooltip={contextFreeLabel}
+          aria-label={contextFreeLabel}
           style={
             {
               "--context-free": contextFreePercent ?? 0,
