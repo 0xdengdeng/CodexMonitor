@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -36,7 +35,6 @@ export type SettingsCodexSectionProps = {
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
-  codexPathDraft: string;
   codexArgsDraft: string;
   codexDirty: boolean;
   isSavingSettings: boolean;
@@ -62,11 +60,9 @@ export type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  onSetCodexPathDraft: Dispatch<SetStateAction<string>>;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
-  onBrowseCodex: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -84,7 +80,6 @@ export const useSettingsCodexSection = ({
   onRunCodexUpdate,
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
   const { t } = useI18n();
-  const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [doctorState, setDoctorState] = useState<{
@@ -163,33 +158,19 @@ export const useSettingsCodexSection = ({
   });
 
   useEffect(() => {
-    setCodexPathDraft(appSettings.codexBin ?? "");
-  }, [appSettings.codexBin]);
-
-  useEffect(() => {
     setCodexArgsDraft(appSettings.codexArgs ?? "");
   }, [appSettings.codexArgs]);
 
-  const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
   const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
   const codexDirty =
-    nextCodexBin !== (appSettings.codexBin ?? null) ||
-    nextCodexArgs !== (appSettings.codexArgs ?? null);
-
-  const handleBrowseCodex = async () => {
-    const selection = await open({ multiple: false, directory: false });
-    if (!selection || Array.isArray(selection)) {
-      return;
-    }
-    setCodexPathDraft(selection);
-  };
+    appSettings.codexBin !== null || nextCodexArgs !== (appSettings.codexArgs ?? null);
 
   const handleSaveCodexSettings = async () => {
     setIsSavingSettings(true);
     try {
       await onUpdateAppSettings({
         ...appSettings,
-        codexBin: nextCodexBin,
+        codexBin: null,
         codexArgs: nextCodexArgs,
       });
     } finally {
@@ -200,14 +181,14 @@ export const useSettingsCodexSection = ({
   const handleRunDoctor = async () => {
     setDoctorState({ status: "running", result: null });
     try {
-      const result = await onRunDoctor(nextCodexBin, nextCodexArgs);
+      const result = await onRunDoctor(null, nextCodexArgs);
       setDoctorState({ status: "done", result });
     } catch (error) {
       setDoctorState({
         status: "done",
         result: {
           ok: false,
-          codexBin: nextCodexBin,
+          codexBin: null,
           version: null,
           appServerOk: false,
           details: error instanceof Error ? error.message : String(error),
@@ -240,7 +221,7 @@ export const useSettingsCodexSection = ({
         return;
       }
 
-      const result = await onRunCodexUpdate(nextCodexBin, nextCodexArgs);
+      const result = await onRunCodexUpdate(null, nextCodexArgs);
       setCodexUpdateState({ status: "done", result });
     } catch (error) {
       setCodexUpdateState({
@@ -269,7 +250,6 @@ export const useSettingsCodexSection = ({
     onRefreshDefaultModels: () => {
       void refreshDefaultModels();
     },
-    codexPathDraft,
     codexArgsDraft,
     codexDirty,
     isSavingSettings,
@@ -289,11 +269,9 @@ export const useSettingsCodexSection = ({
     globalConfigRefreshDisabled: globalConfigEditorMeta.refreshDisabled,
     globalConfigSaveDisabled: globalConfigEditorMeta.saveDisabled,
     globalConfigSaveLabel: globalConfigEditorMeta.saveLabel,
-    onSetCodexPathDraft: setCodexPathDraft,
     onSetCodexArgsDraft: setCodexArgsDraft,
     onSetGlobalAgentsContent: setGlobalAgentsContent,
     onSetGlobalConfigContent: setGlobalConfigContent,
-    onBrowseCodex: handleBrowseCodex,
     onSaveCodexSettings: handleSaveCodexSettings,
     onRunDoctor: handleRunDoctor,
     onRunCodexUpdate: handleRunCodexUpdate,

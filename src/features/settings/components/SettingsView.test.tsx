@@ -1094,6 +1094,45 @@ describe("SettingsView Environments", () => {
 });
 
 describe("SettingsView Codex section", () => {
+  it("does not expose a custom Codex binary path setting", () => {
+    cleanup();
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, codexBin: "/usr/local/bin/codex" }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    expect(screen.queryByLabelText("Default Codex path")).toBeNull();
+    expect(screen.queryByDisplayValue("/usr/local/bin/codex")).toBeNull();
+  });
+
   it("updates review mode in codex section", async () => {
     cleanup();
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);

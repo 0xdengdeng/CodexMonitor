@@ -177,6 +177,22 @@
   margin-right: 4px;
 }
 
+.settings-runtime-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-muted);
+  border-radius: 10px;
+  background: var(--surface-card);
+}
+
+.settings-runtime-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
 .settings-mobile-remotes {
   display: flex;
   flex-direction: column;

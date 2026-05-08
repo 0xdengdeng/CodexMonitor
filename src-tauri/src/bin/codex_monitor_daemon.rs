@@ -7,6 +7,8 @@ mod codex_args;
 mod codex_config;
 #[path = "../codex/home.rs"]
 mod codex_home;
+#[path = "../codex/runtime.rs"]
+mod codex_runtime;
 #[path = "../files/io.rs"]
 mod file_io;
 #[path = "../files/ops.rs"]
@@ -100,18 +102,22 @@ fn spawn_with_client(
     event_sink: DaemonEventSink,
     client_version: String,
     entry: WorkspaceEntry,
-    default_bin: Option<String>,
+    _default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(
-        entry,
-        default_bin,
-        codex_args,
-        codex_home,
-        client_version,
-        event_sink,
-    )
+    async move {
+        let codex_runtime = codex_runtime::resolve_codex_runtime_from_current_exe()?;
+        spawn_workspace_session(
+            entry,
+            Some(codex_runtime.bin),
+            codex_args,
+            codex_home,
+            client_version,
+            event_sink,
+        )
+        .await
+    }
 }
 
 #[derive(Clone)]
@@ -1255,10 +1261,16 @@ impl DaemonState {
 
     async fn codex_doctor(
         &self,
-        codex_bin: Option<String>,
+        _codex_bin: Option<String>,
         codex_args: Option<String>,
     ) -> Result<Value, String> {
-        codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
+        let codex_runtime = codex_runtime::resolve_codex_runtime_from_current_exe()?;
+        codex_aux_core::codex_doctor_core(
+            &self.app_settings,
+            Some(codex_runtime.bin),
+            codex_args,
+        )
+        .await
     }
 
     async fn generate_commit_message(

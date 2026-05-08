@@ -76,7 +76,7 @@ Run in dev mode:
 npm run tauri:dev
 ```
 
-`npm run tauri:dev` builds the Codex CLI from `../Codex/codex-rs`, copies it into
+`npm run tauri:dev` builds the Codex runtime from `../Codex/codex-rs`, copies it into
 `src-tauri/binaries/` as the bundled `codex-runtime` sidecar, and then launches
 Tauri. Use `CODEX_MONITOR_CODEX_REPO=/path/to/Codex` for a different fork, or
 `CODEX_MONITOR_CODEX_BIN=/path/to/codex` to copy a prebuilt runtime.
@@ -115,9 +115,13 @@ Use the standalone daemon control CLI when you want iOS remote mode without keep
 Build binaries:
 
 ```bash
+npm run sync:codex-runtime
 cd src-tauri
 cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
 ```
+
+The sync step copies the bundled `codex-runtime` next to the debug daemon binary
+so headless daemon sessions use the same runtime as the desktop app.
 
 Examples:
 
@@ -295,13 +299,13 @@ src-tauri/
 ## Notes
 
 - Workspaces persist to `workspaces.json` under the app data directory.
-- App settings persist to `settings.json` under the app data directory (theme, backend mode/provider, remote endpoints/tokens, Codex path, default access mode, UI scale, follow-up message behavior).
+- App settings persist to `settings.json` under the app data directory (theme, backend mode/provider, remote endpoints/tokens, Codex args, default access mode, UI scale, follow-up message behavior).
 - Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
 - CLI sessions appear if their `cwd` matches the workspace path; they are not live-streamed unless resumed.
-- The app uses the bundled `codex-runtime app-server` sidecar over stdio by default; custom Codex binary settings still override the bundled runtime for development.
+- The app and daemon use the bundled `codex-runtime app-server` sidecar over stdio. Persisted/custom Codex binary paths are ignored; use `CODEX_MONITOR_CODEX_REPO` or `CODEX_MONITOR_CODEX_BIN` at build/dev sync time to choose which runtime is bundled.
 - The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/codex_monitor_daemon/rpc/`.
 - Shared domain logic lives in `src-tauri/src/shared/` (notably `src-tauri/src/shared/git_ui_core/` and `src-tauri/src/shared/workspaces_core/`).
 - Codex home resolves from workspace settings (if set), then legacy `.codexmonitor/`, then `$CODEX_HOME`/`~/.codex`.

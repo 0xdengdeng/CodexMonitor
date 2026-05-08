@@ -22,7 +22,6 @@ type SettingsCodexSectionProps = {
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
-  codexPathDraft: string;
   codexArgsDraft: string;
   codexDirty: boolean;
   isSavingSettings: boolean;
@@ -48,11 +47,9 @@ type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  onSetCodexPathDraft: Dispatch<SetStateAction<string>>;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
-  onBrowseCodex: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -114,7 +111,6 @@ export function SettingsCodexSection({
   defaultModelsError,
   defaultModelsConnectedWorkspaceCount,
   onRefreshDefaultModels,
-  codexPathDraft,
   codexArgsDraft,
   codexDirty,
   isSavingSettings,
@@ -134,11 +130,9 @@ export function SettingsCodexSection({
   globalConfigRefreshDisabled,
   globalConfigSaveDisabled,
   globalConfigSaveLabel,
-  onSetCodexPathDraft,
   onSetCodexArgsDraft,
   onSetGlobalAgentsContent,
   onSetGlobalConfigContent,
-  onBrowseCodex,
   onSaveCodexSettings,
   onRunDoctor,
   onRunCodexUpdate,
@@ -235,35 +229,12 @@ export function SettingsCodexSection({
       subtitle={t("settings.codex.subtitle")}
     >
       <div className="settings-field">
-        <label className="settings-field-label" htmlFor="codex-path">
-          {t("settings.codex.defaultPath")}
-        </label>
-        <div className="settings-field-row">
-          <input
-            id="codex-path"
-            className="settings-input"
-            value={codexPathDraft}
-            placeholder="codex"
-            onChange={(event) => onSetCodexPathDraft(event.target.value)}
-          />
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => {
-              void onBrowseCodex();
-            }}
-          >
-            {t("settings.codex.browse")}
-          </button>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => onSetCodexPathDraft("")}
-          >
-            {t("settings.codex.usePath")}
-          </button>
+        <div className="settings-runtime-card">
+          <div className="settings-runtime-title">
+            {t("settings.codex.runtimeTitle")}
+          </div>
+          <div className="settings-help">{t("settings.codex.runtimeHelp")}</div>
         </div>
-        <div className="settings-help">{t("settings.codex.pathHelp")}</div>
         <label className="settings-field-label" htmlFor="codex-args">
           {t("settings.codex.defaultArgs")}
         </label>

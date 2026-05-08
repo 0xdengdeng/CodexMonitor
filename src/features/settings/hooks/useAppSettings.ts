@@ -248,7 +248,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     ...remoteBackendSettings,
-    codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
+    codexBin: null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
@@ -329,8 +329,8 @@ export function useAppSettings() {
   }, [defaultSettings]);
 
   const doctor = useCallback(
-    async (codexBin: string | null, codexArgs: string | null) => {
-      return runCodexDoctor(codexBin, codexArgs);
+    async (_codexBin: string | null, codexArgs: string | null) => {
+      return runCodexDoctor(null, codexArgs);
     },
     [],
   );

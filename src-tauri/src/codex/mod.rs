@@ -22,19 +22,11 @@ use crate::state::AppState;
 use crate::types::WorkspaceEntry;
 
 async fn resolve_command_codex_runtime(
-    state: &AppState,
+    _state: &AppState,
     app: &AppHandle,
-    requested_codex_bin: Option<String>,
+    _requested_codex_bin: Option<String>,
 ) -> Result<runtime::ResolvedCodexRuntime, String> {
-    let configured_codex_bin = if requested_codex_bin
-        .as_deref()
-        .is_some_and(|value| !value.trim().is_empty())
-    {
-        requested_codex_bin
-    } else {
-        state.app_settings.lock().await.codex_bin.clone()
-    };
-    runtime::resolve_codex_runtime(app, configured_codex_bin)
+    runtime::resolve_codex_runtime(app, None)
 }
 
 fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, params: Value) {
@@ -52,13 +44,13 @@ fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, par
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
-    default_codex_bin: Option<String>,
+    _default_codex_bin: Option<String>,
     codex_args: Option<String>,
     app_handle: AppHandle,
     codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
-    let codex_bin = runtime::resolve_effective_codex_bin(&app_handle, default_codex_bin)?;
+    let codex_bin = runtime::resolve_effective_codex_bin(&app_handle, None)?;
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,

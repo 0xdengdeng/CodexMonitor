@@ -32,6 +32,7 @@ describe("useAppSettings", () => {
   it("loads settings and normalizes theme + uiScale", async () => {
     getAppSettingsMock.mockResolvedValue(
       ({
+        codexBin: "/usr/local/bin/codex",
         uiScale: UI_SCALE_MAX + 1,
         theme: "nope" as unknown as AppSettings["theme"],
         interfaceLanguage: "fr-FR",
@@ -54,6 +55,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
+    expect(result.current.settings.codexBin).toBeNull();
     expect(result.current.settings.personality).toBe("friendly");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
@@ -134,10 +136,7 @@ describe("useAppSettings", () => {
     await expect(result.current.doctor("/bin/codex", "--profile test")).rejects.toThrow(
       "doctor fail",
     );
-    expect(runCodexDoctorMock).toHaveBeenCalledWith(
-      "/bin/codex",
-      "--profile test",
-    );
+    expect(runCodexDoctorMock).toHaveBeenCalledWith(null, "--profile test");
   });
 
   it("returns doctor results", async () => {
@@ -161,5 +160,6 @@ describe("useAppSettings", () => {
     await expect(result.current.doctor("/bin/codex", null)).resolves.toEqual(
       response,
     );
+    expect(runCodexDoctorMock).toHaveBeenCalledWith(null, null);
   });
 });

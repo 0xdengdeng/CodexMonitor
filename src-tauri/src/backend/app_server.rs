@@ -709,14 +709,14 @@ pub(crate) async fn check_codex_installation(
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH.".to_string()
+                "Bundled Codex runtime not found. Run `npm run sync:codex-runtime` before starting CodexMonitor.".to_string()
             } else {
                 e.to_string()
             }
         })?,
         Err(_) => {
             return Err(
-                "Timed out while checking Codex CLI. Make sure `codex --version` runs in Terminal."
+                "Timed out while checking the bundled Codex runtime."
                     .to_string(),
             );
         }
@@ -732,11 +732,11 @@ pub(crate) async fn check_codex_installation(
         };
         if detail.is_empty() {
             return Err(
-                "Codex CLI failed to start. Try running `codex --version` in Terminal.".to_string(),
+                "Bundled Codex runtime failed to start.".to_string(),
             );
         }
         return Err(format!(
-            "Codex CLI failed to start: {detail}. Try running `codex --version` in Terminal."
+            "Bundled Codex runtime failed to start: {detail}."
         ));
     }
 
