@@ -7,6 +7,8 @@ import type {
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
+  EnterpriseAiLoginResult,
+  EnterpriseAiUsageSnapshot,
   LocalUsageSnapshot,
   RuntimeApiKeyStatus,
   TcpDaemonStatus,
@@ -885,6 +887,28 @@ export async function setRuntimeApiKey(apiKey: string): Promise<RuntimeApiKeySta
 
 export async function clearRuntimeApiKey(): Promise<RuntimeApiKeyStatus> {
   return invoke<RuntimeApiKeyStatus>("runtime_api_key_clear");
+}
+
+export async function enterpriseAiLogin(
+  tenantDomain: string,
+  apiKey: string,
+): Promise<EnterpriseAiLoginResult> {
+  return invoke<EnterpriseAiLoginResult>("enterprise_ai_login", {
+    tenantDomain,
+    apiKey,
+  });
+}
+
+export async function enterpriseAiValidate(): Promise<EnterpriseAiLoginResult> {
+  return invoke<EnterpriseAiLoginResult>("enterprise_ai_validate");
+}
+
+export async function enterpriseAiLogout(): Promise<AppSettings> {
+  return invoke<AppSettings>("enterprise_ai_logout");
+}
+
+export async function enterpriseAiUsage(): Promise<EnterpriseAiUsageSnapshot | null> {
+  return invoke<EnterpriseAiUsageSnapshot | null>("enterprise_ai_usage");
 }
 
 export async function tailscaleStatus(): Promise<TailscaleStatus> {

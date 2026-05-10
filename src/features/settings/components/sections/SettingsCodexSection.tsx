@@ -5,8 +5,8 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
+  EnterpriseAiUsageSnapshot,
   ModelOption,
-  RuntimeApiKeyStatus,
 } from "@/types";
 import {
   SettingsSection,
@@ -49,18 +49,21 @@ type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  runtimeApiKeyStatus: RuntimeApiKeyStatus | null;
-  runtimeApiKeyDraft: string;
-  runtimeApiKeyLoading: boolean;
-  runtimeApiKeySaving: boolean;
-  runtimeApiKeyError: string | null;
+  enterpriseTenantDomainDraft: string;
+  enterpriseApiKeyDraft: string;
+  enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
+  enterpriseAiLoading: boolean;
+  enterpriseAiSaving: boolean;
+  enterpriseAiError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
-  onSetRuntimeApiKeyDraft: Dispatch<SetStateAction<string>>;
+  onSetEnterpriseTenantDomainDraft: Dispatch<SetStateAction<string>>;
+  onSetEnterpriseApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
-  onRefreshRuntimeApiKeyStatus: () => void;
-  onSaveRuntimeApiKey: () => Promise<void>;
-  onClearRuntimeApiKey: () => Promise<void>;
+  onEnterpriseAiLogin: () => Promise<void>;
+  onEnterpriseAiValidate: () => Promise<void>;
+  onEnterpriseAiLogout: () => Promise<void>;
+  onRefreshEnterpriseAiUsage: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -71,6 +74,13 @@ type SettingsCodexSectionProps = {
 };
 
 const DEFAULT_REASONING_EFFORT = "medium";
+
+const formatEnterpriseNumber = (value: number | null | undefined): string => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "--";
+  }
+  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value);
+};
 
 const normalizeEffortValue = (value: unknown): string | null => {
   if (typeof value !== "string") {
@@ -141,18 +151,21 @@ export function SettingsCodexSection({
   globalConfigRefreshDisabled,
   globalConfigSaveDisabled,
   globalConfigSaveLabel,
-  runtimeApiKeyStatus,
-  runtimeApiKeyDraft,
-  runtimeApiKeyLoading,
-  runtimeApiKeySaving,
-  runtimeApiKeyError,
+  enterpriseTenantDomainDraft,
+  enterpriseApiKeyDraft,
+  enterpriseAiUsage,
+  enterpriseAiLoading,
+  enterpriseAiSaving,
+  enterpriseAiError,
   onSetCodexArgsDraft,
-  onSetRuntimeApiKeyDraft,
+  onSetEnterpriseTenantDomainDraft,
+  onSetEnterpriseApiKeyDraft,
   onSetGlobalAgentsContent,
   onSetGlobalConfigContent,
-  onRefreshRuntimeApiKeyStatus,
-  onSaveRuntimeApiKey,
-  onClearRuntimeApiKey,
+  onEnterpriseAiLogin,
+  onEnterpriseAiValidate,
+  onEnterpriseAiLogout,
+  onRefreshEnterpriseAiUsage,
   onSaveCodexSettings,
   onRunDoctor,
   onRunCodexUpdate,
@@ -162,18 +175,8 @@ export function SettingsCodexSection({
   onSaveGlobalConfig,
 }: SettingsCodexSectionProps) {
   const { t } = useI18n();
-  const managedRuntime = appSettings.managedRuntime;
-  const updateManagedRuntime = (
-    patch: Partial<AppSettings["managedRuntime"]>,
-  ) => {
-    void onUpdateAppSettings({
-      ...appSettings,
-      managedRuntime: {
-        ...managedRuntime,
-        ...patch,
-      },
-    });
-  };
+  const enterpriseAi = appSettings.enterpriseAi;
+  const isEnterpriseConnected = enterpriseAi.status === "connected";
   const latestModelSlug = defaultModels[0]?.model ?? null;
   const savedModelSlug = useMemo(
     () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
@@ -214,9 +217,6 @@ export function SettingsCodexSection({
   }, [reasoningOptions, reasoningSupported, savedEffort, selectedModel]);
 
   const didNormalizeDefaultsRef = useRef(false);
-  useEffect(() => {
-    onRefreshRuntimeApiKeyStatus();
-  }, [onRefreshRuntimeApiKeyStatus]);
 
   useEffect(() => {
     if (didNormalizeDefaultsRef.current) {
@@ -267,112 +267,111 @@ export function SettingsCodexSection({
       <div className="settings-field">
         <div className="settings-runtime-card">
           <div className="settings-runtime-title">
-            {t("settings.codex.runtimeTitle")}
+            {t("settings.codex.enterpriseTitle")}
           </div>
-          <div className="settings-help">{t("settings.codex.runtimeHelp")}</div>
+          <div className="settings-help">{t("settings.codex.enterpriseHelp")}</div>
         </div>
         <SettingsToggleRow
-          title={t("settings.codex.managedRuntimeTitle")}
-          subtitle={t("settings.codex.managedRuntimeHelp")}
+          title={isEnterpriseConnected ? t("settings.codex.enterpriseConnected") : t("settings.codex.enterpriseDisconnected")}
+          subtitle={
+            isEnterpriseConnected
+              ? t("settings.codex.enterpriseConnectedHelp", {
+                  tenant: enterpriseAi.tenantDomain ?? "--",
+                  key: enterpriseAi.keyLast4 ? `****${enterpriseAi.keyLast4}` : "--",
+                })
+              : t("settings.codex.enterpriseDisconnectedHelp")
+          }
         >
-          <SettingsToggleSwitch
-            pressed={managedRuntime.enabled}
-            onClick={() => updateManagedRuntime({ enabled: !managedRuntime.enabled })}
-          />
+          <SettingsToggleSwitch pressed={isEnterpriseConnected} onClick={onEnterpriseAiValidate} />
         </SettingsToggleRow>
-        {managedRuntime.enabled && (
-          <div className="settings-field">
-            <label className="settings-field-label" htmlFor="managed-runtime-base-url">
-              {t("settings.codex.managedRuntimeBaseUrl")}
-            </label>
-            <input
-              id="managed-runtime-base-url"
-              className="settings-input"
-              value={managedRuntime.baseUrl ?? ""}
-              placeholder="https://api.example.com/v1"
-              onChange={(event) =>
-                updateManagedRuntime({ baseUrl: event.target.value || null })
-              }
-            />
-            <div className="settings-help">
-              {t("settings.codex.managedRuntimeBaseUrlHelp")}
-            </div>
-            <label className="settings-field-label" htmlFor="managed-runtime-model">
-              {t("settings.codex.managedRuntimeModel")}
-            </label>
-            <input
-              id="managed-runtime-model"
-              className="settings-input"
-              value={managedRuntime.model ?? ""}
-              placeholder="gpt-5.4"
-              onChange={(event) =>
-                updateManagedRuntime({ model: event.target.value || null })
-              }
-            />
-            <div className="settings-help">
-              {t("settings.codex.managedRuntimeModelHelp")}
-            </div>
-            <label className="settings-field-label" htmlFor="managed-runtime-api-key">
-              {t("settings.codex.managedRuntimeApiKey")}
-            </label>
-            <div className="settings-field-row">
-              <input
-                id="managed-runtime-api-key"
-                className="settings-input"
-                type="password"
-                autoComplete="off"
-                value={runtimeApiKeyDraft}
-                placeholder={
-                  runtimeApiKeyStatus?.hasApiKey
-                    ? t("settings.codex.apiKeyAlreadySaved")
-                    : "sk-..."
-                }
-                onChange={(event) => onSetRuntimeApiKeyDraft(event.target.value)}
-              />
-              <button
-                type="button"
-                className="primary settings-button-compact"
-                disabled={runtimeApiKeySaving || runtimeApiKeyDraft.trim().length === 0}
-                onClick={() => {
-                  void onSaveRuntimeApiKey();
-                }}
-              >
-                {runtimeApiKeySaving
-                  ? t("settings.common.saving")
-                  : t("settings.common.save")}
-              </button>
-              <button
-                type="button"
-                className="ghost settings-button-compact"
-                disabled={runtimeApiKeySaving || !runtimeApiKeyStatus?.hasApiKey}
-                onClick={() => {
-                  void onClearRuntimeApiKey();
-                }}
-              >
-                {t("settings.codex.clear")}
-              </button>
-              <button
-                type="button"
-                className="ghost settings-button-compact"
-                disabled={runtimeApiKeyLoading}
-                onClick={onRefreshRuntimeApiKeyStatus}
-              >
-                {runtimeApiKeyLoading
-                  ? t("settings.common.loading")
-                  : t("settings.codex.refresh")}
-              </button>
+        <label className="settings-field-label" htmlFor="enterprise-ai-tenant-domain">
+          {t("settings.codex.enterpriseTenantDomain")}
+        </label>
+        <input
+          id="enterprise-ai-tenant-domain"
+          className="settings-input"
+          value={enterpriseTenantDomainDraft}
+          placeholder={t("settings.codex.enterpriseTenantPlaceholder")}
+          onChange={(event) => onSetEnterpriseTenantDomainDraft(event.target.value)}
+        />
+        <label className="settings-field-label" htmlFor="enterprise-ai-api-key">
+          {t("settings.codex.managedRuntimeApiKey")}
+        </label>
+        <div className="settings-field-row">
+          <input
+            id="enterprise-ai-api-key"
+            className="settings-input"
+            type="password"
+            autoComplete="off"
+            value={enterpriseApiKeyDraft}
+            placeholder={
+              enterpriseAi.keyLast4
+                ? t("settings.codex.enterpriseApiKeySaved", {
+                    key: `****${enterpriseAi.keyLast4}`,
+                  })
+                : "sk-..."
+            }
+            onChange={(event) => onSetEnterpriseApiKeyDraft(event.target.value)}
+          />
+          <button
+            type="button"
+            className="primary settings-button-compact"
+            disabled={enterpriseAiSaving}
+            onClick={() => {
+              void onEnterpriseAiLogin();
+            }}
+          >
+            {enterpriseAiSaving
+              ? t("settings.codex.enterpriseLoggingIn")
+              : t("settings.codex.enterpriseLoginAction")}
+          </button>
+          <button
+            type="button"
+            className="ghost settings-button-compact"
+            disabled={enterpriseAiLoading || !enterpriseAi.tenantDomain}
+            onClick={() => {
+              void onEnterpriseAiValidate();
+            }}
+          >
+            {enterpriseAiLoading ? t("settings.common.loading") : t("settings.codex.refresh")}
+          </button>
+          <button
+            type="button"
+            className="ghost settings-button-compact"
+            disabled={enterpriseAiSaving || !enterpriseAi.tenantDomain}
+            onClick={() => {
+              void onEnterpriseAiLogout();
+            }}
+          >
+            {t("settings.codex.enterpriseLogout")}
+          </button>
+        </div>
+        {enterpriseAi.status === "invalid" && enterpriseAi.lastError && (
+          <div className="settings-agents-error">{enterpriseAi.lastError}</div>
+        )}
+        {enterpriseAiError && <div className="settings-agents-error">{enterpriseAiError}</div>}
+        {isEnterpriseConnected && (
+          <div className="settings-runtime-card">
+            <div className="settings-runtime-title">
+              {t("settings.codex.enterpriseUsageTitle")}
             </div>
             <div className="settings-help">
-              {runtimeApiKeyStatus?.hasApiKey
-                ? t("settings.codex.apiKeySaved")
-                : t("settings.codex.apiKeyMissing")}
+              {t("settings.codex.enterpriseUsageHelp", {
+                requests: formatEnterpriseNumber(enterpriseAiUsage?.requests7d),
+                tokens: formatEnterpriseNumber(enterpriseAiUsage?.tokens7d),
+                balance: formatEnterpriseNumber(enterpriseAiUsage?.balance),
+              })}
             </div>
-            {runtimeApiKeyError && (
-              <div className="settings-agents-error">{runtimeApiKeyError}</div>
-            )}
-            <div className="settings-help">
-              {t("settings.codex.managedRuntimeSecretHelp")}
-            </div>
+            <button
+              type="button"
+              className="ghost settings-button-compact"
+              disabled={enterpriseAiLoading}
+              onClick={() => {
+                void onRefreshEnterpriseAiUsage();
+              }}
+            >
+              {enterpriseAiLoading ? t("settings.common.loading") : t("settings.codex.enterpriseRefreshUsage")}
+            </button>
           </div>
         )}
         <label className="settings-field-label" htmlFor="codex-args">

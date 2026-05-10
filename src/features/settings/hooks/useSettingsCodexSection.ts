@@ -4,13 +4,14 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
-  RuntimeApiKeyStatus,
+  EnterpriseAiUsageSnapshot,
   WorkspaceInfo,
 } from "@/types";
 import {
-  clearRuntimeApiKey,
-  getRuntimeApiKeyStatus,
-  setRuntimeApiKey,
+  enterpriseAiLogin,
+  enterpriseAiLogout,
+  enterpriseAiUsage,
+  enterpriseAiValidate,
 } from "@services/tauri";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
@@ -66,18 +67,21 @@ export type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  runtimeApiKeyStatus: RuntimeApiKeyStatus | null;
-  runtimeApiKeyDraft: string;
-  runtimeApiKeyLoading: boolean;
-  runtimeApiKeySaving: boolean;
-  runtimeApiKeyError: string | null;
+  enterpriseTenantDomainDraft: string;
+  enterpriseApiKeyDraft: string;
+  enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
+  enterpriseAiLoading: boolean;
+  enterpriseAiSaving: boolean;
+  enterpriseAiError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
-  onSetRuntimeApiKeyDraft: Dispatch<SetStateAction<string>>;
+  onSetEnterpriseTenantDomainDraft: Dispatch<SetStateAction<string>>;
+  onSetEnterpriseApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
-  onRefreshRuntimeApiKeyStatus: () => void;
-  onSaveRuntimeApiKey: () => Promise<void>;
-  onClearRuntimeApiKey: () => Promise<void>;
+  onEnterpriseAiLogin: () => Promise<void>;
+  onEnterpriseAiValidate: () => Promise<void>;
+  onEnterpriseAiLogout: () => Promise<void>;
+  onRefreshEnterpriseAiUsage: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -96,12 +100,15 @@ export const useSettingsCodexSection = ({
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
   const { t } = useI18n();
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
-  const [runtimeApiKeyStatus, setRuntimeApiKeyStatus] =
-    useState<RuntimeApiKeyStatus | null>(null);
-  const [runtimeApiKeyDraft, setRuntimeApiKeyDraft] = useState("");
-  const [runtimeApiKeyLoading, setRuntimeApiKeyLoading] = useState(false);
-  const [runtimeApiKeySaving, setRuntimeApiKeySaving] = useState(false);
-  const [runtimeApiKeyError, setRuntimeApiKeyError] = useState<string | null>(null);
+  const [enterpriseTenantDomainDraft, setEnterpriseTenantDomainDraft] = useState(
+    appSettings.enterpriseAi.tenantDomain ?? "",
+  );
+  const [enterpriseApiKeyDraft, setEnterpriseApiKeyDraft] = useState("");
+  const [enterpriseAiUsageSnapshot, setEnterpriseAiUsageSnapshot] =
+    useState<EnterpriseAiUsageSnapshot | null>(null);
+  const [enterpriseAiLoading, setEnterpriseAiLoading] = useState(false);
+  const [enterpriseAiSaving, setEnterpriseAiSaving] = useState(false);
+  const [enterpriseAiError, setEnterpriseAiError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
@@ -182,20 +189,9 @@ export const useSettingsCodexSection = ({
     setCodexArgsDraft(appSettings.codexArgs ?? "");
   }, [appSettings.codexArgs]);
 
-  const refreshRuntimeApiKeyStatus = useCallback(() => {
-    setRuntimeApiKeyLoading(true);
-    setRuntimeApiKeyError(null);
-    void getRuntimeApiKeyStatus()
-      .then((status) => {
-        setRuntimeApiKeyStatus(status);
-      })
-      .catch((error) => {
-        setRuntimeApiKeyError(error instanceof Error ? error.message : String(error));
-      })
-      .finally(() => {
-        setRuntimeApiKeyLoading(false);
-      });
-  }, []);
+  useEffect(() => {
+    setEnterpriseTenantDomainDraft(appSettings.enterpriseAi.tenantDomain ?? "");
+  }, [appSettings.enterpriseAi.tenantDomain]);
 
   const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
   const codexDirty =
@@ -276,38 +272,77 @@ export const useSettingsCodexSection = ({
     }
   };
 
-  const handleSaveRuntimeApiKey = async () => {
-    const trimmed = runtimeApiKeyDraft.trim();
-    if (!trimmed) {
-      setRuntimeApiKeyError(t("settings.codex.apiKeyRequired"));
+  const handleEnterpriseAiLogin = async () => {
+    const tenantDomain = enterpriseTenantDomainDraft.trim();
+    const apiKey = enterpriseApiKeyDraft.trim();
+    if (!tenantDomain) {
+      setEnterpriseAiError(t("settings.codex.enterpriseTenantRequired"));
       return;
     }
-    setRuntimeApiKeySaving(true);
-    setRuntimeApiKeyError(null);
+    if (!apiKey) {
+      setEnterpriseAiError(t("settings.codex.apiKeyRequired"));
+      return;
+    }
+    setEnterpriseAiSaving(true);
+    setEnterpriseAiError(null);
     try {
-      const status = await setRuntimeApiKey(trimmed);
-      setRuntimeApiKeyStatus(status);
-      setRuntimeApiKeyDraft("");
+      const result = await enterpriseAiLogin(tenantDomain, apiKey);
+      setEnterpriseApiKeyDraft("");
+      setEnterpriseAiUsageSnapshot(result.usage);
+      await onUpdateAppSettings(result.settings);
     } catch (error) {
-      setRuntimeApiKeyError(error instanceof Error ? error.message : String(error));
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
     } finally {
-      setRuntimeApiKeySaving(false);
+      setEnterpriseAiSaving(false);
     }
   };
 
-  const handleClearRuntimeApiKey = async () => {
-    setRuntimeApiKeySaving(true);
-    setRuntimeApiKeyError(null);
+  const handleEnterpriseAiValidate = useCallback(async () => {
+    setEnterpriseAiLoading(true);
+    setEnterpriseAiError(null);
     try {
-      const status = await clearRuntimeApiKey();
-      setRuntimeApiKeyStatus(status);
-      setRuntimeApiKeyDraft("");
+      const result = await enterpriseAiValidate();
+      setEnterpriseAiUsageSnapshot(result.usage);
+      await onUpdateAppSettings(result.settings);
     } catch (error) {
-      setRuntimeApiKeyError(error instanceof Error ? error.message : String(error));
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
     } finally {
-      setRuntimeApiKeySaving(false);
+      setEnterpriseAiLoading(false);
+    }
+  }, [onUpdateAppSettings]);
+
+  const handleRefreshEnterpriseAiUsage = useCallback(async () => {
+    setEnterpriseAiLoading(true);
+    setEnterpriseAiError(null);
+    try {
+      setEnterpriseAiUsageSnapshot(await enterpriseAiUsage());
+    } catch (error) {
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEnterpriseAiLoading(false);
+    }
+  }, []);
+
+  const handleEnterpriseAiLogout = async () => {
+    setEnterpriseAiSaving(true);
+    setEnterpriseAiError(null);
+    try {
+      const settings = await enterpriseAiLogout();
+      setEnterpriseApiKeyDraft("");
+      setEnterpriseAiUsageSnapshot(null);
+      await onUpdateAppSettings(settings);
+    } catch (error) {
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEnterpriseAiSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (appSettings.enterpriseAi.tenantDomain) {
+      void handleEnterpriseAiValidate();
+    }
+  }, [appSettings.enterpriseAi.tenantDomain, handleEnterpriseAiValidate]);
 
   return {
     appSettings,
@@ -338,18 +373,21 @@ export const useSettingsCodexSection = ({
     globalConfigRefreshDisabled: globalConfigEditorMeta.refreshDisabled,
     globalConfigSaveDisabled: globalConfigEditorMeta.saveDisabled,
     globalConfigSaveLabel: globalConfigEditorMeta.saveLabel,
-    runtimeApiKeyStatus,
-    runtimeApiKeyDraft,
-    runtimeApiKeyLoading,
-    runtimeApiKeySaving,
-    runtimeApiKeyError,
+    enterpriseTenantDomainDraft,
+    enterpriseApiKeyDraft,
+    enterpriseAiUsage: enterpriseAiUsageSnapshot,
+    enterpriseAiLoading,
+    enterpriseAiSaving,
+    enterpriseAiError,
     onSetCodexArgsDraft: setCodexArgsDraft,
-    onSetRuntimeApiKeyDraft: setRuntimeApiKeyDraft,
+    onSetEnterpriseTenantDomainDraft: setEnterpriseTenantDomainDraft,
+    onSetEnterpriseApiKeyDraft: setEnterpriseApiKeyDraft,
     onSetGlobalAgentsContent: setGlobalAgentsContent,
     onSetGlobalConfigContent: setGlobalConfigContent,
-    onRefreshRuntimeApiKeyStatus: refreshRuntimeApiKeyStatus,
-    onSaveRuntimeApiKey: handleSaveRuntimeApiKey,
-    onClearRuntimeApiKey: handleClearRuntimeApiKey,
+    onEnterpriseAiLogin: handleEnterpriseAiLogin,
+    onEnterpriseAiValidate: handleEnterpriseAiValidate,
+    onEnterpriseAiLogout: handleEnterpriseAiLogout,
+    onRefreshEnterpriseAiUsage: handleRefreshEnterpriseAiUsage,
     onSaveCodexSettings: handleSaveCodexSettings,
     onRunDoctor: handleRunDoctor,
     onRunCodexUpdate: handleRunCodexUpdate,

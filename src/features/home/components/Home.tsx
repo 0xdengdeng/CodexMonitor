@@ -1,5 +1,6 @@
 import type {
   AccountSnapshot,
+  EnterpriseAiUsageSnapshot,
   LocalUsageSnapshot,
   RateLimitSnapshot,
 } from "../../../types";
@@ -28,6 +29,7 @@ type HomeProps = {
   usageWorkspaceOptions: UsageWorkspaceOption[];
   onUsageWorkspaceChange: (workspaceId: string | null) => void;
   accountRateLimits: RateLimitSnapshot | null;
+  enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
   onSelectThread: (workspaceId: string, threadId: string) => void;
@@ -48,6 +50,7 @@ export function Home({
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
   accountRateLimits,
+  enterpriseAiUsage,
   usageShowRemaining,
   accountInfo,
   onSelectThread,
@@ -103,6 +106,7 @@ export function Home({
       <HomeUsageSection
         accountInfo={accountInfo}
         accountRateLimits={accountRateLimits}
+        enterpriseAiUsage={enterpriseAiUsage}
         isLoadingLocalUsage={isLoadingLocalUsage}
         localUsageError={localUsageError}
         localUsageSnapshot={localUsageSnapshot}

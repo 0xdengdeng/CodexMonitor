@@ -10,6 +10,7 @@ mod backend;
 mod codex;
 mod daemon_binary;
 mod dictation;
+mod enterprise_ai;
 mod event_sink;
 mod files;
 mod git;
@@ -186,6 +187,10 @@ pub fn run() {
             settings::runtime_api_key_set,
             settings::runtime_api_key_clear,
             settings::get_codex_config_path,
+            enterprise_ai::enterprise_ai_login,
+            enterprise_ai::enterprise_ai_validate,
+            enterprise_ai::enterprise_ai_logout,
+            enterprise_ai::enterprise_ai_usage,
             files::file_read,
             files::file_write,
             files::read_image_as_data_url,

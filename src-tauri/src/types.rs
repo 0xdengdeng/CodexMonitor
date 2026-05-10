@@ -396,9 +396,64 @@ impl Default for ManagedRuntimeConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum EnterpriseAiStatus {
+    Disconnected,
+    Connected,
+    Invalid,
+}
+
+impl Default for EnterpriseAiStatus {
+    fn default() -> Self {
+        Self::Disconnected
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub(crate) struct EnterpriseAiConfig {
+    #[serde(default, rename = "tenantDomain")]
+    pub(crate) tenant_domain: Option<String>,
+    #[serde(default)]
+    pub(crate) status: EnterpriseAiStatus,
+    #[serde(default, rename = "accountName")]
+    pub(crate) account_name: Option<String>,
+    #[serde(default, rename = "keyLast4")]
+    pub(crate) key_last4: Option<String>,
+    #[serde(default, rename = "lastValidatedAtMs")]
+    pub(crate) last_validated_at_ms: Option<i64>,
+    #[serde(default, rename = "lastError")]
+    pub(crate) last_error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct RuntimeApiKeyStatus {
     #[serde(rename = "hasApiKey")]
     pub(crate) has_api_key: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct EnterpriseAiUsageSnapshot {
+    #[serde(rename = "tenantDomain")]
+    pub(crate) tenant_domain: Option<String>,
+    #[serde(rename = "accountName")]
+    pub(crate) account_name: Option<String>,
+    #[serde(rename = "updatedAtMs")]
+    pub(crate) updated_at_ms: i64,
+    #[serde(rename = "requests7d")]
+    pub(crate) requests_7d: Option<i64>,
+    #[serde(rename = "tokens7d")]
+    pub(crate) tokens_7d: Option<i64>,
+    pub(crate) balance: Option<f64>,
+    #[serde(rename = "creditedTotal")]
+    pub(crate) credited_total: Option<f64>,
+    #[serde(rename = "usageSpentTotal")]
+    pub(crate) usage_spent_total: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct EnterpriseAiLoginResult {
+    pub(crate) settings: AppSettings,
+    pub(crate) usage: Option<EnterpriseAiUsageSnapshot>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -678,6 +733,8 @@ pub(crate) struct AppSettings {
     pub(crate) selected_open_app_id: String,
     #[serde(default, rename = "managedRuntime")]
     pub(crate) managed_runtime: ManagedRuntimeConfig,
+    #[serde(default, rename = "enterpriseAi")]
+    pub(crate) enterprise_ai: EnterpriseAiConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1235,6 +1292,7 @@ impl Default for AppSettings {
             open_app_targets: default_open_app_targets(),
             selected_open_app_id: default_selected_open_app_id(),
             managed_runtime: ManagedRuntimeConfig::default(),
+            enterprise_ai: EnterpriseAiConfig::default(),
         }
     }
 }

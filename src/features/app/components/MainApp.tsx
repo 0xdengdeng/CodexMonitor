@@ -53,6 +53,7 @@ import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThread
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import type {
   ComposerEditorSettings,
+  EnterpriseAiUsageSnapshot,
   ServiceTier,
   WorkspaceInfo,
 } from "@/types";
@@ -80,6 +81,7 @@ import {
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { subscribeTrayOpenThread } from "@services/events";
+import { enterpriseAiValidate } from "@services/tauri";
 import {
   I18nProvider,
   resolveInterfaceLanguage,
@@ -125,6 +127,9 @@ export default function MainApp() {
     clearDebugEntries,
     shouldReduceTransparency,
   } = useAppBootstrapOrchestration();
+  const [enterpriseAiUsage, setEnterpriseAiUsage] =
+    useState<EnterpriseAiUsageSnapshot | null>(null);
+  const enterpriseAiAutoValidatedRef = useRef(false);
   const resolvedInterfaceLanguage = resolveInterfaceLanguage(appSettings.interfaceLanguage);
   const {
     threadListSortKey,
@@ -1049,6 +1054,34 @@ export default function MainApp() {
   );
 
   const showHome = !activeWorkspace;
+  useEffect(() => {
+    if (appSettingsLoading || enterpriseAiAutoValidatedRef.current) {
+      return;
+    }
+    if (!appSettings.enterpriseAi.tenantDomain) {
+      return;
+    }
+    enterpriseAiAutoValidatedRef.current = true;
+    void enterpriseAiValidate()
+      .then((result) => {
+        setAppSettings(result.settings);
+        setEnterpriseAiUsage(result.usage);
+      })
+      .catch((error) => {
+        addDebugEntry({
+          id: `${Date.now()}-enterprise-ai-validate-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "enterprise ai validate error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      });
+  }, [
+    addDebugEntry,
+    appSettings.enterpriseAi.tenantDomain,
+    appSettingsLoading,
+    setAppSettings,
+  ]);
   const {
     latestAgentRuns,
     isLoadingLatestAgents,
@@ -1629,6 +1662,7 @@ export default function MainApp() {
     activeAccount,
     homeRateLimits,
     homeAccount,
+    enterpriseAiUsage,
     accountSwitching,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,

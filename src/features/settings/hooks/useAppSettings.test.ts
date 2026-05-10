@@ -43,6 +43,14 @@ describe("useAppSettings", () => {
           baseUrl: " https://runtime.example/v1 ",
           model: "  ",
         },
+        enterpriseAi: {
+          tenantDomain: " acme ",
+          status: "connected",
+          accountName: " Team ",
+          keyLast4: " 1234 ",
+          lastValidatedAtMs: 123,
+          lastError: " ",
+        },
         personality: "unknown",
         uiFontFamily: "",
         codeFontFamily: "  ",
@@ -68,6 +76,14 @@ describe("useAppSettings", () => {
       enabled: true,
       baseUrl: "https://runtime.example/v1",
       model: null,
+    });
+    expect(result.current.settings.enterpriseAi).toEqual({
+      tenantDomain: "acme",
+      status: "connected",
+      accountName: "Team",
+      keyLast4: "1234",
+      lastValidatedAtMs: 123,
+      lastError: null,
     });
   });
 

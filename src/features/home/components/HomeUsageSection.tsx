@@ -4,6 +4,7 @@ import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import { useEffect, useState } from "react";
 import type {
   AccountSnapshot,
+  EnterpriseAiUsageSnapshot,
   LocalUsageSnapshot,
   RateLimitSnapshot,
 } from "../../../types";
@@ -20,6 +21,7 @@ import { useI18n } from "@/features/i18n/i18n";
 type HomeUsageSectionProps = {
   accountInfo: AccountSnapshot | null;
   accountRateLimits: RateLimitSnapshot | null;
+  enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
   isLoadingLocalUsage: boolean;
   localUsageError: string | null;
   localUsageSnapshot: LocalUsageSnapshot | null;
@@ -48,6 +50,7 @@ function HomeUsageCard({ card }: { card: HomeStatCard }) {
 export function HomeUsageSection({
   accountInfo,
   accountRateLimits,
+  enterpriseAiUsage,
   isLoadingLocalUsage,
   localUsageError,
   localUsageSnapshot,
@@ -161,6 +164,39 @@ export function HomeUsageSection({
       : t("home.usage.week");
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
+  const enterpriseAccountCards: HomeStatCard[] = enterpriseAiUsage
+    ? [
+        {
+          label: t("home.usage.enterpriseBalance"),
+          value:
+            enterpriseAiUsage.balance === null
+              ? "--"
+              : formatCount(Math.round(enterpriseAiUsage.balance)),
+          suffix: t("home.usage.card.credits"),
+          caption: t("home.usage.enterpriseAccount"),
+        },
+        {
+          label: t("home.usage.enterpriseRequests"),
+          value:
+            enterpriseAiUsage.requests7d === null
+              ? "--"
+              : formatCount(enterpriseAiUsage.requests7d),
+          caption: t("home.usage.enterpriseLast7Days"),
+        },
+        {
+          label: t("home.usage.enterpriseTokens"),
+          value:
+            enterpriseAiUsage.tokens7d === null
+              ? "--"
+              : formatCount(enterpriseAiUsage.tokens7d),
+          suffix: t("home.usage.tokens"),
+          caption: t("home.usage.enterpriseLast7Days"),
+        },
+      ]
+    : [];
+  const renderedAccountCards = [...enterpriseAccountCards, ...accountCards];
+  const renderedAccountMeta =
+    enterpriseAiUsage?.tenantDomain ?? enterpriseAiUsage?.accountName ?? accountMeta;
 
   return (
     <div className="home-usage">
@@ -365,18 +401,18 @@ export function HomeUsageSection({
           </div>
         </>
       )}
-      {accountCards.length > 0 && (
+      {renderedAccountCards.length > 0 && (
         <div className="home-account">
           <div className="home-section-header">
             <div className="home-section-title">{t("home.usage.accountLimits")}</div>
-            {accountMeta && (
+            {renderedAccountMeta && (
               <div className="home-section-meta-row">
-                <div className="home-section-meta">{accountMeta}</div>
+                <div className="home-section-meta">{renderedAccountMeta}</div>
               </div>
             )}
           </div>
           <div className="home-usage-grid home-account-grid">
-            {accountCards.map((card) => (
+            {renderedAccountCards.map((card) => (
               <HomeUsageCard card={card} key={card.label} />
             ))}
           </div>

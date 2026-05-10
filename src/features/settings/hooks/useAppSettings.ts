@@ -65,6 +65,27 @@ function normalizeManagedRuntime(
   };
 }
 
+function normalizeEnterpriseAi(
+  value: AppSettings["enterpriseAi"] | null | undefined,
+): AppSettings["enterpriseAi"] {
+  const status = value?.status;
+  return {
+    tenantDomain: normalizeNullableString(value?.tenantDomain),
+    status:
+      status === "connected" || status === "invalid" || status === "disconnected"
+        ? status
+        : "disconnected",
+    accountName: normalizeNullableString(value?.accountName),
+    keyLast4: normalizeNullableString(value?.keyLast4),
+    lastValidatedAtMs:
+      typeof value?.lastValidatedAtMs === "number" &&
+      Number.isFinite(value.lastValidatedAtMs)
+        ? value.lastValidatedAtMs
+        : null,
+    lastError: normalizeNullableString(value?.lastError),
+  };
+}
+
 function normalizeRemoteBackends(settings: AppSettings): {
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
@@ -164,6 +185,14 @@ function buildDefaultSettings(): AppSettings {
       enabled: false,
       baseUrl: null,
       model: null,
+    },
+    enterpriseAi: {
+      tenantDomain: null,
+      status: "disconnected",
+      accountName: null,
+      keyLast4: null,
+      lastValidatedAtMs: null,
+      lastError: null,
     },
     keepDaemonRunningAfterAppClose: false,
     defaultAccessMode: "current",
@@ -270,6 +299,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     codexBin: null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     managedRuntime: normalizeManagedRuntime(settings.managedRuntime),
+    enterpriseAi: normalizeEnterpriseAi(settings.enterpriseAi),
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     interfaceLanguage: normalizeInterfaceLanguage(settings.interfaceLanguage),

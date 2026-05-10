@@ -23,6 +23,7 @@ const baseProps = {
   usageWorkspaceOptions: [],
   onUsageWorkspaceChange: vi.fn(),
   accountRateLimits: null,
+  enterpriseAiUsage: null,
   usageShowRemaining: false,
   accountInfo: null,
   onSelectThread: vi.fn(),

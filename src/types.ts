@@ -211,8 +211,31 @@ export type ManagedRuntimeConfig = {
   baseUrl: string | null;
   model: string | null;
 };
+export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
+export type EnterpriseAiConfig = {
+  tenantDomain: string | null;
+  status: EnterpriseAiStatus;
+  accountName: string | null;
+  keyLast4: string | null;
+  lastValidatedAtMs: number | null;
+  lastError: string | null;
+};
 export type RuntimeApiKeyStatus = {
   hasApiKey: boolean;
+};
+export type EnterpriseAiLoginResult = {
+  settings: AppSettings;
+  usage: EnterpriseAiUsageSnapshot | null;
+};
+export type EnterpriseAiUsageSnapshot = {
+  tenantDomain: string | null;
+  accountName: string | null;
+  updatedAtMs: number;
+  requests7d: number | null;
+  tokens7d: number | null;
+  balance: number | null;
+  creditedTotal: number | null;
+  usageSpentTotal: number | null;
 };
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type InterfaceLanguagePreference = "system" | "en" | "zh-CN";
@@ -255,6 +278,7 @@ export type AppSettings = {
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
   managedRuntime: ManagedRuntimeConfig;
+  enterpriseAi: EnterpriseAiConfig;
   keepDaemonRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;
   reviewDeliveryMode: "inline" | "detached";

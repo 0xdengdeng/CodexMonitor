@@ -47,6 +47,10 @@ import {
   writeGlobalCodexConfigToml,
   createAgent,
   clearRuntimeApiKey,
+  enterpriseAiLogin,
+  enterpriseAiLogout,
+  enterpriseAiUsage,
+  enterpriseAiValidate,
   getRuntimeApiKeyStatus,
   setRuntimeApiKey,
   updateAgent,
@@ -508,6 +512,24 @@ describe("tauri invoke wrappers", () => {
       apiKey: "sk-test",
     });
     expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_clear");
+  });
+
+  it("invokes enterprise ai wrappers", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({});
+
+    await enterpriseAiLogin("acme", "sk-test");
+    await enterpriseAiValidate();
+    await enterpriseAiUsage();
+    await enterpriseAiLogout();
+
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_login", {
+      tenantDomain: "acme",
+      apiKey: "sk-test",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_validate");
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_usage");
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_logout");
   });
 
   it("reads agent.md for a workspace", async () => {
