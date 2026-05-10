@@ -87,26 +87,33 @@ export function SidebarBottomRail({
     toggle: toggleAccountMenu,
   } = accountMenu;
   const handleAccountTrigger = () => {
-    if (!accountSignedIn) {
-      onOpenEnterpriseAiSettings();
-      return;
-    }
     toggleAccountMenu();
   };
+  const showAccountButton = showAccountSwitcher && accountSignedIn;
 
   useEffect(() => {
-    if (!showAccountSwitcher) {
+    if (!showAccountButton) {
       closeAccountMenu();
     }
-  }, [closeAccountMenu, showAccountSwitcher]);
+  }, [closeAccountMenu, showAccountButton]);
 
   return (
     <div className="sidebar-bottom-rail">
       <div className="sidebar-usage-panel">
         <div className="sidebar-usage-header">
           <div className="sidebar-usage-kicker">{t("sidebar.usage.title")}</div>
-          {accountSignedIn && creditsLabel && (
-            <div className="sidebar-usage-credits">{creditsLabel}</div>
+          {!accountSignedIn ? (
+            <button
+              type="button"
+              className="ghost sidebar-usage-login"
+              onClick={onOpenEnterpriseAiSettings}
+            >
+              {t("sidebar.account.enterpriseSignInShort")}
+            </button>
+          ) : (
+            creditsLabel && (
+              <div className="sidebar-usage-credits">{creditsLabel}</div>
+            )
           )}
         </div>
         <div className="sidebar-usage-list">
@@ -125,9 +132,9 @@ export function SidebarBottomRail({
         </div>
       </div>
       <div
-        className={`sidebar-bottom-actions${showAccountSwitcher ? "" : " is-compact"}`}
+        className={`sidebar-bottom-actions${showAccountButton ? "" : " is-compact"}`}
       >
-        {showAccountSwitcher && (
+        {showAccountButton && (
           <div className="sidebar-account-menu" ref={accountMenuRef}>
             <MenuTrigger
               isOpen={accountMenuOpen}

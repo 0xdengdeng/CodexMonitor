@@ -164,7 +164,7 @@ describe("Sidebar", () => {
     expect(creditsLabel.textContent ?? "").toContain("120");
   });
 
-  it("opens enterprise sign in from the bottom rail when signed out", () => {
+  it("opens enterprise sign in from the usage panel when signed out", () => {
     const onOpenEnterpriseAiSettings = vi.fn();
     render(
       <Sidebar
@@ -180,7 +180,7 @@ describe("Sidebar", () => {
     expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("does not duplicate the sign in button in the usage panel", () => {
+  it("does not duplicate the sign in button in the bottom action row", () => {
     render(
       <Sidebar
         {...baseProps}
