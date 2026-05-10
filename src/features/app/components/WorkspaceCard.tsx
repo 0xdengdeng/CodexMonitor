@@ -115,7 +115,8 @@ export function WorkspaceCard({
             aria-expanded={addMenuOpen}
             type="button"
           >
-            +
+            <span aria-hidden>+</span>
+            <span>{t("sidebar.workspace.addAgent")}</span>
           </button>
           {!workspace.connected && (
             <span

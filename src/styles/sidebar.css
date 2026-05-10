@@ -1,7 +1,7 @@
 .sidebar {
-  --sidebar-padding: 20px;
-  --sidebar-control-radius: 6px;
-  --sidebar-item-radius: 6px;
+  --sidebar-padding: 16px;
+  --sidebar-control-radius: 8px;
+  --sidebar-item-radius: 10px;
   --sidebar-small-radius: 4px;
   --sidebar-status-processing: var(--workflow-running, var(--text-accent));
   --sidebar-status-reviewing: var(--workflow-reviewing, var(--border-accent));
@@ -9,13 +9,13 @@
   --sidebar-status-ready: var(--workflow-ready, var(--text-muted));
   --sidebar-status-error: var(--semantic-error, var(--status-error));
   --sidebar-status-border: color-mix(in srgb, var(--border-accent) 36%, transparent);
-  padding: var(--sidebar-top-padding, 36px) var(--sidebar-padding) 20px;
+  padding: var(--sidebar-top-padding, 34px) var(--sidebar-padding) 18px;
   background: var(--surface-sidebar);
   backdrop-filter: none;
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   -webkit-app-region: no-drag;
   min-height: 0;
   overflow: hidden;
@@ -135,14 +135,14 @@
   padding: 4px 2px;
   border-radius: var(--sidebar-control-radius);
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 700;
   color: var(--text-strong);
   transition: background-color 120ms ease, color 120ms ease;
 }
 
 .sidebar-title-button:hover,
 .sidebar-title-button:focus-visible {
-  background: var(--surface-hover);
+  background: var(--surface-control-hover);
   transform: none;
   box-shadow: none;
 }
@@ -155,7 +155,7 @@
   height: 28px;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-card-strong) 88%, var(--surface-sidebar));
+  background: var(--surface-card);
   color: var(--text-muted);
   line-height: 1;
   border-radius: var(--sidebar-control-radius);
@@ -173,7 +173,7 @@
 .sidebar-title-add:hover,
 .sidebar-title-add:focus-visible {
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--surface-hover) 68%, white);
+  background: var(--surface-control-hover);
   box-shadow: none;
   transform: none;
   border-radius: var(--sidebar-control-radius);
@@ -211,7 +211,7 @@
 .sidebar-sort-toggle:focus-visible,
 .sidebar-sort-toggle.is-active {
   color: var(--text-strong);
-  background: var(--surface-hover);
+  background: var(--surface-control-hover);
   transform: none;
   box-shadow: none;
 }
@@ -340,9 +340,9 @@
 }
 
 .sidebar-search-toggle.is-active {
-  color: var(--text-strong);
-  background: var(--surface-hover);
-  box-shadow: inset 0 0 0 1px var(--border-quiet);
+  color: var(--text-accent);
+  background: var(--surface-active);
+  box-shadow: inset 0 0 0 1px var(--border-accent-soft);
 }
 
 .sidebar-search {
@@ -374,8 +374,8 @@
   width: 100%;
   padding: 10px 32px 10px 14px;
   border-radius: var(--sidebar-item-radius);
-  border: 1px solid var(--border-quiet);
-  background: var(--cm-surface-panel-strong);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card);
   color: var(--text-strong);
   font-size: 13px;
   outline: none;
@@ -539,7 +539,7 @@
 
 .sidebar-section-title {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--text-strong);
 }
@@ -549,7 +549,7 @@
   height: 22px;
   padding: 0 8px;
   border-radius: var(--sidebar-small-radius);
-  background: var(--cm-surface-panel-quiet);
+  background: var(--surface-control);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   display: inline-flex;
@@ -586,8 +586,8 @@
   width: 24px;
   height: 24px;
   border-radius: var(--sidebar-control-radius);
-  border: 1px solid var(--border-stronger);
-  background: var(--cm-surface-panel-loud);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
@@ -639,7 +639,7 @@
 .workspace-group-label {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--text-faint);
   padding-left: 0;
@@ -743,8 +743,10 @@
 .workspace-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 12px;
-  padding: 12px;
+  min-height: 64px;
+  padding: 12px 12px;
   border-radius: 0;
   border: none;
   background: transparent;
@@ -763,8 +765,8 @@
   position: absolute;
   inset: 0;
   border-radius: var(--sidebar-item-radius);
-  background: color-mix(in srgb, var(--surface-card-strong) 86%, var(--surface-sidebar));
-  border: 1px solid color-mix(in srgb, var(--border-subtle) 84%, var(--surface-sidebar));
+  background: var(--surface-card);
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent);
   box-shadow: none;
   transition:
     background 0.2s ease,
@@ -782,15 +784,15 @@
 }
 
 .workspace-row:hover::before {
-  background: color-mix(in srgb, var(--surface-hover) 76%, var(--surface-sidebar));
-  border-color: color-mix(in srgb, var(--border-strong) 72%, var(--surface-sidebar));
-  box-shadow: 0 2px 10px rgba(15, 23, 36, 0.04);
+  background: var(--surface-hover);
+  border-color: var(--border-subtle);
+  box-shadow: none;
 }
 
 .workspace-row.active::before {
-  background: color-mix(in srgb, var(--border-accent-soft) 46%, var(--surface-sidebar));
-  border-color: color-mix(in srgb, var(--border-accent) 64%, var(--surface-sidebar));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-accent-soft) 70%, transparent);
+  background: var(--surface-active);
+  border-color: var(--border-accent-soft);
+  box-shadow: inset 3px 0 0 var(--text-accent);
 }
 
 .workspace-row.active .workspace-name {
@@ -808,11 +810,11 @@
 .workspace-actions {
   display: inline-flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
   gap: 6px;
   flex-shrink: 0;
-  padding-top: 1px;
+  padding-top: 0;
 }
 
 .workspace-name {
@@ -835,40 +837,54 @@
 
 .connect {
   font-size: 11px;
+  font-weight: 600;
   color: var(--text-subtle);
   align-self: center;
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: var(--sidebar-small-radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--sidebar-control-radius);
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-card-strong) 72%, var(--surface-sidebar));
+  background: var(--surface-control);
   -webkit-app-region: no-drag;
 }
 
 .workspace-add {
-  width: 24px;
-  height: 24px;
+  width: auto;
+  min-width: 56px;
+  height: 28px;
+  gap: 5px;
+  padding: 0 10px;
   border-radius: var(--sidebar-control-radius);
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-card-strong) 84%, var(--surface-sidebar));
+  background: var(--surface-control);
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1;
   -webkit-app-region: no-drag;
   flex-shrink: 0;
-  opacity: 0.68;
+  opacity: 1;
   transition:
     opacity 0.15s ease,
     background-color 0.15s ease,
     color 0.15s ease;
 }
 
+.workspace-add span:first-child {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .workspace-add:hover {
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--surface-hover) 74%, var(--surface-sidebar));
+  background: var(--surface-control-hover);
 }
 
 .workspace-row:hover .workspace-add,
@@ -1065,7 +1081,7 @@
   gap: 10px;
   padding: 9px 12px 10px calc(10px + var(--thread-indent, 0px));
   border-radius: var(--sidebar-item-radius);
-  background: color-mix(in srgb, var(--cm-surface-row) 82%, var(--surface-card));
+  background: transparent;
   border: 1px solid transparent;
   color: var(--text-quiet);
   font-size: 12px;
@@ -1074,9 +1090,7 @@
   -webkit-app-region: no-drag;
   min-width: 0;
   position: relative;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.02),
-    inset 0 0 0 0 rgba(255, 255, 255, 0);
+  box-shadow: none;
   transition:
     background-color 0.18s ease,
     border-color 0.18s ease,
@@ -1090,11 +1104,12 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  box-shadow: none;
 }
 
 .thread-row.is-pinned {
-  background: var(--cm-surface-panel-strong);
+  background: var(--surface-card);
+  border-color: var(--border-muted);
 }
 
 .thread-row.is-nested {
@@ -1153,19 +1168,18 @@
 }
 
 .thread-row:hover {
-  background: color-mix(in srgb, var(--cm-surface-panel-hover) 76%, white);
-  border-color: var(--cm-border-default);
+  background: var(--surface-hover);
+  border-color: var(--border-subtle);
   color: var(--text-strong);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 0 0 1px color-mix(in srgb, var(--cm-border-default) 46%, transparent);
+  box-shadow: none;
   transform: none;
 }
 
 .thread-row.active {
-  background: color-mix(in srgb, var(--surface-active) 96%, var(--surface-sidebar));
-  border-color: color-mix(in srgb, var(--border-accent) 42%, transparent);
+  background: var(--surface-active);
+  border-color: var(--border-accent-soft);
   color: var(--text-strong);
+  box-shadow: inset 3px 0 0 var(--text-accent);
 }
 
 .thread-content {
@@ -1565,14 +1579,12 @@
   gap: 10px;
   padding: 10px 12px;
   border-radius: var(--sidebar-item-radius);
-  background: color-mix(in srgb, var(--cm-surface-row) 82%, var(--surface-card));
+  background: transparent;
   border: 1px solid transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.02),
-    inset 0 0 0 0 rgba(255, 255, 255, 0);
+  box-shadow: none;
   transition:
     background-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -1584,8 +1596,9 @@
 }
 
 .worktree-row.active {
-  background: color-mix(in srgb, var(--surface-active) 96%, var(--surface-sidebar));
-  border-color: color-mix(in srgb, var(--border-accent) 42%, transparent);
+  background: var(--surface-active);
+  border-color: var(--border-accent-soft);
+  box-shadow: inset 3px 0 0 var(--text-accent);
 }
 
 .worktree-row.deleting {
@@ -1593,11 +1606,9 @@
 }
 
 .worktree-row:hover {
-  background: color-mix(in srgb, var(--cm-surface-panel-hover) 76%, white);
-  border-color: var(--cm-border-default);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 0 0 1px color-mix(in srgb, var(--cm-border-default) 40%, transparent);
+  background: var(--surface-hover);
+  border-color: var(--border-subtle);
+  box-shadow: none;
   transform: none;
 }
 
@@ -1696,33 +1707,34 @@
 }
 
 .sidebar-bottom-rail {
-  margin-top: 4px;
-  padding-top: 10px;
+  margin-top: 6px;
+  padding-top: 14px;
   border-top: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   -webkit-app-region: no-drag;
 }
 
 .sidebar-usage-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .sidebar-usage-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 16px;
 }
 
 .sidebar-usage-kicker {
   color: var(--text-faint);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -1739,7 +1751,7 @@
 .sidebar-usage-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .sidebar-usage-row {
@@ -1750,9 +1762,10 @@
 
 .sidebar-usage-row-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 18px;
 }
 
 .sidebar-usage-name {
@@ -1781,12 +1794,8 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--text-accent) 82%, var(--text-muted)),
-    color-mix(in srgb, var(--border-accent) 86%, var(--text-strong))
-  );
-  box-shadow: 0 0 12px color-mix(in srgb, var(--text-accent) 18%, transparent);
+  background: var(--text-accent);
+  box-shadow: none;
   transition: width 180ms ease, opacity 180ms ease;
 }
 
@@ -1797,15 +1806,15 @@
 }
 
 .sidebar-bottom-actions {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
-  gap: 6px;
+  gap: 10px;
   width: 100%;
 }
 
 .sidebar-bottom-actions.is-compact {
-  justify-content: flex-start;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidebar-bottom-actions.is-compact .sidebar-utility-actions {
@@ -1822,22 +1831,23 @@
 
 .sidebar-labeled-button {
   width: 100%;
-  height: 34px;
-  padding: 4px 10px;
+  height: 36px;
+  padding: 0 12px;
   border-radius: var(--sidebar-control-radius);
   border: 1px solid var(--border-quiet);
-  background: color-mix(in srgb, var(--surface-hover) 82%, var(--surface-sidebar));
+  background: var(--surface-control);
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   white-space: nowrap;
   transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
 }
 
 .sidebar-labeled-button-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1849,7 +1859,7 @@
 .sidebar-labeled-button.is-open {
   color: var(--text-stronger);
   border-color: var(--border-subtle);
-  background: var(--surface-hover);
+  background: var(--surface-control-hover);
   box-shadow: none;
   transform: none;
 }
@@ -1987,18 +1997,37 @@
 }
 
 .sidebar-utility-actions {
-  display: inline-flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   align-items: stretch;
-  gap: 6px;
+  gap: 10px;
   width: auto;
   flex: 1 1 0;
 }
 
 .sidebar-utility-button {
-  height: 34px;
-  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
   flex: 1;
+  padding: 0 12px;
+  border: 1px solid var(--border-quiet);
+  border-radius: var(--sidebar-control-radius);
+  background: var(--surface-control);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.sidebar-utility-button:not(.sidebar-labeled-button) {
+  justify-content: center;
+}
+
+.sidebar-utility-button:hover,
+.sidebar-utility-button:focus-visible {
+  border-color: var(--border-subtle);
+  background: var(--surface-control-hover);
+  color: var(--text-stronger);
+  box-shadow: none;
+  transform: none;
 }
 
 .sidebar-utility-button svg {
