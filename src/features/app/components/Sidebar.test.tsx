@@ -193,10 +193,12 @@ describe("Sidebar", () => {
   });
 
   it("shows account and credits instead of usage login when signed in", () => {
+    const onOpenEnterpriseAiSettings = vi.fn();
     render(
       <Sidebar
         {...baseProps}
         activeWorkspaceId="ws-1"
+        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
         enterpriseAi={{
           tenantDomain: "free-bai",
           status: "connected",
@@ -216,7 +218,10 @@ describe("Sidebar", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Account: Free-BAI" })).toBeTruthy();
+    const accountButton = screen.getByRole("button", { name: "Account: Free-BAI" });
+    expect(accountButton).toBeTruthy();
+    fireEvent.click(accountButton);
+    expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/^Available credits:/)).toBeTruthy();
   });
 

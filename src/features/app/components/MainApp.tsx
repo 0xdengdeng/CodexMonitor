@@ -1055,9 +1055,13 @@ export default function MainApp() {
     [modalActions],
   );
 
-  const openEnterpriseAiLogin = useCallback(() => {
+  const openEnterpriseAiEntry = useCallback(() => {
+    if (appSettings.enterpriseAi.status === "connected") {
+      modalActions.openSettings("codex");
+      return;
+    }
     setEnterpriseAiLoginOpen(true);
-  }, []);
+  }, [appSettings.enterpriseAi.status, modalActions]);
 
   const closeEnterpriseAiLogin = useCallback(() => {
     setEnterpriseAiLoginOpen(false);
@@ -1706,7 +1710,7 @@ export default function MainApp() {
     usageWorkspaceId,
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
-    onOpenEnterpriseAiSettings: openEnterpriseAiLogin,
+    onOpenEnterpriseAiSettings: openEnterpriseAiEntry,
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,
     composerWorkspaceState,
