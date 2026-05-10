@@ -13,6 +13,7 @@ type SidebarBottomRailProps = {
   onOpenDebug: () => void;
   showDebugButton: boolean;
   accountSignedIn: boolean;
+  accountLabel: string | null;
   onOpenEnterpriseAiSettings: () => void;
 };
 
@@ -50,9 +51,15 @@ export function SidebarBottomRail({
   onOpenDebug,
   showDebugButton,
   accountSignedIn,
+  accountLabel,
   onOpenEnterpriseAiSettings,
 }: SidebarBottomRailProps) {
   const { t } = useI18n();
+  const signedInAccountLabel =
+    accountLabel?.trim() || t("sidebar.account.enterpriseSignedIn");
+  const usageAccountLabel = t("sidebar.usage.account", {
+    account: signedInAccountLabel,
+  });
 
   return (
     <div className="sidebar-bottom-rail">
@@ -68,11 +75,19 @@ export function SidebarBottomRail({
               {t("sidebar.account.enterpriseSignInShort")}
             </button>
           ) : (
-            creditsLabel && (
-              <div className="sidebar-usage-credits">{creditsLabel}</div>
-            )
+            <button
+              type="button"
+              className="ghost sidebar-usage-account"
+              onClick={onOpenEnterpriseAiSettings}
+              title={usageAccountLabel}
+            >
+              {usageAccountLabel}
+            </button>
           )}
         </div>
+        {accountSignedIn && creditsLabel && (
+          <div className="sidebar-usage-credits">{creditsLabel}</div>
+        )}
         <div className="sidebar-usage-list">
           <UsageRow
             label={t("sidebar.usage.session")}

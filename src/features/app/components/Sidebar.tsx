@@ -359,6 +359,8 @@ export const Sidebar = memo(function Sidebar({
   );
 
   const enterpriseSignedIn = enterpriseAi.status === "connected";
+  const enterpriseAccountLabel =
+    enterpriseAi.accountName?.trim() || enterpriseAi.tenantDomain?.trim() || null;
   const refreshDisabled = workspaces.length === 0 || workspaces.every((workspace) => !workspace.connected);
   const refreshInProgress = workspaces.some(
     (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false,
@@ -1041,6 +1043,7 @@ export const Sidebar = memo(function Sidebar({
         onOpenDebug={onOpenDebug}
         showDebugButton={showDebugButton}
         accountSignedIn={enterpriseSignedIn}
+        accountLabel={enterpriseAccountLabel}
         onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
       />
     </aside>

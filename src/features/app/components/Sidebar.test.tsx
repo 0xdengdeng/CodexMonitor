@@ -161,6 +161,7 @@ describe("Sidebar", () => {
 
     const creditsLabel = screen.getByText(/^Available credits:/);
     expect(creditsLabel.textContent ?? "").toContain("120");
+    expect(screen.getByRole("button", { name: "Account: Free-BAI" })).toBeTruthy();
   });
 
   it("opens enterprise sign in from the usage panel when signed out", () => {
@@ -191,7 +192,7 @@ describe("Sidebar", () => {
     expect(buttons).toHaveLength(1);
   });
 
-  it("shows credits instead of usage login when signed in", () => {
+  it("shows account and credits instead of usage login when signed in", () => {
     render(
       <Sidebar
         {...baseProps}
@@ -214,6 +215,8 @@ describe("Sidebar", () => {
       />,
     );
 
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Account: Free-BAI" })).toBeTruthy();
     expect(screen.getByText(/^Available credits:/)).toBeTruthy();
   });
 
