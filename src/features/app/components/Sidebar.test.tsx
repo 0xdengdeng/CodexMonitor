@@ -174,26 +174,22 @@ describe("Sidebar", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button", { name: "Sign in" });
-    fireEvent.click(buttons[1]);
+    const button = screen.getByRole("button", { name: "Sign in" });
+    fireEvent.click(button);
 
     expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a sign in button in the usage panel when signed out", () => {
-    const onOpenEnterpriseAiSettings = vi.fn();
+  it("does not duplicate the sign in button in the usage panel", () => {
     render(
       <Sidebar
         {...baseProps}
         activeWorkspaceId="ws-1"
-        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
       />,
     );
 
     const buttons = screen.getAllByRole("button", { name: "Sign in" });
-    fireEvent.click(buttons[0]);
-
-    expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
+    expect(buttons).toHaveLength(1);
   });
 
   it("shows credits instead of usage login when signed in", () => {
