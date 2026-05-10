@@ -136,17 +136,48 @@
   line-height: 1.6;
 }
 
-.home-hero-guard {
+.home-journey-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  min-height: 92px;
+  gap: 14px;
   padding: 18px 20px;
   border: 1px solid var(--cm-border-default);
   border-radius: 12px;
   background: var(--home-panel-bg);
   box-shadow: none;
+}
+
+.home-journey-title {
+  color: var(--text-stronger);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.home-journey-list {
+  display: grid;
+  gap: 10px;
+}
+
+.home-journey-step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.home-journey-index {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--cm-border-default);
+  border-radius: 8px;
+  color: var(--text-accent);
+  background: var(--home-control-bg);
+  font-size: 12px;
+  font-weight: 780;
 }
 
 .home-guard-indicator {
@@ -235,7 +266,10 @@
 
 .home-command-surface {
   position: relative;
-  min-height: 160px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 18px 20px;
   border: 1px solid var(--cm-border-default);
   border-radius: 12px;
@@ -244,12 +278,7 @@
 }
 
 .home-command-surface::after {
-  content: "";
-  position: absolute;
-  inset: auto 20px 56px 20px;
-  height: 1px;
-  background: var(--cm-border-default);
-  opacity: 1;
+  display: none;
 }
 
 .home-command-field-label {
@@ -261,7 +290,6 @@
 }
 
 .home-command-placeholder {
-  margin-top: 12px;
   max-width: 620px;
   color: var(--text-muted);
   font-size: 14px;
@@ -269,11 +297,30 @@
   line-height: 1.7;
 }
 
+.home-command-safety {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid var(--cm-border-default);
+  border-radius: 10px;
+  color: var(--text-subtle);
+  background: var(--home-panel-bg);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.home-command-safety .home-guard-indicator {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.home-command-safety strong {
+  color: var(--text-stronger);
+  font-weight: 760;
+}
+
 .home-command-steps {
-  position: absolute;
-  left: 20px;
-  right: 20px;
-  bottom: 14px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;

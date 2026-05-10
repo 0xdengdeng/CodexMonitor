@@ -56,6 +56,12 @@ export function Home({
   onSelectThread,
 }: HomeProps) {
   const { t } = useI18n();
+  const journeySteps = [
+    t("home.journey.stepLogin"),
+    t("home.journey.stepProject"),
+    t("home.journey.stepNeed"),
+    t("home.journey.stepConfirm"),
+  ];
 
   return (
     <div className="home">
@@ -65,11 +71,15 @@ export function Home({
           <h1 className="home-title">{t("home.title")}</h1>
           <p className="home-subtitle">{t("home.subtitle")}</p>
         </div>
-        <div className="home-hero-guard" aria-label={t("home.guard.aria")}>
-          <div className="home-guard-indicator" aria-hidden />
-          <div>
-            <div className="home-guard-title">{t("home.guard.title")}</div>
-            <div className="home-guard-copy">{t("home.guard.copy")}</div>
+        <div className="home-journey-card" aria-label={t("home.journey.aria")}>
+          <div className="home-journey-title">{t("home.journey.title")}</div>
+          <div className="home-journey-list">
+            {journeySteps.map((step, index) => (
+              <div className="home-journey-step" key={step}>
+                <span className="home-journey-index">{index + 1}</span>
+                <span>{step}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -86,6 +96,13 @@ export function Home({
           <div className="home-command-surface">
             <div className="home-command-field-label">{t("home.command.fieldLabel")}</div>
             <div className="home-command-placeholder">{t("home.command.placeholder")}</div>
+            <div className="home-command-safety" aria-label={t("home.guard.aria")}>
+              <span className="home-guard-indicator" aria-hidden />
+              <span>
+                <strong>{t("home.guard.title")}</strong>
+                {t("home.guard.copy")}
+              </span>
+            </div>
             <div className="home-command-steps" aria-label={t("home.command.stepsAria")}>
               <span>{t("home.command.stepProject")}</span>
               <span>{t("home.command.stepPlan")}</span>
