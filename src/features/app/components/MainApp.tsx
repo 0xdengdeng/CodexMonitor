@@ -53,6 +53,7 @@ import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThread
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import type {
   ComposerEditorSettings,
+  EnterpriseAiLoginResult,
   EnterpriseAiUsageSnapshot,
   ServiceTier,
   WorkspaceInfo,
@@ -129,6 +130,7 @@ export default function MainApp() {
   } = useAppBootstrapOrchestration();
   const [enterpriseAiUsage, setEnterpriseAiUsage] =
     useState<EnterpriseAiUsageSnapshot | null>(null);
+  const [enterpriseAiLoginOpen, setEnterpriseAiLoginOpen] = useState(false);
   const enterpriseAiAutoValidatedRef = useRef(false);
   const resolvedInterfaceLanguage = resolveInterfaceLanguage(appSettings.interfaceLanguage);
   const {
@@ -1053,6 +1055,23 @@ export default function MainApp() {
     [modalActions],
   );
 
+  const openEnterpriseAiLogin = useCallback(() => {
+    setEnterpriseAiLoginOpen(true);
+  }, []);
+
+  const closeEnterpriseAiLogin = useCallback(() => {
+    setEnterpriseAiLoginOpen(false);
+  }, []);
+
+  const handleEnterpriseAiLoginSuccess = useCallback(
+    (result: EnterpriseAiLoginResult) => {
+      setAppSettings(result.settings);
+      setEnterpriseAiUsage(result.usage);
+      setEnterpriseAiLoginOpen(false);
+    },
+    [setAppSettings],
+  );
+
   const showHome = !activeWorkspace;
   useEffect(() => {
     if (appSettingsLoading || enterpriseAiAutoValidatedRef.current) {
@@ -1687,7 +1706,7 @@ export default function MainApp() {
     usageWorkspaceId,
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
-    onOpenEnterpriseAiSettings: () => modalActions.openSettings("codex"),
+    onOpenEnterpriseAiSettings: openEnterpriseAiLogin,
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,
     composerWorkspaceState,
@@ -1855,6 +1874,22 @@ export default function MainApp() {
     !activeWorkspace?.connected
       ? "disconnected"
       : remoteThreadConnectionState;
+  const composedAppModalsProps = useMemo(
+    () => ({
+      ...appModalsProps,
+      enterpriseAiLoginOpen,
+      enterpriseAiLoginTenantDomain: appSettings.enterpriseAi.tenantDomain,
+      onCloseEnterpriseAiLogin: closeEnterpriseAiLogin,
+      onEnterpriseAiLoginSuccess: handleEnterpriseAiLoginSuccess,
+    }),
+    [
+      appModalsProps,
+      appSettings.enterpriseAi.tenantDomain,
+      closeEnterpriseAiLogin,
+      enterpriseAiLoginOpen,
+      handleEnterpriseAiLoginSuccess,
+    ],
+  );
   const mainAppShellProps = useMainAppShellProps({
     shell: {
       appClassName,
@@ -1863,7 +1898,7 @@ export default function MainApp() {
       appRef,
       sidebarToggleProps,
       shouldLoadGitHubPanelData,
-      appModalsProps,
+      appModalsProps: composedAppModalsProps,
       showMobileSetupWizard,
       mobileSetupWizardProps,
     },
