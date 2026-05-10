@@ -21,6 +21,7 @@ type UseMainAppLayoutSurfacesArgs = {
   appSettings: Pick<
     AppSettings,
     | "usageShowRemaining"
+    | "enterpriseAi"
     | "composerCodeBlockCopyUseModifier"
     | "showMessageFilePath"
     | "openAppTargets"
@@ -83,6 +84,7 @@ type UseMainAppLayoutSurfacesArgs = {
   usageWorkspaceId: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceId"];
   usageWorkspaceOptions: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceOptions"];
   onUsageWorkspaceChange: LayoutNodesOptions["primary"]["homeProps"]["onUsageWorkspaceChange"];
+  onOpenEnterpriseAiSettings: () => void;
   gitState: ReturnType<typeof useMainAppGitState>;
   composerWorkspaceState: ReturnType<typeof useMainAppComposerWorkspaceState>;
   promptActions: ReturnType<typeof useMainAppPromptActions>;
@@ -287,6 +289,7 @@ function buildPrimarySurface({
   usageWorkspaceId,
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
+  onOpenEnterpriseAiSettings,
   gitState,
   composerWorkspaceState,
   worktreeState,
@@ -405,10 +408,12 @@ function buildPrimarySurface({
       accountRateLimits: sidebarRateLimits,
       usageShowRemaining: appSettings.usageShowRemaining,
       accountInfo: sidebarAccount,
+      enterpriseAi: appSettings.enterpriseAi,
       onSwitchAccount,
       onCancelSwitchAccount,
       accountSwitching,
       onOpenSettings: sidebarHandlers.onOpenSettings,
+      onOpenEnterpriseAiSettings,
       onOpenDebug: handleDebugClick,
       showDebugButton,
       onAddWorkspace: handleAddWorkspace,
@@ -1000,6 +1005,7 @@ export function useMainAppLayoutSurfaces({
   usageWorkspaceId,
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
+  onOpenEnterpriseAiSettings,
   gitState,
   composerWorkspaceState,
   promptActions,
@@ -1147,6 +1153,7 @@ export function useMainAppLayoutSurfaces({
     accountSwitching,
     onSwitchAccount,
     onCancelSwitchAccount,
+    onOpenEnterpriseAiSettings,
     onDecision,
     onRemember,
     onUserInputSubmit,

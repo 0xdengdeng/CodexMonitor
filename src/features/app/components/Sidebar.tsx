@@ -116,10 +116,16 @@ type SidebarProps = {
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
+  enterpriseAi: {
+    tenantDomain: string | null;
+    status: "disconnected" | "connected" | "invalid";
+    accountName: string | null;
+  };
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
   accountSwitching: boolean;
   onOpenSettings: () => void;
+  onOpenEnterpriseAiSettings: () => void;
   onOpenDebug: () => void;
   showDebugButton: boolean;
   onAddWorkspace: () => void;
@@ -176,11 +182,12 @@ export const Sidebar = memo(function Sidebar({
   userInputRequests = [],
   accountRateLimits,
   usageShowRemaining,
-  accountInfo,
+  enterpriseAi,
   onSwitchAccount,
   onCancelSwitchAccount,
   accountSwitching,
   onOpenSettings,
+  onOpenEnterpriseAiSettings,
   onOpenDebug,
   showDebugButton,
   onAddWorkspace,
@@ -356,17 +363,19 @@ export const Sidebar = memo(function Sidebar({
     [normalizedQuery],
   );
 
-  const accountEmail = accountInfo?.email?.trim() ?? "";
-  const accountButtonLabel = accountEmail
-    ? accountEmail
-    : accountInfo?.type === "apikey"
-      ? t("home.format.apiKey")
-      : t("sidebar.account.signInCodex");
-  const accountActionLabel = accountEmail
-    ? t("sidebar.account.switch")
-    : t("sidebar.account.signIn");
+  const enterpriseSignedIn = enterpriseAi.status === "connected";
+  const enterpriseAccountName = enterpriseAi.accountName?.trim() || enterpriseAi.tenantDomain?.trim() || "";
+  const accountButtonLabel = enterpriseSignedIn
+    ? enterpriseAccountName || t("sidebar.account.enterpriseSignedIn")
+    : t("sidebar.account.enterpriseSignIn");
+  const accountTriggerLabel = enterpriseSignedIn
+    ? t("sidebar.account.trigger")
+    : t("sidebar.account.enterpriseSignInShort");
+  const accountActionLabel = enterpriseSignedIn
+    ? t("sidebar.account.manageEnterprise")
+    : t("sidebar.account.enterpriseSignIn");
   const showAccountSwitcher = Boolean(activeWorkspaceId);
-  const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
+  const accountSwitchDisabled = accountSwitching || !activeWorkspaceId || !enterpriseSignedIn;
   const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
   const refreshDisabled = workspaces.length === 0 || workspaces.every((workspace) => !workspace.connected);
   const refreshInProgress = workspaces.some(
@@ -1051,13 +1060,16 @@ export const Sidebar = memo(function Sidebar({
         onOpenDebug={onOpenDebug}
         showDebugButton={showDebugButton}
         showAccountSwitcher={showAccountSwitcher}
+        accountTriggerLabel={accountTriggerLabel}
         accountLabel={accountButtonLabel}
         accountActionLabel={accountActionLabel}
         accountDisabled={accountSwitchDisabled}
         accountSwitching={accountSwitching}
         accountCancelDisabled={accountCancelDisabled}
+        accountSignedIn={enterpriseSignedIn}
         onSwitchAccount={onSwitchAccount}
         onCancelSwitchAccount={onCancelSwitchAccount}
+        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
       />
     </aside>
   );

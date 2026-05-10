@@ -34,10 +34,16 @@ const baseProps = {
   accountRateLimits: null,
   usageShowRemaining: false,
   accountInfo: null,
+  enterpriseAi: {
+    tenantDomain: null,
+    status: "disconnected" as const,
+    accountName: null,
+  },
   onSwitchAccount: vi.fn(),
   onCancelSwitchAccount: vi.fn(),
   accountSwitching: false,
   onOpenSettings: vi.fn(),
+  onOpenEnterpriseAiSettings: vi.fn(),
   onOpenDebug: vi.fn(),
   showDebugButton: false,
   onAddWorkspace: vi.fn(),
@@ -153,11 +159,31 @@ describe("Sidebar", () => {
     expect(creditsLabel.textContent ?? "").toContain("120");
   });
 
+  it("opens enterprise sign in from the bottom rail when signed out", () => {
+    const onOpenEnterpriseAiSettings = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("opens the account menu from the bottom rail", () => {
     render(
       <Sidebar
         {...baseProps}
         activeWorkspaceId="ws-1"
+        enterpriseAi={{
+          tenantDomain: "free-bai",
+          status: "connected",
+          accountName: "Free-BAI",
+        }}
         accountInfo={{
           email: "dimillian@example.com",
           type: "chatgpt",
@@ -169,8 +195,8 @@ describe("Sidebar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Account" }));
 
-    expect(screen.getByText("dimillian@example.com")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Switch account" })).toBeTruthy();
+    expect(screen.getByText("Free-BAI")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Manage account" })).toBeTruthy();
   });
 
   it("renders threads-only mode as a global chronological list", () => {

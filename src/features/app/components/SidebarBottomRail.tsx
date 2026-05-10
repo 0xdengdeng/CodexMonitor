@@ -21,13 +21,16 @@ type SidebarBottomRailProps = {
   onOpenDebug: () => void;
   showDebugButton: boolean;
   showAccountSwitcher: boolean;
+  accountTriggerLabel: string;
   accountLabel: string;
   accountActionLabel: string;
   accountDisabled: boolean;
   accountSwitching: boolean;
   accountCancelDisabled: boolean;
+  accountSignedIn: boolean;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
+  onOpenEnterpriseAiSettings: () => void;
 };
 
 type UsageRowProps = {
@@ -64,13 +67,16 @@ export function SidebarBottomRail({
   onOpenDebug,
   showDebugButton,
   showAccountSwitcher,
+  accountTriggerLabel,
   accountLabel,
   accountActionLabel,
   accountDisabled,
   accountSwitching,
   accountCancelDisabled,
+  accountSignedIn,
   onSwitchAccount,
   onCancelSwitchAccount,
+  onOpenEnterpriseAiSettings,
 }: SidebarBottomRailProps) {
   const { t } = useI18n();
   const accountMenu = useMenuController();
@@ -80,6 +86,13 @@ export function SidebarBottomRail({
     close: closeAccountMenu,
     toggle: toggleAccountMenu,
   } = accountMenu;
+  const handleAccountTrigger = () => {
+    if (!accountSignedIn) {
+      onOpenEnterpriseAiSettings();
+      return;
+    }
+    toggleAccountMenu();
+  };
 
   useEffect(() => {
     if (!showAccountSwitcher) {
@@ -119,15 +132,15 @@ export function SidebarBottomRail({
               popupRole="dialog"
               className="ghost sidebar-labeled-button sidebar-account-trigger"
               activeClassName="is-open"
-              onClick={toggleAccountMenu}
-              aria-label={t("sidebar.account.trigger")}
+              onClick={handleAccountTrigger}
+              aria-label={accountTriggerLabel}
             >
               <span className="sidebar-account-trigger-content">
                 <span className="sidebar-account-avatar" aria-hidden>
                   <User size={12} aria-hidden />
                 </span>
                 <span className="sidebar-account-trigger-label">
-                  {t("sidebar.account.trigger")}
+                  {accountTriggerLabel}
                 </span>
               </span>
             </MenuTrigger>
@@ -139,7 +152,7 @@ export function SidebarBottomRail({
                   <button
                     type="button"
                     className="primary sidebar-account-action"
-                    onClick={onSwitchAccount}
+                    onClick={accountSignedIn ? onOpenEnterpriseAiSettings : onSwitchAccount}
                     disabled={accountDisabled}
                     aria-busy={accountSwitching}
                   >

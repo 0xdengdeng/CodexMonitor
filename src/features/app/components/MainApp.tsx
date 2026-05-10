@@ -1620,6 +1620,7 @@ export default function MainApp() {
   const layoutSurfaces = useMainAppLayoutSurfaces({
     appSettings: {
       usageShowRemaining: appSettings.usageShowRemaining,
+      enterpriseAi: appSettings.enterpriseAi,
       composerCodeBlockCopyUseModifier:
         appSettings.composerCodeBlockCopyUseModifier,
       showMessageFilePath: appSettings.showMessageFilePath,
@@ -1686,6 +1687,7 @@ export default function MainApp() {
     usageWorkspaceId,
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
+    onOpenEnterpriseAiSettings: () => modalActions.openSettings("codex"),
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,
     composerWorkspaceState,
