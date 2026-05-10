@@ -1,13 +1,5 @@
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Settings from "lucide-react/dist/esm/icons/settings";
-import User from "lucide-react/dist/esm/icons/user";
-import X from "lucide-react/dist/esm/icons/x";
-import { useEffect } from "react";
-import {
-  MenuTrigger,
-  PopoverSurface,
-} from "../../design-system/components/popover/PopoverPrimitives";
-import { useMenuController } from "../hooks/useMenuController";
 import { useI18n } from "@/features/i18n/i18n";
 
 type SidebarBottomRailProps = {
@@ -20,16 +12,7 @@ type SidebarBottomRailProps = {
   onOpenSettings: () => void;
   onOpenDebug: () => void;
   showDebugButton: boolean;
-  showAccountSwitcher: boolean;
-  accountTriggerLabel: string;
-  accountLabel: string;
-  accountActionLabel: string;
-  accountDisabled: boolean;
-  accountSwitching: boolean;
-  accountCancelDisabled: boolean;
   accountSignedIn: boolean;
-  onSwitchAccount: () => void;
-  onCancelSwitchAccount: () => void;
   onOpenEnterpriseAiSettings: () => void;
 };
 
@@ -66,36 +49,10 @@ export function SidebarBottomRail({
   onOpenSettings,
   onOpenDebug,
   showDebugButton,
-  showAccountSwitcher,
-  accountTriggerLabel,
-  accountLabel,
-  accountActionLabel,
-  accountDisabled,
-  accountSwitching,
-  accountCancelDisabled,
   accountSignedIn,
-  onSwitchAccount,
-  onCancelSwitchAccount,
   onOpenEnterpriseAiSettings,
 }: SidebarBottomRailProps) {
   const { t } = useI18n();
-  const accountMenu = useMenuController();
-  const {
-    isOpen: accountMenuOpen,
-    containerRef: accountMenuRef,
-    close: closeAccountMenu,
-    toggle: toggleAccountMenu,
-  } = accountMenu;
-  const handleAccountTrigger = () => {
-    toggleAccountMenu();
-  };
-  const showAccountButton = showAccountSwitcher && accountSignedIn;
-
-  useEffect(() => {
-    if (!showAccountButton) {
-      closeAccountMenu();
-    }
-  }, [closeAccountMenu, showAccountButton]);
 
   return (
     <div className="sidebar-bottom-rail">
@@ -131,76 +88,19 @@ export function SidebarBottomRail({
           )}
         </div>
       </div>
-      <div
-        className={`sidebar-bottom-actions${showAccountButton ? "" : " is-compact"}`}
-      >
-        {showAccountButton && (
-          <div className="sidebar-account-menu" ref={accountMenuRef}>
-            <MenuTrigger
-              isOpen={accountMenuOpen}
-              popupRole="dialog"
-              className="ghost sidebar-labeled-button sidebar-account-trigger"
-              activeClassName="is-open"
-              onClick={handleAccountTrigger}
-              aria-label={accountTriggerLabel}
-            >
-              <span className="sidebar-account-trigger-content">
-                <span className="sidebar-account-avatar" aria-hidden>
-                  <User size={12} aria-hidden />
-                </span>
-                <span className="sidebar-account-trigger-label">
-                  {accountTriggerLabel}
-                </span>
-              </span>
-            </MenuTrigger>
-            {accountMenuOpen && (
-              <PopoverSurface className="sidebar-account-popover" role="dialog">
-                <div className="sidebar-account-title">{t("sidebar.account.title")}</div>
-                <div className="sidebar-account-value">{accountLabel}</div>
-                <div className="sidebar-account-actions-row">
-                  <button
-                    type="button"
-                    className="primary sidebar-account-action"
-                    onClick={accountSignedIn ? onOpenEnterpriseAiSettings : onSwitchAccount}
-                    disabled={accountDisabled}
-                    aria-busy={accountSwitching}
-                  >
-                    <span className="sidebar-account-action-content">
-                      {accountSwitching && (
-                        <span className="sidebar-account-spinner" aria-hidden />
-                      )}
-                      <span>{accountActionLabel}</span>
-                    </span>
-                  </button>
-                  {accountSwitching && (
-                    <button
-                      type="button"
-                      className="secondary sidebar-account-cancel"
-                      onClick={onCancelSwitchAccount}
-                      disabled={accountCancelDisabled}
-                      aria-label={t("sidebar.account.cancelSwitch")}
-                      title={t("common.cancel")}
-                    >
-                      <X size={12} aria-hidden />
-                    </button>
-                  )}
-                </div>
-              </PopoverSurface>
-            )}
-          </div>
-        )}
+      <div className="sidebar-bottom-actions">
         <div className="sidebar-utility-actions">
-            <button
-              className="ghost sidebar-labeled-button sidebar-utility-button"
-              type="button"
-              onClick={onOpenSettings}
-              aria-label={t("sidebar.settings.open")}
-            >
-              <span className="sidebar-labeled-button-icon" aria-hidden>
-                <Settings size={14} aria-hidden />
-              </span>
-              <span>{t("sidebar.settings.label")}</span>
-            </button>
+          <button
+            className="ghost sidebar-labeled-button sidebar-utility-button"
+            type="button"
+            onClick={onOpenSettings}
+            aria-label={t("sidebar.settings.open")}
+          >
+            <span className="sidebar-labeled-button-icon" aria-hidden>
+              <Settings size={14} aria-hidden />
+            </span>
+            <span>{t("sidebar.settings.label")}</span>
+          </button>
           {showDebugButton && (
             <button
               className="ghost sidebar-labeled-button sidebar-utility-button"

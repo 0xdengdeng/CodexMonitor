@@ -217,11 +217,12 @@ describe("Sidebar", () => {
     expect(screen.getByText(/^Available credits:/)).toBeTruthy();
   });
 
-  it("opens the account menu from the bottom rail", () => {
+  it("keeps the bottom action row stable after enterprise sign in", () => {
     render(
       <Sidebar
         {...baseProps}
         activeWorkspaceId="ws-1"
+        showDebugButton
         enterpriseAi={{
           tenantDomain: "free-bai",
           status: "connected",
@@ -236,10 +237,9 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Account" }));
-
-    expect(screen.getByText("Free-BAI")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Manage account" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Account" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open settings" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open debug log" })).toBeTruthy();
   });
 
   it("renders threads-only mode as a global chronological list", () => {

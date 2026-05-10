@@ -1806,26 +1806,9 @@
 
 .sidebar-bottom-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 10px;
-  width: 100%;
-}
-
-.sidebar-bottom-actions.is-compact {
   grid-template-columns: minmax(0, 1fr);
-}
-
-.sidebar-bottom-actions.is-compact .sidebar-utility-actions {
-  flex: 1 1 auto;
+  align-items: stretch;
   width: 100%;
-}
-
-.sidebar-account-menu {
-  position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  width: auto;
 }
 
 .sidebar-labeled-button {
@@ -1869,139 +1852,12 @@
   line-height: 1;
 }
 
-.sidebar-account-trigger {
-  width: 100%;
-  min-width: 0;
-  justify-content: flex-start;
-}
-
-.sidebar-account-trigger-content {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sidebar-account-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--sidebar-small-radius);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--text-stronger);
-  font-size: 10px;
-  font-weight: 700;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--text-accent) 24%, transparent),
-    color-mix(in srgb, var(--border-accent-soft) 62%, transparent)
-  );
-}
-
-.sidebar-account-avatar svg {
-  width: 12px;
-  height: 12px;
-}
-
-.sidebar-account-trigger-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  color: inherit;
-}
-
-.sidebar-account-popover {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + 8px);
-  min-width: 220px;
-  padding: 10px 12px;
-  display: grid;
-  gap: 8px;
-  z-index: 10;
-}
-
-.sidebar-account-title {
-  color: var(--text-subtle);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.sidebar-account-value {
-  color: var(--text-stronger);
-  font-weight: 600;
-  font-size: 12px;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-account-actions-row {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-}
-
-.sidebar-account-action {
-  width: 100%;
-  justify-content: center;
-  font-size: 11px;
-}
-
-.sidebar-account-action[aria-busy="true"]:disabled {
-  opacity: 0.85;
-}
-
-.sidebar-account-action-content {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.sidebar-account-spinner {
-  width: 12px;
-  height: 12px;
-  border-radius: var(--sidebar-small-radius);
-  border: 2px solid rgba(11, 15, 26, 0.22);
-  border-top-color: rgba(11, 15, 26, 0.8);
-  animation: sidebar-account-spin var(--ds-spinner-dur) linear infinite;
-}
-
-@keyframes sidebar-account-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.sidebar-account-cancel {
-  width: 34px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sidebar-account-cancel svg {
-  width: 12px;
-  height: 12px;
-}
-
 .sidebar-utility-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   align-items: stretch;
   gap: 10px;
-  width: auto;
-  flex: 1 1 0;
+  width: 100%;
 }
 
 .sidebar-utility-button {

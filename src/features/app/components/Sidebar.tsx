@@ -182,9 +182,6 @@ export const Sidebar = memo(function Sidebar({
   accountRateLimits,
   usageShowRemaining,
   enterpriseAi,
-  onSwitchAccount,
-  onCancelSwitchAccount,
-  accountSwitching,
   onOpenSettings,
   onOpenEnterpriseAiSettings,
   onOpenDebug,
@@ -362,19 +359,6 @@ export const Sidebar = memo(function Sidebar({
   );
 
   const enterpriseSignedIn = enterpriseAi.status === "connected";
-  const enterpriseAccountName = enterpriseAi.accountName?.trim() || enterpriseAi.tenantDomain?.trim() || "";
-  const accountButtonLabel = enterpriseSignedIn
-    ? enterpriseAccountName || t("sidebar.account.enterpriseSignedIn")
-    : t("sidebar.account.enterpriseSignIn");
-  const accountTriggerLabel = enterpriseSignedIn
-    ? t("sidebar.account.trigger")
-    : t("sidebar.account.enterpriseSignInShort");
-  const accountActionLabel = enterpriseSignedIn
-    ? t("sidebar.account.manageEnterprise")
-    : t("sidebar.account.enterpriseSignIn");
-  const showAccountSwitcher = Boolean(activeWorkspaceId);
-  const accountSwitchDisabled = accountSwitching || !activeWorkspaceId || !enterpriseSignedIn;
-  const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
   const refreshDisabled = workspaces.length === 0 || workspaces.every((workspace) => !workspace.connected);
   const refreshInProgress = workspaces.some(
     (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false,
@@ -1056,16 +1040,7 @@ export const Sidebar = memo(function Sidebar({
         onOpenSettings={onOpenSettings}
         onOpenDebug={onOpenDebug}
         showDebugButton={showDebugButton}
-        showAccountSwitcher={showAccountSwitcher}
-        accountTriggerLabel={accountTriggerLabel}
-        accountLabel={accountButtonLabel}
-        accountActionLabel={accountActionLabel}
-        accountDisabled={accountSwitchDisabled}
-        accountSwitching={accountSwitching}
-        accountCancelDisabled={accountCancelDisabled}
         accountSignedIn={enterpriseSignedIn}
-        onSwitchAccount={onSwitchAccount}
-        onCancelSwitchAccount={onCancelSwitchAccount}
         onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
       />
     </aside>
