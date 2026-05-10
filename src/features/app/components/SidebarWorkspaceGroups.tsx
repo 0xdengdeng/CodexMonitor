@@ -65,7 +65,6 @@ type SidebarWorkspaceGroupsProps = {
   newAgentDraftWorkspaceId?: string | null;
   startingDraftThreadWorkspaceId?: string | null;
   onSelectWorkspace: (workspaceId: string) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onAddAgent: (workspace: WorkspaceInfo) => void;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => void;
   onAddCloneAgent: (workspace: WorkspaceInfo) => void;
@@ -128,7 +127,6 @@ function SidebarWorkspaceEntry({
   newAgentDraftWorkspaceId,
   startingDraftThreadWorkspaceId,
   onSelectWorkspace,
-  onConnectWorkspace,
   onAddAgent,
   onAddWorktreeAgent,
   onAddCloneAgent,
@@ -224,7 +222,6 @@ function SidebarWorkspaceEntry({
       onSelectWorkspace={onSelectWorkspace}
       onShowWorkspaceMenu={onShowWorkspaceMenu}
       onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
-      onConnectWorkspace={onConnectWorkspace}
       onToggleAddMenu={onToggleAddMenu}
     >
       {addMenuOpen && addMenuAnchor &&
@@ -315,7 +312,6 @@ function SidebarWorkspaceEntry({
           getPinTimestamp={getPinTimestamp}
           pinnedThreadsVersion={pinnedThreadsVersion}
           onSelectWorkspace={onSelectWorkspace}
-          onConnectWorkspace={onConnectWorkspace}
           onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}
@@ -349,7 +345,6 @@ function SidebarWorkspaceEntry({
           getPinTimestamp={getPinTimestamp}
           pinnedThreadsVersion={pinnedThreadsVersion}
           onSelectWorkspace={onSelectWorkspace}
-          onConnectWorkspace={onConnectWorkspace}
           onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}

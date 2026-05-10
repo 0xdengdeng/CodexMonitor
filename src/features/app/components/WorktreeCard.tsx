@@ -10,7 +10,6 @@ type WorktreeCardProps = {
   onSelectWorkspace: (id: string) => void;
   onShowWorktreeMenu: (event: MouseEvent, worktree: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   children?: React.ReactNode;
 };
 
@@ -21,7 +20,6 @@ export function WorktreeCard({
   onSelectWorkspace,
   onShowWorktreeMenu,
   onToggleWorkspaceCollapse,
-  onConnectWorkspace,
   children,
 }: WorktreeCardProps) {
   const { t } = useI18n();
@@ -87,18 +85,6 @@ export function WorktreeCard({
               >
                 <span className="worktree-toggle-icon">›</span>
               </button>
-              {!worktree.connected && (
-                <span
-                  className="connect"
-                  title={t("sidebar.workspace.connectTitle")}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onConnectWorkspace(worktree);
-                  }}
-                >
-                  {t("sidebar.workspace.connect")}
-                </span>
-              )}
             </>
           )}
         </div>

@@ -835,23 +835,6 @@
 }
 
 
-.connect {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-subtle);
-  align-self: center;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: var(--sidebar-control-radius);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-control);
-  -webkit-app-region: no-drag;
-}
-
 .workspace-add {
   width: auto;
   min-width: 56px;

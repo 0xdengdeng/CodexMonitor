@@ -131,7 +131,6 @@ type SidebarProps = {
   onAddWorkspace: () => void;
   onSelectHome: () => void;
   onSelectWorkspace: (id: string) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onAddAgent: (workspace: WorkspaceInfo) => void;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => void;
   onAddCloneAgent: (workspace: WorkspaceInfo) => void;
@@ -193,7 +192,6 @@ export const Sidebar = memo(function Sidebar({
   onAddWorkspace,
   onSelectHome,
   onSelectWorkspace,
-  onConnectWorkspace,
   onAddAgent,
   onAddWorktreeAgent,
   onAddCloneAgent,
@@ -1019,7 +1017,6 @@ export const Sidebar = memo(function Sidebar({
                   newAgentDraftWorkspaceId={newAgentDraftWorkspaceId}
                   startingDraftThreadWorkspaceId={startingDraftThreadWorkspaceId}
                   onSelectWorkspace={onSelectWorkspace}
-                  onConnectWorkspace={onConnectWorkspace}
                   onAddAgent={onAddAgent}
                   onAddWorktreeAgent={onAddWorktreeAgent}
                   onAddCloneAgent={onAddCloneAgent}

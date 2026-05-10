@@ -39,7 +39,6 @@ describe("WorktreeSection", () => {
         getPinTimestamp={() => null}
         pinnedThreadsVersion={0}
         onSelectWorkspace={vi.fn()}
-        onConnectWorkspace={vi.fn()}
         onToggleWorkspaceCollapse={vi.fn()}
         onSelectThread={vi.fn()}
         onShowThreadMenu={vi.fn()}

@@ -14,7 +14,6 @@ type WorkspaceCardProps = {
   onSelectWorkspace: (id: string) => void;
   onShowWorkspaceMenu: (event: MouseEvent, workspaceId: string) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onToggleAddMenu: (anchor: {
     workspaceId: string;
     top: number;
@@ -35,7 +34,6 @@ export function WorkspaceCard({
   onSelectWorkspace,
   onShowWorkspaceMenu,
   onToggleWorkspaceCollapse,
-  onConnectWorkspace,
   onToggleAddMenu,
   children,
 }: WorkspaceCardProps) {
@@ -118,18 +116,6 @@ export function WorkspaceCard({
             <span aria-hidden>+</span>
             <span>{t("sidebar.workspace.addAgent")}</span>
           </button>
-          {!workspace.connected && (
-            <span
-              className="connect"
-              title={t("sidebar.workspace.connectTitle")}
-              onClick={(event) => {
-                event.stopPropagation();
-                onConnectWorkspace(workspace);
-              }}
-            >
-              {t("sidebar.workspace.connect")}
-            </span>
-          )}
         </div>
       </div>
       <div
