@@ -208,6 +208,59 @@ describe("useAppSettings", () => {
     expect(result.current.settings.theme).toBe("light");
   });
 
+  it("does not let an older save overwrite a newer local setting", async () => {
+    getAppSettingsMock.mockResolvedValue({ theme: "system" } as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let resolveFirst: ((settings: AppSettings) => void) | undefined;
+    let resolveSecond: ((settings: AppSettings) => void) | undefined;
+    updateAppSettingsMock
+      .mockReturnValueOnce(new Promise<AppSettings>((resolve) => {
+        resolveFirst = resolve;
+      }))
+      .mockReturnValueOnce(new Promise<AppSettings>((resolve) => {
+        resolveSecond = resolve;
+      }));
+
+    let firstSave: Promise<AppSettings>;
+    await act(async () => {
+      firstSave = result.current.saveSettings({
+        ...result.current.settings,
+        theme: "light",
+      });
+    });
+    expect(result.current.settings.theme).toBe("light");
+
+    let secondSave: Promise<AppSettings>;
+    await act(async () => {
+      secondSave = result.current.saveSettings({
+        ...result.current.settings,
+        theme: "dark",
+      });
+    });
+    expect(result.current.settings.theme).toBe("dark");
+
+    await act(async () => {
+      resolveFirst?.({
+        ...result.current.settings,
+        theme: "light",
+      });
+      await firstSave;
+    });
+    expect(result.current.settings.theme).toBe("dark");
+
+    await act(async () => {
+      resolveSecond?.({
+        ...result.current.settings,
+        theme: "dark",
+      });
+      await secondSave;
+    });
+    expect(result.current.settings.theme).toBe("dark");
+  });
+
   it("surfaces doctor errors", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
     runCodexDoctorMock.mockRejectedValue(new Error("doctor fail"));

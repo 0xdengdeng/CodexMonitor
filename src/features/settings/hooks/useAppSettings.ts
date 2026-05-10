@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { AppSettings } from "@/types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
@@ -339,7 +340,15 @@ export function useAppSettings() {
   const defaultSettings = useMemo(() => buildDefaultSettings(), []);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
-  const saveGenerationRef = useRef(0);
+  const settingsRef = useRef<AppSettings>(defaultSettings);
+  const setSettingsState = useCallback<Dispatch<SetStateAction<AppSettings>>>((next) => {
+    const resolved =
+      typeof next === "function"
+        ? (next as (value: AppSettings) => AppSettings)(settingsRef.current)
+        : next;
+    settingsRef.current = resolved;
+    setSettings(resolved);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -347,7 +356,7 @@ export function useAppSettings() {
       try {
         const response = await getAppSettings();
         if (active) {
-          setSettings(
+          setSettingsState(
             normalizeAppSettings({
               ...defaultSettings,
               ...response,
@@ -365,22 +374,20 @@ export function useAppSettings() {
     return () => {
       active = false;
     };
-  }, [defaultSettings]);
+  }, [defaultSettings, setSettingsState]);
 
   const saveSettings = useCallback(async (next: AppSettings) => {
-    const generation = saveGenerationRef.current + 1;
-    saveGenerationRef.current = generation;
-    const previous = settings;
+    const previous = settingsRef.current;
     const normalized = normalizeAppSettings({
       ...defaultSettings,
       ...next,
     });
-    setSettings(normalized);
+    setSettingsState(normalized);
 
     try {
       const saved = await updateAppSettings(normalized);
-      if (saveGenerationRef.current === generation) {
-        setSettings(
+      if (settingsRef.current === normalized) {
+        setSettingsState(
           normalizeAppSettings({
             ...defaultSettings,
             ...saved,
@@ -389,12 +396,12 @@ export function useAppSettings() {
       }
       return saved;
     } catch (error) {
-      if (saveGenerationRef.current === generation) {
-        setSettings(previous);
+      if (settingsRef.current === normalized) {
+        setSettingsState(previous);
       }
       throw error;
     }
-  }, [defaultSettings, settings]);
+  }, [defaultSettings, setSettingsState]);
 
   const doctor = useCallback(
     async (_codexBin: string | null, codexArgs: string | null) => {
@@ -405,7 +412,7 @@ export function useAppSettings() {
 
   return {
     settings,
-    setSettings,
+    setSettings: setSettingsState,
     saveSettings,
     doctor,
     isLoading,

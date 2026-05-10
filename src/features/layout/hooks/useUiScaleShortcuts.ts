@@ -50,6 +50,7 @@ export function useUiScaleShortcuts({
   const saveQueueRef = useRef(Promise.resolve());
   const queueSaveSettings = useCallback(
     (next: AppSettings) => {
+      setSettings(next);
       const task = () => saveSettings(next);
       const queued = saveQueueRef.current.then(task, task);
       saveQueueRef.current = queued.then(
@@ -58,7 +59,7 @@ export function useUiScaleShortcuts({
       );
       return queued;
     },
-    [saveSettings],
+    [saveSettings, setSettings],
   );
 
   const handleScaleDelta = useCallback(
