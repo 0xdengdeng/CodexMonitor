@@ -99,9 +99,12 @@ export function parseShortcut(value: string | null | undefined): ShortcutDefinit
   };
 }
 
-export function formatShortcut(value: string | null | undefined): string {
+export function formatShortcut(
+  value: string | null | undefined,
+  notSetLabel = "Not set",
+): string {
   if (!value) {
-    return "Not set";
+    return notSetLabel;
   }
   const parsed = parseShortcut(value);
   if (!parsed) {

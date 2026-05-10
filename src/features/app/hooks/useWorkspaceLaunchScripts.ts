@@ -62,12 +62,17 @@ export type WorkspaceLaunchScriptsState = {
   onCreateNew: () => Promise<void>;
 };
 
-function buildLaunchTitle(entry: LaunchScriptEntry) {
+function buildLaunchTitle(
+  entry: LaunchScriptEntry,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
   const label = entry.label?.trim();
   if (label) {
-    return `Launch: ${label}`;
+    return t("workspace.launch.title", { label });
   }
-  return `Launch: ${getLaunchScriptIconLabel(entry.icon)}`;
+  return t("workspace.launch.title", {
+    label: getLaunchScriptIconLabel(entry.icon),
+  });
 }
 
 export function useWorkspaceLaunchScripts({
@@ -302,7 +307,7 @@ export function useWorkspaceLaunchScripts({
       }
       setError(null);
       setErrorById((prev) => ({ ...prev, [id]: null }));
-      const title = buildLaunchTitle(entry);
+      const title = buildLaunchTitle(entry, t);
       const terminalId = ensureLaunchTerminal(activeWorkspace.id, entry, title);
       pendingRunRef.current = {
         workspaceId: activeWorkspace.id,
@@ -325,6 +330,7 @@ export function useWorkspaceLaunchScripts({
       onOpenEditor,
       openTerminal,
       restartLaunchSession,
+      t,
     ],
   );
 

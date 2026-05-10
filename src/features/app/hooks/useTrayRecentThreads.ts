@@ -1,5 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useRef } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import { setTrayRecentThreads } from "@services/tauri";
 import type { ThreadSummary, TrayRecentThreadEntry, WorkspaceInfo } from "../../../types";
 
@@ -19,18 +20,29 @@ type CandidateThread = {
   updatedAt: number;
 };
 
+type TrayRecentThreadsCopy = {
+  workspace: string;
+  untitledThread: string;
+};
+
+const defaultCopy: TrayRecentThreadsCopy = {
+  workspace: "Workspace",
+  untitledThread: "Untitled thread",
+};
+
 function buildCandidateThreads(
   workspaces: WorkspaceInfo[],
   threadsByWorkspace: Record<string, ThreadSummary[]>,
   isSubagentThread: (workspaceId: string, threadId: string) => boolean,
+  copy: TrayRecentThreadsCopy = defaultCopy,
 ): CandidateThread[] {
   const workspaceLabelById = new Map(
-    workspaces.map((workspace) => [workspace.id, workspace.name.trim() || "Workspace"] as const),
+    workspaces.map((workspace) => [workspace.id, workspace.name.trim() || copy.workspace] as const),
   );
   const candidates: CandidateThread[] = [];
 
   Object.entries(threadsByWorkspace).forEach(([workspaceId, threads]) => {
-    const workspaceLabel = workspaceLabelById.get(workspaceId) ?? "Workspace";
+    const workspaceLabel = workspaceLabelById.get(workspaceId) ?? copy.workspace;
     threads.forEach((thread) => {
       const threadId = String(thread.id ?? "").trim();
       if (!threadId || isSubagentThread(workspaceId, threadId)) {
@@ -40,7 +52,7 @@ function buildCandidateThreads(
         workspaceId,
         workspaceLabel,
         threadId,
-        threadLabel: thread.name?.trim() || "Untitled thread",
+        threadLabel: thread.name?.trim() || copy.untitledThread,
         updatedAt: Number(thread.updatedAt ?? 0),
       });
     });
@@ -61,8 +73,14 @@ export function buildTrayRecentThreadEntries(
   workspaces: WorkspaceInfo[],
   threadsByWorkspace: Record<string, ThreadSummary[]>,
   isSubagentThread: (workspaceId: string, threadId: string) => boolean,
+  copy: TrayRecentThreadsCopy = defaultCopy,
 ): TrayRecentThreadEntry[] {
-  const candidates = buildCandidateThreads(workspaces, threadsByWorkspace, isSubagentThread);
+  const candidates = buildCandidateThreads(
+    workspaces,
+    threadsByWorkspace,
+    isSubagentThread,
+    copy,
+  );
 
   return candidates.map((candidate) => ({
     workspaceId: candidate.workspaceId,
@@ -78,10 +96,15 @@ export function useTrayRecentThreads({
   threadsByWorkspace,
   isSubagentThread,
 }: UseTrayRecentThreadsParams) {
+  const { t } = useI18n();
   const entries = useMemo(
     // Tauri derives the top-3 recents and workspace submenus from the full visible tray thread set.
-    () => buildTrayRecentThreadEntries(workspaces, threadsByWorkspace, isSubagentThread),
-    [isSubagentThread, threadsByWorkspace, workspaces],
+    () =>
+      buildTrayRecentThreadEntries(workspaces, threadsByWorkspace, isSubagentThread, {
+        workspace: t("workspace.untitled"),
+        untitledThread: t("thread.untitled"),
+      }),
+    [isSubagentThread, threadsByWorkspace, t, workspaces],
   );
   const serializedEntries = useMemo(() => JSON.stringify(entries), [entries]);
   const syncEntries = useMemo(() => entries, [serializedEntries]);

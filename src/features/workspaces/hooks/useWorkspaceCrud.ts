@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import * as Sentry from "@sentry/react";
+import { useI18n } from "@/features/i18n/i18n";
 import type { DebugEntry, WorkspaceInfo, WorkspaceSettings } from "../../../types";
 import { normalizeRootPath } from "../../threads/utils/threadNormalize";
 import {
@@ -96,6 +97,7 @@ export function useWorkspaceCrud({
   workspaceSettingsRef,
   setHasLoaded,
 }: UseWorkspaceCrudOptions) {
+  const { t } = useI18n();
   const refreshWorkspaces = useCallback(async () => {
     try {
       const entries = await listWorkspaces();
@@ -167,10 +169,10 @@ export function useWorkspaceCrud({
       const trimmedDestination = destinationPath.trim();
       const trimmedFolderName = targetFolderName?.trim() || null;
       if (!trimmedUrl) {
-        throw new Error("Remote Git URL is required.");
+        throw new Error(t("workspace.fromUrl.urlRequired"));
       }
       if (!trimmedDestination) {
-        throw new Error("Destination folder is required.");
+        throw new Error(t("workspace.fromUrl.destinationRequired"));
       }
       const shouldActivate = options?.activate !== false;
       onDebug?.({
@@ -206,7 +208,7 @@ export function useWorkspaceCrud({
         throw error;
       }
     },
-    [onDebug, setActiveWorkspaceId, setWorkspaces],
+    [onDebug, setActiveWorkspaceId, setWorkspaces, t],
   );
 
   const addWorkspacesFromPaths = useCallback(

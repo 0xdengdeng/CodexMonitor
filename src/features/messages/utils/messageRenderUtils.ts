@@ -11,8 +11,12 @@ export type ToolSummary = {
 export type ToolSummaryCopy = {
   command: string;
   commandFallback: string;
+  contextCompaction: string;
+  contextCompactionDetail: string;
   hook: string;
   image: string;
+  plan: string;
+  planGenerating: string;
   read: string;
   searched: string;
   searching: string;
@@ -23,8 +27,12 @@ export type ToolSummaryCopy = {
 const defaultToolSummaryCopy: ToolSummaryCopy = {
   command: "command",
   commandFallback: "Command",
+  contextCompaction: "Context compaction",
+  contextCompactionDetail: "Compacting conversation context to fit token limits.",
   hook: "hook",
   image: "image",
+  plan: "Plan",
+  planGenerating: "Generating plan...",
   read: "read",
   searched: "searched",
   searching: "searching",
@@ -33,6 +41,18 @@ const defaultToolSummaryCopy: ToolSummaryCopy = {
 };
 
 export type StatusTone = "completed" | "processing" | "failed" | "unknown";
+
+export type ToolStatusCopy = {
+  completed: string;
+  failed: string;
+  processing: string;
+};
+
+const defaultToolStatusCopy: ToolStatusCopy = {
+  completed: "completed",
+  failed: "failed",
+  processing: "processing",
+};
 
 export type ParsedReasoning = {
   summaryTitle: string;
@@ -402,6 +422,18 @@ export function buildToolSummary(
     };
   }
 
+  if (item.toolType === "plan") {
+    return {
+      label: copy.tool,
+      value: copy.plan,
+      detail:
+        item.detail === "Generating plan..."
+          ? copy.planGenerating
+          : item.detail || "",
+      output: item.output || "",
+    };
+  }
+
   if (item.toolType === "collabToolCall") {
     return {
       label: summarizeCollabLabel(item.title, item.status),
@@ -440,6 +472,15 @@ export function buildToolSummary(
         detail: item.detail || "",
       };
     }
+  }
+
+  if (item.toolType === "contextCompaction") {
+    return {
+      label: copy.tool,
+      value: copy.contextCompaction,
+      detail: copy.contextCompactionDetail,
+      output: item.output || "",
+    };
   }
 
   return {
@@ -490,6 +531,7 @@ export function toolStatusTone(
 
 export function formatToolStatusLabel(
   item: Extract<ConversationItem, { kind: "tool" }>,
+  copy: ToolStatusCopy = defaultToolStatusCopy,
 ) {
   if (item.toolType !== "hook") {
     return "";
@@ -497,7 +539,16 @@ export function formatToolStatusLabel(
   const parts: string[] = [];
   const status = (item.status ?? "").trim().toLowerCase();
   if (status) {
-    parts.push(status.replace(/[_-]+/g, " "));
+    const tone = statusToneFromText(status);
+    if (tone === "completed") {
+      parts.push(copy.completed);
+    } else if (tone === "failed") {
+      parts.push(copy.failed);
+    } else if (tone === "processing") {
+      parts.push(copy.processing);
+    } else {
+      parts.push(status.replace(/[_-]+/g, " "));
+    }
   }
   if (typeof item.durationMs === "number" && Number.isFinite(item.durationMs)) {
     parts.push(formatDurationMs(item.durationMs));

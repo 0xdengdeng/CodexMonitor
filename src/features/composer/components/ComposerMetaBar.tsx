@@ -29,6 +29,52 @@ function normalizeLabelValue(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
+function clampPercent(value: number) {
+  return Math.min(Math.max(value, 0), 100);
+}
+
+function hasPositiveValue(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function formatTokenCount(value: number | null | undefined) {
+  const safeValue =
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.max(0, Math.round(value))
+      : 0;
+  if (safeValue >= 1_000_000_000) {
+    return formatTokenUnit(safeValue, 1_000_000_000, "b");
+  }
+  if (safeValue >= 1_000_000) {
+    return formatTokenUnit(safeValue, 1_000_000, "m");
+  }
+  if (safeValue >= 1_000) {
+    return formatTokenUnit(safeValue, 1_000, "k");
+  }
+  return String(safeValue);
+}
+
+function formatTokenUnit(value: number, divisor: number, suffix: string) {
+  const scaled = Math.round((value / divisor) * 10) / 10;
+  return `${Number.isInteger(scaled) ? scaled.toFixed(0) : scaled.toFixed(1)}${suffix}`;
+}
+
+function getContextPressure(usedPercent: number | null) {
+  if (usedPercent === null) {
+    return "unknown";
+  }
+  if (usedPercent >= 95) {
+    return "critical";
+  }
+  if (usedPercent >= 80) {
+    return "high";
+  }
+  if (usedPercent >= 60) {
+    return "medium";
+  }
+  return "low";
+}
+
 export function ComposerMetaBar({
   disabled,
   collaborationModes,
@@ -58,17 +104,39 @@ export function ComposerMetaBar({
     "--composer-model-select-width": `${Math.max(selectedModelLabel.length + 2, 8)}ch`,
   } as CSSProperties;
   const contextWindow = contextUsage?.modelContextWindow ?? null;
-  const lastTokens = contextUsage?.last.totalTokens ?? 0;
-  const totalTokens = contextUsage?.total.totalTokens ?? 0;
-  const usedTokens = lastTokens > 0 ? lastTokens : totalTokens;
-  const contextFreePercent =
-    contextWindow && contextWindow > 0 && usedTokens > 0
-      ? Math.max(
-          0,
-          100 -
-            Math.min(Math.max((usedTokens / contextWindow) * 100, 0), 100),
-        )
-      : null;
+  const contextUsedTokens = contextUsage?.total.totalTokens ?? 0;
+  const contextLastTokens = contextUsage?.last.totalTokens ?? 0;
+  const contextUsedPercent = hasPositiveValue(contextWindow)
+    ? clampPercent((contextUsedTokens / contextWindow) * 100)
+    : null;
+  const contextUsedPercentRounded =
+    contextUsedPercent === null ? null : Math.round(contextUsedPercent);
+  const contextUsedLabel =
+    contextUsedPercentRounded === null
+      ? t("composer.contextUsageUnknown")
+      : t("composer.contextUsage", { percent: contextUsedPercentRounded });
+  const contextTokenLabel = hasPositiveValue(contextWindow)
+    ? `${formatTokenCount(contextUsedTokens)} / ${formatTokenCount(contextWindow)}`
+    : t("composer.contextTokenUnknown");
+  const contextValueText =
+    contextUsedPercentRounded === null
+      ? t("composer.contextUsageUnknown")
+      : t("composer.contextUsageAriaValue", {
+          percent: contextUsedPercentRounded,
+          used: formatTokenCount(contextUsedTokens),
+          window: formatTokenCount(contextWindow),
+        });
+  const contextDetailsLabel = hasPositiveValue(contextWindow)
+    ? t("composer.contextUsageDetails", {
+        used: formatTokenCount(contextUsedTokens),
+        window: formatTokenCount(contextWindow),
+        last: formatTokenCount(contextLastTokens),
+        input: formatTokenCount(contextUsage?.total.inputTokens),
+        cached: formatTokenCount(contextUsage?.total.cachedInputTokens),
+        output: formatTokenCount(contextUsage?.total.outputTokens),
+        reasoning: formatTokenCount(contextUsage?.total.reasoningOutputTokens),
+      })
+    : t("composer.contextUsageUnknownDetail");
   const planMode =
     collaborationModes.find((mode) => mode.id === "plan") ?? null;
   const defaultMode =
@@ -123,11 +191,6 @@ export function ComposerMetaBar({
         return effort;
     }
   };
-  const contextFreeLabel =
-    contextFreePercent === null
-      ? t("composer.contextFreeUnknown")
-      : t("composer.contextFree", { percent: Math.round(contextFreePercent) });
-
   return (
     <div className="composer-bar">
       <div className="composer-meta">
@@ -328,16 +391,30 @@ export function ComposerMetaBar({
       </div>
       <div className="composer-context">
         <div
-          className="composer-context-ring"
-          data-tooltip={contextFreeLabel}
-          aria-label={contextFreeLabel}
+          className="composer-context-meter"
+          role="meter"
+          aria-label={t("composer.contextUsageAriaLabel")}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={contextUsedPercentRounded ?? undefined}
+          aria-valuetext={contextValueText}
+          data-pressure={getContextPressure(contextUsedPercent)}
+          data-tooltip={contextDetailsLabel}
           style={
             {
-              "--context-free": contextFreePercent ?? 0,
+              "--context-used": contextUsedPercent ?? 0,
             } as CSSProperties
           }
         >
-          <span className="composer-context-value">●</span>
+          <span className="composer-context-ring" aria-hidden>
+            <span className="composer-context-value">
+              {contextUsedPercentRounded ?? "–"}
+            </span>
+          </span>
+          <span className="composer-context-copy">
+            <span className="composer-context-label">{contextUsedLabel}</span>
+            <span className="composer-context-tokens">{contextTokenLabel}</span>
+          </span>
         </div>
       </div>
     </div>

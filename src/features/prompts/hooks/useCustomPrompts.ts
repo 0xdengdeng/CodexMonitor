@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import type { CustomPromptOption, DebugEntry, WorkspaceInfo } from "../../../types";
 import {
   createPrompt as createPromptService,
@@ -16,6 +17,7 @@ type UseCustomPromptsOptions = {
 };
 
 export function useCustomPrompts({ activeWorkspace, onDebug }: UseCustomPromptsOptions) {
+  const { t } = useI18n();
   const [prompts, setPrompts] = useState<CustomPromptOption[]>([]);
   const lastFetchedWorkspaceId = useRef<string | null>(null);
   const inFlight = useRef(false);
@@ -120,10 +122,10 @@ export function useCustomPrompts({ activeWorkspace, onDebug }: UseCustomPromptsO
 
   const requireWorkspaceId = useCallback(() => {
     if (!workspaceId) {
-      throw new Error("No workspace selected.");
+      throw new Error(t("layout.empty.noWorkspace"));
     }
     return workspaceId;
-  }, [workspaceId]);
+  }, [t, workspaceId]);
 
   const createPrompt = useCallback(
     async (data: {

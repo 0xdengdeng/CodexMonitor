@@ -46,6 +46,9 @@ import {
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
   createAgent,
+  clearRuntimeApiKey,
+  getRuntimeApiKeyStatus,
+  setRuntimeApiKey,
   updateAgent,
   deleteAgent,
   readAgentConfigToml,
@@ -490,6 +493,21 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_start");
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_stop");
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_status");
+  });
+
+  it("invokes runtime api key wrappers", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({ hasApiKey: true });
+
+    await getRuntimeApiKeyStatus();
+    await setRuntimeApiKey("sk-test");
+    await clearRuntimeApiKey();
+
+    expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_status");
+    expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_set", {
+      apiKey: "sk-test",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_clear");
   });
 
   it("reads agent.md for a workspace", async () => {

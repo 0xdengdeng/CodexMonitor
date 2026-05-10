@@ -421,8 +421,8 @@ pub(crate) struct RequestContext {
 fn build_initialize_params(client_version: &str) -> Value {
     json!({
         "clientInfo": {
-            "name": "codex_monitor",
-            "title": "Codex Monitor",
+            "name": "agentdesk",
+            "title": "启航AI智慧平台",
             "version": client_version
         },
         "capabilities": {
@@ -709,7 +709,7 @@ pub(crate) async fn check_codex_installation(
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Bundled Codex runtime not found. Run `npm run sync:codex-runtime` before starting CodexMonitor.".to_string()
+                "Bundled Codex runtime not found. Run `npm run sync:codex-runtime` before starting AgentDesk.".to_string()
             } else {
                 e.to_string()
             }
@@ -731,13 +731,9 @@ pub(crate) async fn check_codex_installation(
             stderr.trim()
         };
         if detail.is_empty() {
-            return Err(
-                "Bundled Codex runtime failed to start.".to_string(),
-            );
+            return Err("Bundled Codex runtime failed to start.".to_string());
         }
-        return Err(format!(
-            "Bundled Codex runtime failed to start: {detail}."
-        ));
+        return Err(format!("Bundled Codex runtime failed to start: {detail}."));
     }
 
     let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -753,6 +749,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     default_codex_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
+    runtime_env: Vec<(String, String)>,
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
@@ -767,6 +764,9 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     command.current_dir(&entry.path);
     if let Some(path) = codex_home.as_ref() {
         command.env("CODEX_HOME", path);
+    }
+    for (key, value) in runtime_env {
+        command.env(key, value);
     }
     command.stdin(std::process::Stdio::piped());
     command.stdout(std::process::Stdio::piped());

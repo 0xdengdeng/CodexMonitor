@@ -80,7 +80,11 @@ import {
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { subscribeTrayOpenThread } from "@services/events";
-import { I18nProvider } from "@/features/i18n/i18n";
+import {
+  I18nProvider,
+  resolveInterfaceLanguage,
+  translate,
+} from "@/features/i18n/i18n";
 
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
@@ -121,6 +125,7 @@ export default function MainApp() {
     clearDebugEntries,
     shouldReduceTransparency,
   } = useAppBootstrapOrchestration();
+  const resolvedInterfaceLanguage = resolveInterfaceLanguage(appSettings.interfaceLanguage);
   const {
     threadListSortKey,
     setThreadListSortKey,
@@ -507,6 +512,7 @@ export default function MainApp() {
     accessMode,
     ensureWorkspaceRuntimeCodexArgs,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
+    interfaceLanguage: appSettings.interfaceLanguage,
     steerEnabled: appSettings.steerEnabled,
     threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
     chatHistoryScrollbackItems: appSettingsLoading
@@ -858,7 +864,10 @@ export default function MainApp() {
       return ensureTerminalWithTitle(
         workspaceId,
         `launch:${entry.id}`,
-        title || `Launch ${label}`,
+        title ||
+          translate(resolvedInterfaceLanguage, "workspace.launch.title", {
+            label,
+          }),
       );
     },
     restartLaunchSession: restartTerminalSession,

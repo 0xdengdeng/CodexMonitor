@@ -6,10 +6,12 @@ import type {
   CodexDoctorResult,
   CodexUpdateResult,
   ModelOption,
+  RuntimeApiKeyStatus,
 } from "@/types";
 import {
   SettingsSection,
   SettingsToggleRow,
+  SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
 import { useI18n } from "@/features/i18n/i18n";
@@ -47,9 +49,18 @@ type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
+  runtimeApiKeyStatus: RuntimeApiKeyStatus | null;
+  runtimeApiKeyDraft: string;
+  runtimeApiKeyLoading: boolean;
+  runtimeApiKeySaving: boolean;
+  runtimeApiKeyError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
+  onSetRuntimeApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
+  onRefreshRuntimeApiKeyStatus: () => void;
+  onSaveRuntimeApiKey: () => Promise<void>;
+  onClearRuntimeApiKey: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -130,9 +141,18 @@ export function SettingsCodexSection({
   globalConfigRefreshDisabled,
   globalConfigSaveDisabled,
   globalConfigSaveLabel,
+  runtimeApiKeyStatus,
+  runtimeApiKeyDraft,
+  runtimeApiKeyLoading,
+  runtimeApiKeySaving,
+  runtimeApiKeyError,
   onSetCodexArgsDraft,
+  onSetRuntimeApiKeyDraft,
   onSetGlobalAgentsContent,
   onSetGlobalConfigContent,
+  onRefreshRuntimeApiKeyStatus,
+  onSaveRuntimeApiKey,
+  onClearRuntimeApiKey,
   onSaveCodexSettings,
   onRunDoctor,
   onRunCodexUpdate,
@@ -142,6 +162,18 @@ export function SettingsCodexSection({
   onSaveGlobalConfig,
 }: SettingsCodexSectionProps) {
   const { t } = useI18n();
+  const managedRuntime = appSettings.managedRuntime;
+  const updateManagedRuntime = (
+    patch: Partial<AppSettings["managedRuntime"]>,
+  ) => {
+    void onUpdateAppSettings({
+      ...appSettings,
+      managedRuntime: {
+        ...managedRuntime,
+        ...patch,
+      },
+    });
+  };
   const latestModelSlug = defaultModels[0]?.model ?? null;
   const savedModelSlug = useMemo(
     () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
@@ -182,6 +214,10 @@ export function SettingsCodexSection({
   }, [reasoningOptions, reasoningSupported, savedEffort, selectedModel]);
 
   const didNormalizeDefaultsRef = useRef(false);
+  useEffect(() => {
+    onRefreshRuntimeApiKeyStatus();
+  }, [onRefreshRuntimeApiKeyStatus]);
+
   useEffect(() => {
     if (didNormalizeDefaultsRef.current) {
       return;
@@ -235,6 +271,110 @@ export function SettingsCodexSection({
           </div>
           <div className="settings-help">{t("settings.codex.runtimeHelp")}</div>
         </div>
+        <SettingsToggleRow
+          title={t("settings.codex.managedRuntimeTitle")}
+          subtitle={t("settings.codex.managedRuntimeHelp")}
+        >
+          <SettingsToggleSwitch
+            pressed={managedRuntime.enabled}
+            onClick={() => updateManagedRuntime({ enabled: !managedRuntime.enabled })}
+          />
+        </SettingsToggleRow>
+        {managedRuntime.enabled && (
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="managed-runtime-base-url">
+              {t("settings.codex.managedRuntimeBaseUrl")}
+            </label>
+            <input
+              id="managed-runtime-base-url"
+              className="settings-input"
+              value={managedRuntime.baseUrl ?? ""}
+              placeholder="https://api.example.com/v1"
+              onChange={(event) =>
+                updateManagedRuntime({ baseUrl: event.target.value || null })
+              }
+            />
+            <div className="settings-help">
+              {t("settings.codex.managedRuntimeBaseUrlHelp")}
+            </div>
+            <label className="settings-field-label" htmlFor="managed-runtime-model">
+              {t("settings.codex.managedRuntimeModel")}
+            </label>
+            <input
+              id="managed-runtime-model"
+              className="settings-input"
+              value={managedRuntime.model ?? ""}
+              placeholder="gpt-5.4"
+              onChange={(event) =>
+                updateManagedRuntime({ model: event.target.value || null })
+              }
+            />
+            <div className="settings-help">
+              {t("settings.codex.managedRuntimeModelHelp")}
+            </div>
+            <label className="settings-field-label" htmlFor="managed-runtime-api-key">
+              {t("settings.codex.managedRuntimeApiKey")}
+            </label>
+            <div className="settings-field-row">
+              <input
+                id="managed-runtime-api-key"
+                className="settings-input"
+                type="password"
+                autoComplete="off"
+                value={runtimeApiKeyDraft}
+                placeholder={
+                  runtimeApiKeyStatus?.hasApiKey
+                    ? t("settings.codex.apiKeyAlreadySaved")
+                    : "sk-..."
+                }
+                onChange={(event) => onSetRuntimeApiKeyDraft(event.target.value)}
+              />
+              <button
+                type="button"
+                className="primary settings-button-compact"
+                disabled={runtimeApiKeySaving || runtimeApiKeyDraft.trim().length === 0}
+                onClick={() => {
+                  void onSaveRuntimeApiKey();
+                }}
+              >
+                {runtimeApiKeySaving
+                  ? t("settings.common.saving")
+                  : t("settings.common.save")}
+              </button>
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                disabled={runtimeApiKeySaving || !runtimeApiKeyStatus?.hasApiKey}
+                onClick={() => {
+                  void onClearRuntimeApiKey();
+                }}
+              >
+                {t("settings.codex.clear")}
+              </button>
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                disabled={runtimeApiKeyLoading}
+                onClick={onRefreshRuntimeApiKeyStatus}
+              >
+                {runtimeApiKeyLoading
+                  ? t("settings.common.loading")
+                  : t("settings.codex.refresh")}
+              </button>
+            </div>
+            <div className="settings-help">
+              {runtimeApiKeyStatus?.hasApiKey
+                ? t("settings.codex.apiKeySaved")
+                : t("settings.codex.apiKeyMissing")}
+            </div>
+            {runtimeApiKeyError && (
+              <div className="settings-agents-error">{runtimeApiKeyError}</div>
+            )}
+            <div className="settings-help">
+              {t("settings.codex.managedRuntimeSecretHelp")}
+            </div>
+          </div>
+        )}
         <label className="settings-field-label" htmlFor="codex-args">
           {t("settings.codex.defaultArgs")}
         </label>
@@ -529,7 +669,9 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalAgents}
         helpText={
           <>
-            {t("settings.codex.storedAt", { path: "~/.codex/AGENTS.md" })}
+            {t("settings.codex.storedAt", {
+              path: t("settings.codex.globalAgentsPath"),
+            })}
           </>
         }
         classNames={{
@@ -560,7 +702,9 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalConfig}
         helpText={
           <>
-            {t("settings.codex.storedAt", { path: "~/.codex/config.toml" })}
+            {t("settings.codex.storedAt", {
+              path: t("settings.codex.globalConfigPath"),
+            })}
           </>
         }
         classNames={{

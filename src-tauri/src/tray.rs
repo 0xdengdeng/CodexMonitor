@@ -119,7 +119,7 @@ pub(crate) fn initialize<R: Runtime>(
     let menu = build_tray_menu(app, state)?;
     let builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&menu)
-        .tooltip("Codex Monitor")
+        .tooltip("启航AI智慧平台")
         .show_menu_on_left_click(true)
         .icon(load_tray_icon()?)
         .icon_as_template(true)

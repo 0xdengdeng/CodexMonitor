@@ -6,7 +6,7 @@ import {
   MagicSparkleLoaderIcon,
 } from "@/features/shared/components/MagicSparkleIcon";
 import type { SettingsAgentsSectionProps } from "@settings/hooks/useSettingsAgentsSection";
-import { fileManagerName, openInFileManagerLabel } from "@utils/platformPaths";
+import { fileManagerName } from "@utils/platformPaths";
 import {
   SettingsSection,
   SettingsSubsection,
@@ -380,7 +380,7 @@ export function SettingsAgentsSection({
             onClick={() => settings && void handleOpenPath(settings.configPath)}
             disabled={!settings}
           >
-            {openInFileManagerLabel()}
+            {t("openApp.openIn", { app: fileManagerName() })}
           </button>
         </div>
       </SettingsToggleRow>
@@ -652,7 +652,7 @@ export function SettingsAgentsSection({
                 className="ghost"
                 onClick={() => void handleOpenPath(agent.resolvedPath)}
               >
-                {openInFileManagerLabel()}
+                {t("openApp.openIn", { app: fileManagerName() })}
               </button>
               <button
                 type="button"

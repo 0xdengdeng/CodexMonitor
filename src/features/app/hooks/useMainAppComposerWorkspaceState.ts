@@ -10,6 +10,7 @@ import type {
   WorkspaceInfo,
 } from "@/types";
 import { computePlanFollowupState } from "@/features/messages/utils/messageRenderUtils";
+import { useI18n } from "@/features/i18n/i18n";
 import { useComposerController } from "@app/hooks/useComposerController";
 import { useComposerInsert } from "@app/hooks/useComposerInsert";
 import { useWorkspaceFileListing } from "@app/hooks/useWorkspaceFileListing";
@@ -100,6 +101,7 @@ export function useMainAppComposerWorkspaceState({
   refs,
   actions,
 }: UseMainAppComposerWorkspaceStateArgs) {
+  const { t } = useI18n();
   const {
     centerMode,
     isCompact,
@@ -217,9 +219,9 @@ export function useMainAppComposerWorkspaceState({
 
   const queuePausedReason =
     queueFlushPaused && hasUserInputRequestForActiveThread
-      ? "Paused — waiting for your answers."
+      ? t("composer.queuePaused.answers")
       : queueFlushPaused && isPlanReadyAwaitingResponse
-        ? "Paused — waiting for plan accept/changes."
+        ? t("composer.queuePaused.plan")
         : null;
 
   const composerState = useComposerController({
@@ -293,14 +295,14 @@ export function useMainAppComposerWorkspaceState({
       workspaceId: activeWorkspaceId,
       threadId: thread.id,
       modelId: null,
-      modelLabel: thread.name?.trim() || "Untitled thread",
+      modelLabel: thread.name?.trim() || t("thread.untitled"),
       sequence: index + 1,
     }));
     return {
       recentThreadInstances: instances,
       recentThreadsUpdatedAt: updatedAt > 0 ? updatedAt : null,
     };
-  }, [activeWorkspaceId, threadsByWorkspace]);
+  }, [activeWorkspaceId, t, threadsByWorkspace]);
 
   const agentMdState = useWorkspaceAgentMd({
     activeWorkspace,

@@ -38,6 +38,11 @@ describe("useAppSettings", () => {
         interfaceLanguage: "fr-FR",
         backendMode: "remote",
         remoteBackendHost: "example:1234",
+        managedRuntime: {
+          enabled: true,
+          baseUrl: " https://runtime.example/v1 ",
+          model: "  ",
+        },
         personality: "unknown",
         uiFontFamily: "",
         codeFontFamily: "  ",
@@ -59,6 +64,11 @@ describe("useAppSettings", () => {
     expect(result.current.settings.personality).toBe("friendly");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
+    expect(result.current.settings.managedRuntime).toEqual({
+      enabled: true,
+      baseUrl: "https://runtime.example/v1",
+      model: null,
+    });
   });
 
   it("keeps defaults when getAppSettings fails", async () => {

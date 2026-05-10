@@ -272,7 +272,7 @@ export const useSettingsFeaturesSection = ({
           setFeatureError(
             error instanceof Error
               ? error.message
-              : `Unable to update feature "${feature.name}".`,
+              : t("settings.features.updateFailed", { feature: feature.name }),
           );
         } finally {
           setFeatureUpdatingKey((current) =>
@@ -281,7 +281,7 @@ export const useSettingsFeaturesSection = ({
         }
       })();
     },
-    [appSettings, onUpdateAppSettings],
+    [appSettings, onUpdateAppSettings, t],
   );
 
   return {

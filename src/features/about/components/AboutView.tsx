@@ -48,7 +48,7 @@ export function AboutView() {
             src="/app-icon.png"
             alt={t("about.iconAlt")}
           />
-          <div className="about-title">Codex Monitor</div>
+          <div className="about-title">{t("app.name")}</div>
         </div>
         <div className="about-version">
           {version

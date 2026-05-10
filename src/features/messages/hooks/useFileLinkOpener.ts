@@ -14,11 +14,12 @@ import {
   toFileUrl,
 } from "../../../utils/fileLinks";
 import {
+  fileManagerName,
   isAbsolutePath,
   joinWorkspacePath,
-  revealInFileManagerLabel,
 } from "../../../utils/platformPaths";
 import { resolveMountedWorkspacePath } from "../utils/mountedWorkspacePaths";
+import { useI18n } from "@/features/i18n/i18n";
 
 type OpenTarget = {
   id: string;
@@ -97,6 +98,7 @@ export function useFileLinkOpener(
   openTargets: OpenAppTarget[],
   selectedOpenAppId: string,
 ) {
+  const { t } = useI18n();
   const reportOpenError = useCallback(
     (error: unknown, context: Record<string, string | null>) => {
       const message = error instanceof Error ? error.message : String(error);
@@ -110,12 +112,12 @@ export function useFileLinkOpener(
         },
       );
       pushErrorToast({
-        title: "Couldn’t open file",
+        title: t("messages.fileLink.openFailed"),
         message,
       });
       console.warn("Failed to open file link", { message, ...context });
     },
-    [],
+    [t],
   );
 
   const openFileLink = useCallback(
@@ -186,18 +188,19 @@ export function useFileLinkOpener(
         workspacePath,
       );
       const appName = resolveAppName(target);
+      const fileManagerLabel = fileManagerName();
       const command = resolveCommand(target);
       const canOpen = canOpenTarget(target);
       const openLabel =
         target.kind === "finder"
-          ? revealInFileManagerLabel()
+          ? t("platform.revealInFileManager", { app: fileManagerLabel })
           : target.kind === "command"
             ? command
-              ? `Open in ${target.label}`
-              : "Set command in Settings"
+              ? t("messages.fileLink.openIn", { target: target.label })
+              : t("messages.fileLink.setCommand")
             : appName
-              ? `Open in ${appName}`
-              : "Set app name in Settings";
+              ? t("messages.fileLink.openIn", { target: appName })
+              : t("messages.fileLink.setAppName");
       const items = [
         await MenuItem.new({
           text: openLabel,
@@ -210,7 +213,7 @@ export function useFileLinkOpener(
           ? []
           : [
               await MenuItem.new({
-                text: revealInFileManagerLabel(),
+                text: t("platform.revealInFileManager", { app: fileManagerLabel }),
                 action: async () => {
                   try {
                     await revealItemInDir(resolvedPath);
@@ -229,11 +232,11 @@ export function useFileLinkOpener(
               }),
             ]),
         await MenuItem.new({
-          text: "Download Linked File",
+          text: t("messages.fileLink.downloadLinkedFile"),
           enabled: false,
         }),
         await MenuItem.new({
-          text: "Copy Link",
+          text: t("messages.fileLink.copyLink"),
           action: async () => {
             const link = toFileUrl(resolvedPath, fileLocation.line, fileLocation.column);
             try {
@@ -252,7 +255,14 @@ export function useFileLinkOpener(
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [openFileLink, openTargets, reportOpenError, selectedOpenAppId, workspacePath],
+    [
+      openFileLink,
+      openTargets,
+      reportOpenError,
+      selectedOpenAppId,
+      t,
+      workspacePath,
+    ],
   );
 
   return { openFileLink, showFileLinkMenu };

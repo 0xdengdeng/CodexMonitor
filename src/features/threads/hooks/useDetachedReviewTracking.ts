@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import {
   loadDetachedReviewLinks,
   saveDetachedReviewLinks,
@@ -29,6 +30,7 @@ export function useDetachedReviewTracking({
   threadParentById,
   updateThreadParent,
 }: UseDetachedReviewTrackingArgs) {
+  const { t } = useI18n();
   const detachedReviewStartedNoticeRef = useRef<Set<string>>(new Set());
   const detachedReviewCompletedNoticeRef = useRef<Set<string>>(new Set());
   const detachedReviewParentByChildRef = useRef<Record<string, string>>({});
@@ -69,7 +71,7 @@ export function useDetachedReviewTracking({
         dispatch({
           type: "addAssistantMessage",
           threadId: parentId,
-          text: `Detached review started. [Open review thread](/thread/${childId})`,
+          text: t("threadMessaging.review.detachedStarted", { threadId: childId }),
         });
       }
 
@@ -78,7 +80,7 @@ export function useDetachedReviewTracking({
       }
       safeMessageActivity();
     },
-    [activeThreadId, dispatch, recordThreadActivity, safeMessageActivity],
+    [activeThreadId, dispatch, recordThreadActivity, safeMessageActivity, t],
   );
 
   useEffect(() => {
@@ -127,7 +129,7 @@ export function useDetachedReviewTracking({
         dispatch({
           type: "addAssistantMessage",
           threadId: parentId,
-          text: `Detached review completed. [Open review thread](/thread/${threadId})`,
+          text: t("threadMessaging.review.detachedCompleted", { threadId }),
         });
       }
       if (parentId !== activeThreadId) {
@@ -135,7 +137,7 @@ export function useDetachedReviewTracking({
       }
       safeMessageActivity();
     },
-    [activeThreadId, dispatch, recordThreadActivity, safeMessageActivity],
+    [activeThreadId, dispatch, recordThreadActivity, safeMessageActivity, t],
   );
 
   return {

@@ -28,9 +28,9 @@ export const PullRequestSummary = memo(function PullRequestSummary({
   pullRequestCommentsError,
   onCheckoutPullRequest,
 }: PullRequestSummaryProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const prUpdatedLabel = pullRequest.updatedAt
-    ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
+    ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime(), language)
     : null;
   const prAuthor = pullRequest.author?.login ?? t("common.unknown");
   const prBody = pullRequest.body?.trim() ?? "";
@@ -193,6 +193,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             const commentAuthor = comment.author?.login ?? t("common.unknown");
             const commentTime = formatRelativeTime(
               new Date(comment.createdAt).getTime(),
+              language,
             );
             return (
               <div key={comment.id} className="diff-viewer-pr-timeline-item">

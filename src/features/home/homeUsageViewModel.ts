@@ -95,6 +95,7 @@ export function buildHomeUsageViewModel({
   localUsageSnapshot,
   usageMetric,
   usageShowRemaining,
+  language,
 }: {
   accountInfo: AccountSnapshot | null;
   accountRateLimits: RateLimitSnapshot | null;
@@ -102,6 +103,7 @@ export function buildHomeUsageViewModel({
   localUsageSnapshot: LocalUsageSnapshot | null;
   usageMetric: UsageMetric;
   usageShowRemaining: boolean;
+  language?: string | null;
 }): HomeUsageViewModel {
   const usageTotals = localUsageSnapshot?.totals ?? null;
   const usageDays = localUsageSnapshot?.days ?? [];
@@ -309,7 +311,12 @@ export function buildHomeUsageViewModel({
     },
   ] satisfies HomeStatCard[];
 
-  const usagePercentLabels = getUsageLabels(accountRateLimits, usageShowRemaining, copy);
+  const usagePercentLabels = getUsageLabels(
+    accountRateLimits,
+    usageShowRemaining,
+    copy,
+    language,
+  );
   const planLabel = formatPlanType(accountRateLimits?.planType ?? accountInfo?.planType);
   const creditsBalance = formatCreditsBalance(accountRateLimits?.credits?.balance);
   const accountCards: HomeStatCard[] = [];
@@ -371,7 +378,7 @@ export function buildHomeUsageViewModel({
     updatedLabel: localUsageSnapshot
       ? copy.updated.replace(
           "{time}",
-          formatRelativeTime(localUsageSnapshot.updatedAt),
+          formatRelativeTime(localUsageSnapshot.updatedAt, language),
         )
       : null,
     usageCards,

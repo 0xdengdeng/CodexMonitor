@@ -242,14 +242,17 @@ export function GitIssuesModeContent({
   issuesLoading,
   issues,
 }: GitIssuesModeContentProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   return (
     <div className="git-issues-list">
       {!issuesError && !issuesLoading && !issues.length && (
         <div className="diff-empty">{t("git.noOpenIssues")}</div>
       )}
       {issues.map((issue) => {
-        const relativeTime = formatRelativeTime(new Date(issue.updatedAt).getTime());
+        const relativeTime = formatRelativeTime(
+          new Date(issue.updatedAt).getTime(),
+          language,
+        );
         return (
           <a
             key={issue.number}
@@ -292,14 +295,17 @@ export function GitPullRequestsModeContent({
   onSelectPullRequest,
   onShowPullRequestMenu,
 }: GitPullRequestsModeContentProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   return (
     <div className="git-pr-list">
       {!pullRequestsError && !pullRequestsLoading && !pullRequests.length && (
         <div className="diff-empty">{t("git.noOpenPullRequests")}</div>
       )}
       {pullRequests.map((pullRequest) => {
-        const relativeTime = formatRelativeTime(new Date(pullRequest.updatedAt).getTime());
+        const relativeTime = formatRelativeTime(
+          new Date(pullRequest.updatedAt).getTime(),
+          language,
+        );
         const author = pullRequest.author?.login ?? t("common.unknown");
         const isSelected = selectedPullRequest === pullRequest.number;
 

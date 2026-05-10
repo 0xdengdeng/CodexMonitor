@@ -1,10 +1,8 @@
-# CodexMonitor
+# AgentDesk
 
-[![gitcgr](https://gitcgr.com/badge/Dimillian/CodexMonitor.svg)](https://gitcgr.com/Dimillian/CodexMonitor)
+![AgentDesk](screenshot.png)
 
-![CodexMonitor](screenshot.png)
-
-CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
+AgentDesk is a Tauri app for orchestrating AI development agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the bundled Codex app-server runtime.
 
 ## Features
 
@@ -52,7 +50,7 @@ CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local
 - Rust toolchain (stable)
 - CMake (required for native dependencies; dictation/Whisper uses it)
 - LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
-- A local Codex source checkout at `../Codex` (or set `CODEX_MONITOR_CODEX_REPO` to your Codex fork)
+- A local Codex source checkout at `../Codex` (or set `AGENTDESK_CODEX_REPO` to your Codex fork)
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for GitHub Issues/PR integrations (optional)
 
@@ -78,8 +76,8 @@ npm run tauri:dev
 
 `npm run tauri:dev` builds the Codex runtime from `../Codex/codex-rs`, copies it into
 `src-tauri/binaries/` as the bundled `codex-runtime` sidecar, and then launches
-Tauri. Use `CODEX_MONITOR_CODEX_REPO=/path/to/Codex` for a different fork, or
-`CODEX_MONITOR_CODEX_BIN=/path/to/codex` to copy a prebuilt runtime.
+Tauri. Use `AGENTDESK_CODEX_REPO=/path/to/Codex` for a different fork, or
+`AGENTDESK_CODEX_BIN=/path/to/codex` to copy a prebuilt runtime.
 
 ## iOS Support (WIP)
 
@@ -95,11 +93,11 @@ Use this when connecting the iOS app to a desktop-hosted daemon over your Tailsc
 Canonical runbook: `docs/mobile-ios-tailscale-blueprint.md`.
 
 1. Install and sign in to Tailscale on both desktop and iPhone (same tailnet).
-2. On desktop CodexMonitor, open `Settings > Server`.
+2. On desktop AgentDesk, open `Settings > Server`.
 3. Set a `Remote backend token`.
 4. Start the desktop daemon with `Start daemon` (in `Mobile access daemon`).
 5. In `Tailscale helper`, use `Detect Tailscale` and note the suggested host (for example `your-mac.your-tailnet.ts.net:4732`).
-6. On iOS CodexMonitor, open `Settings > Server`.
+6. On iOS AgentDesk, open `Settings > Server`.
 7. Enter the desktop Tailscale host and the same token.
 8. Tap `Connect & test` and confirm it succeeds.
 
@@ -117,7 +115,7 @@ Build binaries:
 ```bash
 npm run sync:codex-runtime
 cd src-tauri
-cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+cargo build --bin agentdesk-daemon --bin agentdesk-daemonctl
 ```
 
 The sync step copies the bundled `codex-runtime` next to the debug daemon binary
@@ -127,16 +125,16 @@ Examples:
 
 ```bash
 # Show current daemon status
-./target/debug/codex_monitor_daemonctl status
+./target/debug/agentdesk-daemonctl status
 
 # Start daemon using host/token from settings.json
-./target/debug/codex_monitor_daemonctl start
+./target/debug/agentdesk-daemonctl start
 
 # Stop daemon
-./target/debug/codex_monitor_daemonctl stop
+./target/debug/agentdesk-daemonctl stop
 
 # Print equivalent daemon start command
-./target/debug/codex_monitor_daemonctl command-preview
+./target/debug/agentdesk-daemonctl command-preview
 ```
 
 Useful overrides:
@@ -144,7 +142,7 @@ Useful overrides:
 - `--data-dir <path>`: app data dir containing `settings.json` / `workspaces.json`
 - `--listen <addr>`: bind address override
 - `--token <token>`: token override
-- `--daemon-path <path>`: explicit `codex-monitor-daemon` binary path
+- `--daemon-path <path>`: explicit AgentDesk daemon binary path
 - `--json`: machine-readable output
 
 ### iOS Prerequisites
@@ -300,18 +298,18 @@ src-tauri/
 
 - Workspaces persist to `workspaces.json` under the app data directory.
 - App settings persist to `settings.json` under the app data directory (theme, backend mode/provider, remote endpoints/tokens, Codex args, default access mode, UI scale, follow-up message behavior).
-- Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
+- Feature settings are supported in the UI and synced to AgentDesk's managed runtime home (`codex-home/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
 - CLI sessions appear if their `cwd` matches the workspace path; they are not live-streamed unless resumed.
-- The app and daemon use the bundled `codex-runtime app-server` sidecar over stdio. Persisted/custom Codex binary paths are ignored; use `CODEX_MONITOR_CODEX_REPO` or `CODEX_MONITOR_CODEX_BIN` at build/dev sync time to choose which runtime is bundled.
+- AgentDesk and its daemon use the bundled `codex-runtime app-server` sidecar over stdio. Persisted/custom Codex binary paths are ignored; use `AGENTDESK_CODEX_REPO` or `AGENTDESK_CODEX_BIN` at build/dev sync time to choose which runtime is bundled.
 - The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/codex_monitor_daemon/rpc/`.
 - Shared domain logic lives in `src-tauri/src/shared/` (notably `src-tauri/src/shared/git_ui_core/` and `src-tauri/src/shared/workspaces_core/`).
-- Codex home resolves from workspace settings (if set), then legacy `.codexmonitor/`, then `$CODEX_HOME`/`~/.codex`.
+- Codex runtime home is managed by AgentDesk under the app data directory as `codex-home`; it does not default to the user's system `~/.codex`.
 - Worktree agents live under the app data directory (`worktrees/<workspace-id>`); legacy `.codex-worktrees/` paths remain supported, and the app no longer edits repo `.gitignore` files.
 - UI state (panel sizes, reduced transparency toggle, recent thread activity) is stored in `localStorage`.
-- Custom prompts load from `$CODEX_HOME/prompts` (or `~/.codex/prompts`) with optional frontmatter description/argument hints.
+- Custom prompts load from AgentDesk's managed runtime home `prompts/` directory with optional frontmatter description/argument hints.
 
 ## Tauri IPC Surface
 

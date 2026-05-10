@@ -2,6 +2,7 @@
 import { createRef } from "react";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/features/i18n/i18n";
 import { useComposerAutocompleteState } from "./useComposerAutocompleteState";
 
 describe("useComposerAutocompleteState file mentions", () => {
@@ -160,6 +161,45 @@ describe("useComposerAutocompleteState slash commands", () => {
       "review",
       "status",
     ]);
+  });
+
+  it("localizes descriptions while preserving command insert text", () => {
+    const text = "/com";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(
+      () =>
+        useComposerAutocompleteState({
+          text,
+          selectionStart,
+          disabled: false,
+          appsEnabled: true,
+          skills: [],
+          apps: [],
+          prompts: [],
+          files: [],
+          textareaRef,
+          setText: vi.fn(),
+          setSelectionStart: vi.fn(),
+        }),
+      {
+        wrapper: ({ children }) => (
+          <I18nProvider languagePreference="zh-CN">{children}</I18nProvider>
+        ),
+      },
+    );
+
+    expect(result.current.autocompleteMatches).toHaveLength(1);
+    expect(result.current.autocompleteMatches[0]).toMatchObject({
+      label: "compact",
+      description: "压缩当前线程上下文",
+      insertText: "compact",
+    });
   });
 });
 

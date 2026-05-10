@@ -212,7 +212,7 @@ export const Sidebar = memo(function Sidebar({
   onWorkspaceDragLeave,
   onWorkspaceDrop,
 }: SidebarProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
   );
@@ -262,7 +262,7 @@ export const Sidebar = memo(function Sidebar({
     resets: t("sidebar.usage.resets"),
     unlimited: t("home.usage.card.unlimited"),
     used: t("sidebar.usage.used"),
-  });
+  }, language);
   const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
   const isSearchActive = Boolean(normalizedQuery);
@@ -836,9 +836,9 @@ export const Sidebar = memo(function Sidebar({
   const getThreadTime = useCallback(
     (thread: ThreadSummary) => {
       const timestamp = thread.updatedAt ?? null;
-      return timestamp ? formatRelativeTimeShort(timestamp) : null;
+      return timestamp ? formatRelativeTimeShort(timestamp, language) : null;
     },
-    [],
+    [language],
   );
   const pinnedRootCount = useMemo(() => countRootRows(pinnedThreadRows), [pinnedThreadRows]);
 

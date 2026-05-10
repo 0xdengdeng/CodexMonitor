@@ -157,7 +157,7 @@ export function SidebarBottomRail({
                       onClick={onCancelSwitchAccount}
                       disabled={accountCancelDisabled}
                       aria-label={t("sidebar.account.cancelSwitch")}
-                      title="Cancel"
+                      title={t("common.cancel")}
                     >
                       <X size={12} aria-hidden />
                     </button>

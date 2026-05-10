@@ -802,7 +802,7 @@ pub(crate) async fn skills_list_core(
     let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
 
     // Codex can discover project-scoped skills from `<workspace>/.agents/skills`.
-    // Some environments don't surface those reliably in CodexMonitor unless we
+    // Some environments don't surface those reliably in AgentDesk unless we
     // pass the default project skills path explicitly.
     let mut source_paths: Vec<String> = vec![];
     let project_skills_dir = Path::new(&workspace_path).join(".agents").join("skills");

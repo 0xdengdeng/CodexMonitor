@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use tokio::sync::Mutex;
 
 use crate::codex::config as codex_config;
+use crate::codex::home::resolve_default_codex_home;
+use crate::shared::runtime_config_core;
 use crate::storage::write_settings;
 use crate::types::AppSettings;
 use crate::utils::normalize_windows_namespace_path;
@@ -55,10 +57,22 @@ pub(crate) async fn update_app_settings_core(
     let _ = codex_config::write_unified_exec_enabled(settings.unified_exec_enabled);
     let _ = codex_config::write_apps_enabled(settings.experimental_apps_enabled);
     let _ = codex_config::write_personality(settings.personality.as_str());
+    settings.managed_runtime =
+        runtime_config_core::normalize_managed_runtime_config(&settings.managed_runtime);
+    sync_managed_runtime_config_from_settings(&settings)?;
     write_settings(settings_path, &settings)?;
     let mut current = app_settings.lock().await;
     *current = settings.clone();
     Ok(settings)
+}
+
+pub(crate) fn sync_managed_runtime_config_from_settings(
+    settings: &AppSettings,
+) -> Result<(), String> {
+    let Some(root) = resolve_default_codex_home() else {
+        return Ok(());
+    };
+    runtime_config_core::sync_managed_runtime_config(&root, &settings.managed_runtime)
 }
 
 pub(crate) fn get_codex_config_path_core() -> Result<String, String> {

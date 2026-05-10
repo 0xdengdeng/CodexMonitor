@@ -5,6 +5,7 @@ Canonical navigation guide for CodexMonitor. Use this as: "if you need X, edit Y
 Related docs:
 
 - Setup/build/release: `README.md`
+- Composer slash commands: `docs/slash-commands.md`
 - iOS remote over Tailscale (TCP): `docs/mobile-ios-tailscale-blueprint.md`
 
 ## Start Here: How Changes Flow
@@ -30,6 +31,7 @@ If a behavior must work in both app and daemon, implement it in `src-tauri/src/s
 | Add/change Tauri IPC methods used by frontend | `src/services/tauri.ts`, `src-tauri/src/lib.rs`, matching backend adapter module |
 | Add/change app-server event handling in UI | `src/services/events.ts`, `src/features/app/hooks/useAppServerEvents.ts`, `src/utils/appServerEvents.ts`, `src/features/threads/utils/threadNormalize.ts` |
 | Change thread state transitions | `src/features/threads/hooks/useThreadsReducer.ts`, `src/features/threads/hooks/threadReducer/*`, `src/features/threads/hooks/useThreads.ts`, focused thread hooks under `src/features/threads/hooks/*` |
+| Add/change composer slash commands | `docs/slash-commands.md`, `src/features/composer/hooks/useComposerAutocompleteState.ts`, `src/features/threads/hooks/useQueuedSend.ts`, `src/features/threads/hooks/useThreadMessaging.ts`, `src/features/app/hooks/useComposerController.ts`, `src/features/app/hooks/useMainAppComposerWorkspaceState.ts` |
 | Change workspace lifecycle/worktree behavior | `src/features/workspaces/hooks/useWorkspaces.ts`, `src-tauri/src/workspaces/commands.rs`, `src-tauri/src/shared/workspaces_core.rs`, `src-tauri/src/shared/workspaces_core/*`, `src-tauri/src/shared/worktree_core.rs` |
 | Change settings model/load/update | `src/features/settings/components/SettingsView.tsx`, `src/features/settings/hooks/useAppSettings.ts`, `src/services/tauri.ts`, `src-tauri/src/settings/mod.rs`, `src-tauri/src/shared/settings_core.rs`, `src-tauri/src/types.rs`, `src/types.ts` |
 | Change Git/GitHub backend behavior | `src/features/git/hooks/*`, `src/services/tauri.ts`, `src-tauri/src/git/mod.rs`, `src-tauri/src/shared/git_ui_core.rs`, `src-tauri/src/shared/git_ui_core/*`, `src-tauri/src/shared/git_core.rs`, `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`, `src-tauri/src/bin/codex_monitor_daemon/rpc/git.rs` |
@@ -89,6 +91,14 @@ Use TS/Vite aliases for refactor-safe imports:
 ### Prompts
 
 - Prompt UI and workflow: `src/features/prompts/components/PromptPanel.tsx`, `src/features/prompts/hooks/useCustomPrompts.ts`
+
+### Composer Slash Commands
+
+- Canonical implementation map: `docs/slash-commands.md`
+- Autocomplete command list: `src/features/composer/hooks/useComposerAutocompleteState.ts`
+- Send-time parser and routing: `src/features/threads/hooks/useQueuedSend.ts`
+- Built-in command handlers: `src/features/threads/hooks/useThreadMessaging.ts`
+- Composer/app wiring: `src/features/app/hooks/useComposerController.ts`, `src/features/app/hooks/useMainAppComposerWorkspaceState.ts`
 
 ## Backend App (Tauri) Navigation
 

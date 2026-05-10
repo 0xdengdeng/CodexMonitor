@@ -1,10 +1,13 @@
-use tauri::{State, Window};
+use serde_json::json;
+use tauri::{AppHandle, State, Window};
 
+use crate::remote_backend;
+use crate::shared::runtime_secret_core;
 use crate::shared::settings_core::{
     get_app_settings_core, get_codex_config_path_core, update_app_settings_core,
 };
 use crate::state::AppState;
-use crate::types::{AppSettings, BackendMode};
+use crate::types::{AppSettings, BackendMode, RuntimeApiKeyStatus};
 use crate::window;
 
 #[tauri::command]
@@ -32,6 +35,58 @@ pub(crate) async fn update_app_settings(
     ensure_remote_runtime_for_settings(&updated, state).await;
     let _ = window::apply_window_appearance(&window, updated.theme.as_str());
     Ok(updated)
+}
+
+#[tauri::command]
+pub(crate) async fn runtime_api_key_status(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<RuntimeApiKeyStatus, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response =
+            remote_backend::call_remote(&*state, app, "runtime_api_key_status", json!({})).await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    Ok(RuntimeApiKeyStatus {
+        has_api_key: runtime_secret_core::runtime_api_key_exists()?,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn runtime_api_key_set(
+    api_key: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<RuntimeApiKeyStatus, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "runtime_api_key_set",
+            json!({ "apiKey": api_key }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    runtime_secret_core::set_runtime_api_key(&api_key)?;
+    Ok(RuntimeApiKeyStatus { has_api_key: true })
+}
+
+#[tauri::command]
+pub(crate) async fn runtime_api_key_clear(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<RuntimeApiKeyStatus, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response =
+            remote_backend::call_remote(&*state, app, "runtime_api_key_clear", json!({})).await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    runtime_secret_core::clear_runtime_api_key()?;
+    Ok(RuntimeApiKeyStatus { has_api_key: false })
 }
 
 #[tauri::command]

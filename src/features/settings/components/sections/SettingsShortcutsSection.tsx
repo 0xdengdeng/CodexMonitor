@@ -56,7 +56,7 @@ function ShortcutField({
       <div className="settings-field-row">
         <input
           className="settings-input settings-input--shortcut"
-          value={formatShortcut(shortcutDrafts[item.draftKey])}
+          value={formatShortcut(shortcutDrafts[item.draftKey], t("common.notSet"))}
           onKeyDown={(event) => onShortcutKeyDown(event, item.settingKey)}
           placeholder={t("settings.shortcuts.typeShortcut")}
           readOnly

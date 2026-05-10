@@ -13,7 +13,7 @@ export function HomeLatestAgentsSection({
   latestAgentRuns,
   onSelectThread,
 }: HomeLatestAgentsSectionProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   return (
     <div className="home-latest">
@@ -37,7 +37,7 @@ export function HomeLatestAgentsSection({
                   )}
                 </div>
                 <div className="home-latest-time">
-                  {formatRelativeTime(run.timestamp)}
+                  {formatRelativeTime(run.timestamp, language)}
                 </div>
               </div>
               <div className="home-latest-message">

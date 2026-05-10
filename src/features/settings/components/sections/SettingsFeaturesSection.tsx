@@ -6,7 +6,7 @@ import {
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import type { SettingsFeaturesSectionProps } from "@settings/hooks/useSettingsFeaturesSection";
-import { fileManagerName, openInFileManagerLabel } from "@utils/platformPaths";
+import { fileManagerName } from "@utils/platformPaths";
 import { useI18n, type I18nKey } from "@/features/i18n/i18n";
 
 const FEATURE_DESCRIPTION_FALLBACK_KEYS: Record<string, I18nKey> = {
@@ -103,7 +103,7 @@ export function SettingsFeaturesSection({
         subtitle={t("settings.features.openConfig", { fileManager: fileManagerName() })}
       >
         <button type="button" className="ghost" onClick={onOpenConfig}>
-          {openInFileManagerLabel()}
+          {t("openApp.openIn", { app: fileManagerName() })}
         </button>
       </SettingsToggleRow>
       {openConfigError && <div className="settings-help">{openConfigError}</div>}

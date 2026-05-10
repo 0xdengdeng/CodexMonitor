@@ -52,13 +52,16 @@ function gitValue(cwd, args, fallback = null) {
 }
 
 const explicitTargetTriple =
+  process.env.AGENTDESK_CODEX_TARGET ||
   process.env.CODEX_MONITOR_CODEX_TARGET ||
   process.env.TAURI_TARGET_TRIPLE ||
   process.env.CARGO_BUILD_TARGET ||
   null;
 const targetTriple = explicitTargetTriple || hostTriple();
 const codexRepo = path.resolve(
-  process.env.CODEX_MONITOR_CODEX_REPO ?? path.join(repoRoot, "..", "Codex"),
+  process.env.AGENTDESK_CODEX_REPO ??
+    process.env.CODEX_MONITOR_CODEX_REPO ??
+    path.join(repoRoot, "..", "Codex"),
 );
 const codexRsDir = path.join(codexRepo, "codex-rs");
 const profile = release ? "release" : "debug";
@@ -67,8 +70,9 @@ const sidecarName =
   process.platform === "win32"
     ? `codex-runtime-${targetTriple}.exe`
     : `codex-runtime-${targetTriple}`;
-const sourceBinary = process.env.CODEX_MONITOR_CODEX_BIN
-  ? path.resolve(process.env.CODEX_MONITOR_CODEX_BIN)
+const explicitCodexBin = process.env.AGENTDESK_CODEX_BIN ?? process.env.CODEX_MONITOR_CODEX_BIN;
+const sourceBinary = explicitCodexBin
+  ? path.resolve(explicitCodexBin)
   : path.join(
       codexRsDir,
       "target",
@@ -80,11 +84,11 @@ const targetBinary = path.join(binariesDir, sidecarName);
 
 if (!fs.existsSync(codexRsDir)) {
   throw new Error(
-    `Codex runtime source not found at ${codexRsDir}. Set CODEX_MONITOR_CODEX_REPO to your Codex fork.`,
+    `Codex runtime source not found at ${codexRsDir}. Set AGENTDESK_CODEX_REPO to your Codex fork.`,
   );
 }
 
-if (!skipBuild && !process.env.CODEX_MONITOR_CODEX_BIN) {
+if (!skipBuild && !explicitCodexBin) {
   const args = ["build", "-p", "codex-cli", "--bin", "codex"];
   if (release) {
     args.push("--release");

@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import type { AppSettings, ComposerEditorSettings, WorkspaceInfo } from "@/types";
+import { useI18n, type I18nValues } from "@/features/i18n/i18n";
 import type { ThreadState } from "@/features/threads/hooks/useThreadsReducer";
 import type { WorkspaceLaunchScriptsState } from "@app/hooks/useWorkspaceLaunchScripts";
 import { REMOTE_THREAD_POLL_INTERVAL_MS } from "@app/hooks/useRemoteThreadRefreshOnFocus";
@@ -230,6 +231,7 @@ type UseMainAppLayoutSurfacesArgs = {
 type MainAppLayoutSurfacesContext = UseMainAppLayoutSurfacesArgs & {
   sidebarRateLimits: SidebarProps["accountRateLimits"];
   sidebarAccount: SidebarProps["accountInfo"];
+  t: (key: string, values?: I18nValues) => string;
 };
 
 function buildPrimarySurface({
@@ -684,6 +686,7 @@ function buildGitSurface({
   handleSelectOpenAppId,
   prompts,
   isPhone,
+  t,
 }: MainAppLayoutSurfacesContext): LayoutNodesOptions["git"] {
   return {
     filePanelMode: gitState.filePanelMode,
@@ -733,8 +736,10 @@ function buildGitSurface({
       onFilePanelModeChange: gitState.setFilePanelMode,
       worktreeApplyLabel: "apply",
       worktreeApplyTitle: worktreeState.activeParentWorkspace?.name
-        ? `Apply changes to ${worktreeState.activeParentWorkspace.name}`
-        : "Apply changes to parent workspace",
+        ? t("git.applyToParentWorkspaceNamed", {
+          workspace: worktreeState.activeParentWorkspace.name,
+        })
+        : t("git.applyToParentWorkspace"),
       worktreeApplyLoading: worktreeState.isWorktreeWorkspace
         ? gitState.worktreeApplyLoading
         : false,
@@ -1099,9 +1104,11 @@ export function useMainAppLayoutSurfaces({
   showDebugButton,
   handleDebugClick,
 }: UseMainAppLayoutSurfacesArgs): LayoutNodesOptions {
+  const { t } = useI18n();
   const sidebarRateLimits = activeWorkspace ? activeRateLimits : homeRateLimits;
   const sidebarAccount = activeWorkspace ? activeAccount : homeAccount;
   const context: MainAppLayoutSurfacesContext = {
+    t,
     appSettings,
     workspaces,
     groupedWorkspaces,

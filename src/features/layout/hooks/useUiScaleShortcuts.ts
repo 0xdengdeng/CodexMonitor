@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { useI18n } from "@/features/i18n/i18n";
 import type { AppSettings } from "../../../types";
 import { clampUiScale, UI_SCALE_STEP } from "../../../utils/uiScale";
 import { isMacPlatform } from "../../../utils/shortcuts";
@@ -23,6 +24,7 @@ export function useUiScaleShortcuts({
   setSettings,
   saveSettings,
 }: UseUiScaleShortcutsOptions): UseUiScaleShortcutsResult {
+  const { t } = useI18n();
   const uiScale = clampUiScale(settings.uiScale);
 
   useEffect(() => {
@@ -38,8 +40,12 @@ export function useUiScaleShortcuts({
     return isMacPlatform() ? "Cmd" : "Ctrl";
   }, []);
 
-  const scaleShortcutTitle = `${scaleShortcutLabel}+ and ${scaleShortcutLabel}-, ${scaleShortcutLabel}+0 to reset.`;
-  const scaleShortcutText = `Shortcuts: ${scaleShortcutLabel}+ and ${scaleShortcutLabel}-, ${scaleShortcutLabel}+0 to reset.`;
+  const scaleShortcutTitle = t("layout.scaleShortcutTitle", {
+    modifier: scaleShortcutLabel,
+  });
+  const scaleShortcutText = t("layout.scaleShortcutText", {
+    modifier: scaleShortcutLabel,
+  });
 
   const saveQueueRef = useRef(Promise.resolve());
   const queueSaveSettings = useCallback(

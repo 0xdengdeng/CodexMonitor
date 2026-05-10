@@ -41,6 +41,9 @@ vi.mock("@services/tauri", async () => {
     getConfigModel: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
     getAgentsSettings: vi.fn(),
+    getRuntimeApiKeyStatus: vi.fn().mockResolvedValue({ hasApiKey: false }),
+    setRuntimeApiKey: vi.fn().mockResolvedValue({ hasApiKey: true }),
+    clearRuntimeApiKey: vi.fn().mockResolvedValue({ hasApiKey: false }),
     isMobileRuntime: vi.fn(),
     listWorkspaces: vi.fn(),
   };
@@ -84,6 +87,11 @@ const baseSettings: AppSettings = {
     },
   ],
   activeRemoteBackendId: "remote-default",
+  managedRuntime: {
+    enabled: false,
+    baseUrl: null,
+    model: null,
+  },
   keepDaemonRunningAfterAppClose: false,
   defaultAccessMode: "current",
   reviewDeliveryMode: "inline",

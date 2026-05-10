@@ -1,10 +1,11 @@
 [package]
-name = "codex-monitor"
+name = "agentdesk"
 version = "0.7.68"
-description = "A Tauri App"
+description = "AgentDesk desktop app"
 authors = ["you"]
 edition = "2021"
-default-run = "codex-monitor"
+default-run = "agentdesk"
+autobins = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,6 +18,18 @@ custom-protocol = ["tauri/custom-protocol"]
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "codex_monitor_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "agentdesk"
+path = "src/main.rs"
+
+[[bin]]
+name = "agentdesk-daemon"
+path = "src/bin/codex_monitor_daemon.rs"
+
+[[bin]]
+name = "agentdesk-daemonctl"
+path = "src/bin/codex_monitor_daemonctl.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }
@@ -43,6 +56,7 @@ libc = "0.2"
 chrono = { version = "0.4", features = ["clock"] }
 shell-words = "1.1"
 toml_edit = "0.20.2"
+aes-gcm = "0.10"
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-updater = "2.10.0"

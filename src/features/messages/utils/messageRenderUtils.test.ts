@@ -64,4 +64,34 @@ describe("messageRenderUtils", () => {
     expect(summary.value).toBe("Robie [explorer]");
     expect(summary.output).toContain("Robie [explorer]: completed");
   });
+
+  it("renders context compaction with localized copy", () => {
+    const summary = buildToolSummary(
+      makeToolItem({
+        toolType: "contextCompaction",
+        title: "Context compaction",
+        detail: "Compacting conversation context to fit token limits.",
+      }),
+      "",
+      {
+        command: "command",
+        commandFallback: "Command",
+        contextCompaction: "上下文压缩",
+        contextCompactionDetail: "正在压缩会话上下文，以适配 token 限制。",
+        hook: "hook",
+        image: "image",
+        plan: "计划",
+        planGenerating: "正在生成计划...",
+        read: "read",
+        searched: "searched",
+        searching: "searching",
+        theWeb: "the web",
+        tool: "tool",
+      },
+    );
+
+    expect(summary.label).toBe("tool");
+    expect(summary.value).toBe("上下文压缩");
+    expect(summary.detail).toBe("正在压缩会话上下文，以适配 token 限制。");
+  });
 });

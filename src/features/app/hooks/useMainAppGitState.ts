@@ -5,6 +5,7 @@ import type {
   SendMessageResult,
   WorkspaceInfo,
 } from "@/types";
+import { useI18n } from "@/features/i18n/i18n";
 import { useGitPanelController } from "@app/hooks/useGitPanelController";
 import { useGitHubPanelController } from "@app/hooks/useGitHubPanelController";
 import { useGitCommitController } from "@app/hooks/useGitCommitController";
@@ -58,13 +59,21 @@ type GitStatusSummary = {
   files: Array<unknown>;
 };
 
-function buildGitStatusText(gitStatus: GitStatusSummary) {
+function buildGitStatusText(
+  gitStatus: GitStatusSummary,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
   if (gitStatus.error) {
-    return "Git status unavailable";
+    return t("git.status.unavailable");
   }
   return gitStatus.files.length > 0
-    ? `${gitStatus.files.length} file${gitStatus.files.length === 1 ? "" : "s"} changed`
-    : "Working tree clean";
+    ? t(
+      gitStatus.files.length === 1
+        ? "git.status.fileChangedOne"
+        : "git.status.fileChangedMany",
+      { count: gitStatus.files.length },
+    )
+    : t("git.status.clean");
 }
 
 function resolveShouldLoadGitHubPanelData({
@@ -204,6 +213,7 @@ export function useMainAppGitState({
   startThreadForWorkspace,
   sendUserMessageToThread,
 }: UseMainAppGitStateOptions) {
+  const { t } = useI18n();
   const alertError = useCallback((error: unknown) => {
     alert(error instanceof Error ? error.message : String(error));
   }, []);
@@ -357,7 +367,7 @@ export function useMainAppGitState({
     refreshGitStatus,
   });
 
-  const fileStatus = buildGitStatusText(gitStatus);
+  const fileStatus = buildGitStatusText(gitStatus, t);
 
   useSyncSelectedDiffPath({
     diffSource,

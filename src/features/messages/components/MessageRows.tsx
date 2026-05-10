@@ -27,6 +27,7 @@ import {
   formatDurationMs,
   formatToolStatusLabel,
   normalizeMessageImageSrc,
+  statusToneFromText,
   toolNameFromTitle,
   toolStatusTone,
   type MessageImage,
@@ -757,8 +758,12 @@ export const ToolRow = memo(function ToolRow({
   const summary = buildToolSummary(item, commandText, {
     command: t("messages.tool.command"),
     commandFallback: t("messages.tool.commandFallback"),
+    contextCompaction: t("messages.tool.contextCompaction"),
+    contextCompactionDetail: t("messages.tool.contextCompactionDetail"),
     hook: t("messages.tool.hook"),
     image: t("messages.tool.image"),
+    plan: t("plan.title"),
+    planGenerating: t("plan.generating"),
     read: t("messages.tool.read"),
     searched: t("messages.tool.searched"),
     searching: t("messages.tool.searching"),
@@ -778,7 +783,21 @@ export const ToolRow = memo(function ToolRow({
     : isCommand
       ? ""
       : summary.label;
-  const inlineStatus = formatToolStatusLabel(item);
+  const statusCopy = {
+    completed: t("messages.status.completed"),
+    failed: t("messages.status.failed"),
+    processing: t("messages.status.processing"),
+  };
+  const inlineStatus = formatToolStatusLabel(item, statusCopy);
+  const detailTone = isPlan ? statusToneFromText(summary.detail) : "unknown";
+  const summaryDetail =
+    detailTone === "completed"
+      ? statusCopy.completed
+      : detailTone === "failed"
+        ? statusCopy.failed
+        : detailTone === "processing"
+          ? statusCopy.processing
+          : summary.detail;
   const summaryValue = isFileChange
     ? changeNames.length > 1
       ? `${changeNames[0]} +${changeNames.length - 1}`
@@ -829,7 +848,11 @@ export const ToolRow = memo(function ToolRow({
       }
       setIsExportingPlan(true);
       try {
-        await exportMarkdownFile(output, buildPlanExportFileName(item.id));
+        await exportMarkdownFile(
+          output,
+          buildPlanExportFileName(item.id),
+          t("common.exportMarkdownTitle"),
+        );
       } catch (error) {
         const message =
           error instanceof Error ? error.message : t("messages.planExportUnable");
@@ -887,8 +910,8 @@ export const ToolRow = memo(function ToolRow({
             <span className="tool-inline-status">{inlineStatus}</span>
           )}
         </button>
-        {isExpanded && summary.detail && !isFileChange && (
-          <div className="tool-inline-detail">{summary.detail}</div>
+        {isExpanded && summaryDetail && !isFileChange && (
+          <div className="tool-inline-detail">{summaryDetail}</div>
         )}
         {isExpanded && isCommand && item.detail && (
           <div className="tool-inline-detail tool-inline-muted">

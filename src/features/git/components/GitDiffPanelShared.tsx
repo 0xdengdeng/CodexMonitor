@@ -463,7 +463,7 @@ export function GitLogEntryRow({
   onSelect,
   onContextMenu,
 }: GitLogEntryRowProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   return (
     <div
       className={`git-log-entry ${compact ? "git-log-entry-compact" : ""} ${isSelected ? "active" : ""}`}
@@ -484,7 +484,9 @@ export function GitLogEntryRow({
         <span className="git-log-sep">·</span>
         <span className="git-log-author">{entry.author || t("common.unknown")}</span>
         <span className="git-log-sep">·</span>
-        <span className="git-log-date">{formatRelativeTime(entry.timestamp * 1000)}</span>
+        <span className="git-log-date">
+          {formatRelativeTime(entry.timestamp * 1000, language)}
+        </span>
       </div>
     </div>
   );

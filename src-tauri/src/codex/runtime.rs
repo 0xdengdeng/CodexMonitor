@@ -62,7 +62,7 @@ fn resolve_codex_runtime_from_search_dirs(
         .join(", ");
 
     Err(format!(
-        "Bundled Codex runtime not found. Run `npm run sync:codex-runtime` before starting CodexMonitor. Tried: {attempted}"
+        "Bundled Codex runtime not found. Run `npm run sync:codex-runtime` before starting AgentDesk. Tried: {attempted}"
     ))
 }
 

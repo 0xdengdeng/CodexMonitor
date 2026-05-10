@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { Dispatch } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import type {
   ConversationItem,
   RequestUserInputRequest,
@@ -19,6 +20,7 @@ function asString(value: unknown) {
 function buildUserInputConversationItem(
   request: RequestUserInputRequest,
   response: RequestUserInputResponse,
+  fallbackQuestion: string,
 ): Extract<ConversationItem, { kind: "userInput" }> {
   const threadId = asString(request.params.thread_id).trim();
   const turnId = asString(request.params.turn_id).trim();
@@ -58,7 +60,7 @@ function buildUserInputConversationItem(
     entries.push({
       id: "user-input",
       header: "",
-      question: "Input requested",
+      question: fallbackQuestion,
       answers: [],
     });
   }
@@ -85,6 +87,7 @@ function buildUserInputConversationItem(
 }
 
 export function useThreadUserInput({ dispatch }: UseThreadUserInputOptions) {
+  const { t } = useI18n();
   const handleUserInputSubmit = useCallback(
     async (request: RequestUserInputRequest, response: RequestUserInputResponse) => {
       await respondToUserInputRequest(
@@ -92,7 +95,11 @@ export function useThreadUserInput({ dispatch }: UseThreadUserInputOptions) {
         request.request_id,
         response.answers,
       );
-      const item = buildUserInputConversationItem(request, response);
+      const item = buildUserInputConversationItem(
+        request,
+        response,
+        t("messages.inputQuestionFallback"),
+      );
       dispatch({
         type: "upsertItem",
         workspaceId: request.workspace_id,
@@ -105,7 +112,7 @@ export function useThreadUserInput({ dispatch }: UseThreadUserInputOptions) {
         workspaceId: request.workspace_id,
       });
     },
-    [dispatch],
+    [dispatch, t],
   );
 
   return { handleUserInputSubmit };

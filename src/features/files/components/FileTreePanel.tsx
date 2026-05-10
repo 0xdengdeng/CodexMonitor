@@ -23,7 +23,7 @@ import { readWorkspaceFile } from "../../../services/tauri";
 import type { OpenAppTarget } from "../../../types";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { languageFromPath } from "../../../utils/syntax";
-import { joinWorkspacePath, revealInFileManagerLabel } from "../../../utils/platformPaths";
+import { fileManagerName, joinWorkspacePath } from "../../../utils/platformPaths";
 import { getFileTypeIconUrl } from "../../../utils/fileTypeIcons";
 import { FilePreviewPopover } from "./FilePreviewPopover";
 import { useI18n } from "@/features/i18n/i18n";
@@ -571,7 +571,7 @@ export function FileTreePanel({
             },
           }),
           await MenuItem.new({
-            text: revealInFileManagerLabel(),
+            text: t("platform.revealInFileManager", { app: fileManagerName() }),
             action: async () => {
               await revealItemInDir(resolvePath(relativePath));
             },

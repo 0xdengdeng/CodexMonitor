@@ -2,7 +2,7 @@ use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 pub(crate) mod args;
 pub(crate) mod config;
@@ -18,6 +18,7 @@ use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::agents_config_core;
 use crate::shared::codex_core::{self, insert_optional_nullable_string};
+use crate::shared::runtime_config_core;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
 
@@ -51,12 +52,18 @@ pub(crate) async fn spawn_workspace_session(
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
     let codex_bin = runtime::resolve_effective_codex_bin(&app_handle, None)?;
+    let runtime_env = {
+        let state = app_handle.state::<AppState>();
+        let settings = state.app_settings.lock().await;
+        runtime_config_core::build_managed_runtime_env_from_store(&settings.managed_runtime)?
+    };
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
         Some(codex_bin),
         codex_args,
         codex_home,
+        runtime_env,
         client_version,
         event_sink,
     )
@@ -99,8 +106,8 @@ pub(crate) async fn codex_update(
             "beforeVersion": version,
             "afterVersion": version,
             "upgraded": false,
-            "output": "Bundled Codex runtime is managed by CodexMonitor app updates.",
-            "details": "Bundled Codex runtime is managed by CodexMonitor app updates."
+            "output": "Bundled Codex runtime is managed by AgentDesk app updates.",
+            "details": "Bundled Codex runtime is managed by AgentDesk app updates."
         }));
     }
     crate::shared::codex_update_core::codex_update_core(

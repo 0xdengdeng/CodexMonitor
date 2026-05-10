@@ -6,6 +6,11 @@ import type {
   ReviewTarget,
   ServiceTier,
 } from "@/types";
+import {
+  translate,
+  type I18nValues,
+  type ResolvedInterfaceLanguage,
+} from "@/features/i18n/i18n";
 import { clampThreadName } from "@threads/utils/threadNaming";
 import { formatRelativeTime } from "@utils/time";
 
@@ -21,6 +26,13 @@ export type SendMessageOptions = {
 };
 
 type FastCommandAction = "toggle" | "on" | "off" | "status" | "invalid";
+export type ThreadMessagingTranslate = (
+  key: string,
+  values?: I18nValues,
+) => string;
+
+const defaultTranslate: ThreadMessagingTranslate = (key, values) =>
+  translate("en", key, values);
 
 type ResolveSendMessageOptionsArgs = {
   options?: SendMessageOptions;
@@ -58,23 +70,35 @@ export type TurnStartPayload = {
   appMentions?: AppMention[];
 };
 
-export function buildReviewThreadTitle(target: ReviewTarget): string | null {
+export function buildReviewThreadTitle(
+  target: ReviewTarget,
+  t: ThreadMessagingTranslate = defaultTranslate,
+): string | null {
   if (target.type === "commit") {
     const shortSha = target.sha.trim().slice(0, 7);
     const title = target.title?.trim() ?? "";
     if (shortSha && title) {
-      return clampThreadName(`Review ${shortSha}: ${title}`);
+      return clampThreadName(
+        t("threadMessaging.review.titleCommitWithTitle", {
+          sha: shortSha,
+          title,
+        }),
+      );
     }
     if (shortSha) {
-      return clampThreadName(`Review ${shortSha}`);
+      return clampThreadName(
+        t("threadMessaging.review.titleCommit", { sha: shortSha }),
+      );
     }
-    return clampThreadName("Review Commit");
+    return clampThreadName(t("threadMessaging.review.titleCommitFallback"));
   }
   if (target.type === "baseBranch") {
-    return clampThreadName(`Review ${target.branch}`);
+    return clampThreadName(
+      t("threadMessaging.review.titleBranch", { branch: target.branch }),
+    );
   }
   if (target.type === "uncommittedChanges") {
-    return "Review Working Tree";
+    return t("threadMessaging.review.titleWorkingTree");
   }
   return null;
 }
@@ -193,9 +217,12 @@ function normalizeReset(value?: number | null): number | null {
   return value > 1_000_000_000_000 ? value : value * 1000;
 }
 
-function resetLabel(value?: number | null): string | null {
+function resetLabel(
+  value?: number | null,
+  language?: ResolvedInterfaceLanguage,
+): string | null {
   const resetAt = normalizeReset(value);
-  return resetAt ? formatRelativeTime(resetAt) : null;
+  return resetAt ? formatRelativeTime(resetAt, language) : null;
 }
 
 function getCollaborationModeId(
@@ -221,6 +248,8 @@ export function buildStatusLines({
   accessMode,
   collaborationMode,
   rateLimits,
+  t = defaultTranslate,
+  language = "en",
 }: {
   model?: string | null;
   serviceTier?: ServiceTier | null | undefined;
@@ -228,42 +257,63 @@ export function buildStatusLines({
   accessMode?: AccessMode;
   collaborationMode?: Record<string, unknown> | null;
   rateLimits: RateLimitSnapshot | null;
+  t?: ThreadMessagingTranslate;
+  language?: ResolvedInterfaceLanguage;
 }): string[] {
+  const defaultValue = t("threadMessaging.status.default");
+  const offValue = t("threadMessaging.status.off");
   const lines = [
-    "Session status:",
-    `- Model: ${model ?? "default"}`,
-    `- Fast mode: ${serviceTier === "fast" ? "on" : "off"}`,
-    `- Reasoning effort: ${effort ?? "default"}`,
-    `- Access: ${accessMode ?? "current"}`,
-    `- Collaboration: ${getCollaborationModeId(collaborationMode) || "off"}`,
+    t("threadMessaging.status.title"),
+    t("threadMessaging.status.model", { value: model ?? defaultValue }),
+    t("threadMessaging.status.fastMode", {
+      value:
+        serviceTier === "fast"
+          ? t("threadMessaging.state.on")
+          : t("threadMessaging.state.off"),
+    }),
+    t("threadMessaging.status.reasoningEffort", {
+      value: effort ?? defaultValue,
+    }),
+    t("threadMessaging.status.access", {
+      value: accessMode ?? t("threadMessaging.status.current"),
+    }),
+    t("threadMessaging.status.collaboration", {
+      value: getCollaborationModeId(collaborationMode) || offValue,
+    }),
   ];
 
   const primaryUsed = rateLimits?.primary?.usedPercent;
   const secondaryUsed = rateLimits?.secondary?.usedPercent;
 
   if (typeof primaryUsed === "number") {
-    const reset = resetLabel(rateLimits?.primary?.resetsAt);
+    const reset = resetLabel(rateLimits?.primary?.resetsAt, language);
     lines.push(
-      `- Session usage: ${Math.round(primaryUsed)}%${
-        reset ? ` (resets ${reset})` : ""
-      }`,
+      t("threadMessaging.status.sessionUsage", {
+        percent: Math.round(primaryUsed),
+        reset: reset
+          ? t("threadMessaging.status.resets", { time: reset })
+          : "",
+      }),
     );
   }
   if (typeof secondaryUsed === "number") {
-    const reset = resetLabel(rateLimits?.secondary?.resetsAt);
+    const reset = resetLabel(rateLimits?.secondary?.resetsAt, language);
     lines.push(
-      `- Weekly usage: ${Math.round(secondaryUsed)}%${
-        reset ? ` (resets ${reset})` : ""
-      }`,
+      t("threadMessaging.status.weeklyUsage", {
+        percent: Math.round(secondaryUsed),
+        reset: reset
+          ? t("threadMessaging.status.resets", { time: reset })
+          : "",
+      }),
     );
   }
 
   const credits = rateLimits?.credits ?? null;
   if (credits?.hasCredits) {
     if (credits.unlimited) {
-      lines.push("- Credits: unlimited");
+      lines.push(t("threadMessaging.status.creditsUnlimited"));
     } else if (credits.balance) {
-      lines.push(`- Credits: ${credits.balance}`);
+      lines.push(t("threadMessaging.status.credits", { value: credits.balance }));
     }
   }
 
@@ -272,10 +322,11 @@ export function buildStatusLines({
 
 export function buildMcpStatusLines(
   data: Array<Record<string, unknown>>,
+  t: ThreadMessagingTranslate = defaultTranslate,
 ): string[] {
-  const lines: string[] = ["MCP tools:"];
+  const lines: string[] = [t("threadMessaging.mcp.title")];
   if (data.length === 0) {
-    lines.push("- No MCP servers configured.");
+    lines.push(t("threadMessaging.mcp.empty"));
     return lines;
   }
 
@@ -283,7 +334,7 @@ export function buildMcpStatusLines(
     String(a.name ?? "").localeCompare(String(b.name ?? "")),
   );
   for (const server of servers) {
-    const name = String(server.name ?? "unknown");
+    const name = String(server.name ?? t("threadMessaging.mcp.unknown"));
     const authStatus = server.authStatus ?? server.auth_status ?? null;
     const authLabel =
       typeof authStatus === "string"
@@ -291,7 +342,11 @@ export function buildMcpStatusLines(
         : authStatus && typeof authStatus === "object" && "status" in authStatus
           ? String((authStatus as { status?: unknown }).status ?? "")
           : "";
-    lines.push(`- ${name}${authLabel ? ` (auth: ${authLabel})` : ""}`);
+    lines.push(
+      `- ${name}${
+        authLabel ? ` (${t("threadMessaging.mcp.auth")}: ${authLabel})` : ""
+      }`,
+    );
 
     const toolsRecord =
       server.tools && typeof server.tools === "object"
@@ -305,8 +360,8 @@ export function buildMcpStatusLines(
       .sort((a, b) => a.localeCompare(b));
     lines.push(
       toolNames.length > 0
-        ? `  tools: ${toolNames.join(", ")}`
-        : "  tools: none",
+        ? `  ${t("threadMessaging.mcp.tools")}: ${toolNames.join(", ")}`
+        : `  ${t("threadMessaging.mcp.tools")}: ${t("threadMessaging.mcp.none")}`,
     );
 
     const resources = Array.isArray(server.resources) ? server.resources.length : 0;
@@ -316,17 +371,24 @@ export function buildMcpStatusLines(
         ? server.resource_templates.length
         : 0;
     if (resources > 0 || templates > 0) {
-      lines.push(`  resources: ${resources}, templates: ${templates}`);
+      lines.push(
+        `  ${t("threadMessaging.mcp.resources")}: ${resources}, ${t(
+          "threadMessaging.mcp.templates",
+        )}: ${templates}`,
+      );
     }
   }
 
   return lines;
 }
 
-export function buildAppsLines(data: Array<Record<string, unknown>>): string[] {
-  const lines: string[] = ["Apps:"];
+export function buildAppsLines(
+  data: Array<Record<string, unknown>>,
+  t: ThreadMessagingTranslate = defaultTranslate,
+): string[] {
+  const lines: string[] = [t("threadMessaging.apps.title")];
   if (data.length === 0) {
-    lines.push("- No apps available.");
+    lines.push(t("threadMessaging.apps.empty"));
     return lines;
   }
 
@@ -334,10 +396,12 @@ export function buildAppsLines(data: Array<Record<string, unknown>>): string[] {
     String(a.name ?? "").localeCompare(String(b.name ?? "")),
   );
   for (const app of apps) {
-    const name = String(app.name ?? app.id ?? "unknown");
+    const name = String(app.name ?? app.id ?? t("threadMessaging.apps.unknown"));
     const appId = String(app.id ?? "");
     const isAccessible = Boolean(app.isAccessible ?? app.is_accessible ?? false);
-    const status = isAccessible ? "connected" : "can be installed";
+    const status = isAccessible
+      ? t("threadMessaging.apps.connected")
+      : t("threadMessaging.apps.installable");
     const description =
       typeof app.description === "string" && app.description.trim().length > 0
         ? app.description.trim()
@@ -353,7 +417,7 @@ export function buildAppsLines(data: Array<Record<string, unknown>>): string[] {
           ? app.install_url
           : "";
     if (!isAccessible && installUrl) {
-      lines.push(`  install: ${installUrl}`);
+      lines.push(`  ${t("threadMessaging.apps.install")}: ${installUrl}`);
     }
   }
 

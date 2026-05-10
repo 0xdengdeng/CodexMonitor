@@ -23,4 +23,9 @@ describe("i18n", () => {
     expect(translate("zh-CN", "settings.title")).toBe("设置");
     expect(translate("zh-CN", "missing.key")).toBe("missing.key");
   });
+
+  it("localizes the visible app name while keeping English AgentDesk", () => {
+    expect(translate("en", "app.name")).toBe("AgentDesk");
+    expect(translate("zh-CN", "app.name")).toBe("启航AI智慧平台");
+  });
 });

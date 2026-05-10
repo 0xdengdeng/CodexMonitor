@@ -6,6 +6,7 @@ import type {
   LayoutNodesResult,
   LayoutSecondarySurface,
 } from "./types";
+import { useI18n } from "@/features/i18n/i18n";
 
 export type SecondaryLayoutNodesOptions = LayoutSecondarySurface;
 
@@ -47,29 +48,33 @@ function buildDebugPanels(debugPanelProps: SecondaryLayoutNodesOptions["debugPan
   return { debugPanelNode, debugPanelFullNode };
 }
 
-function buildCompactEmptyNode({
-  title,
-  description,
+function CompactEmptyNode({
+  titleKey,
+  descriptionKey,
   onGoProjects,
 }: {
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   onGoProjects: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="compact-empty">
-      <h3>{title}</h3>
-      <p>{description}</p>
+      <h3>{t(titleKey)}</h3>
+      <p>{t(descriptionKey)}</p>
       <button className="ghost" onClick={onGoProjects}>
-        Go to Projects
+        {t("layout.empty.goProjects")}
       </button>
     </div>
   );
 }
 
-function buildCompactGitBackNode(
-  compactNavProps: SecondaryLayoutNodesOptions["compactNavProps"],
-) {
+function CompactGitBackNode({
+  compactNavProps,
+}: {
+  compactNavProps: SecondaryLayoutNodesOptions["compactNavProps"];
+}) {
+  const { t } = useI18n();
   const compactGitDiffActive =
     compactNavProps.centerMode === "diff" &&
     Boolean(compactNavProps.selectedDiffPath);
@@ -81,7 +86,7 @@ function buildCompactGitBackNode(
         className={`compact-git-switch-button${compactGitDiffActive ? "" : " active"}`}
         onClick={compactNavProps.onBackFromDiff}
       >
-        Files
+        {t("layout.compact.files")}
       </button>
       <button
         type="button"
@@ -89,7 +94,7 @@ function buildCompactGitBackNode(
         onClick={compactNavProps.onShowSelectedDiff}
         disabled={!compactNavProps.hasActiveGitDiffs}
       >
-        Diff
+        {t("layout.compact.diff")}
       </button>
     </div>
   );
@@ -108,19 +113,25 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
 
   const { debugPanelNode, debugPanelFullNode } = buildDebugPanels(options.debugPanelProps);
 
-  const compactEmptyCodexNode = buildCompactEmptyNode({
-    title: "No workspace selected",
-    description: "Choose a project to start chatting.",
-    onGoProjects: options.compactNavProps.onGoProjects,
-  });
+  const compactEmptyCodexNode = (
+    <CompactEmptyNode
+      titleKey="layout.empty.noWorkspace"
+      descriptionKey="layout.empty.chatDescription"
+      onGoProjects={options.compactNavProps.onGoProjects}
+    />
+  );
 
-  const compactEmptyGitNode = buildCompactEmptyNode({
-    title: "No workspace selected",
-    description: "Select a project to inspect diffs.",
-    onGoProjects: options.compactNavProps.onGoProjects,
-  });
+  const compactEmptyGitNode = (
+    <CompactEmptyNode
+      titleKey="layout.empty.noWorkspace"
+      descriptionKey="layout.empty.gitDescription"
+      onGoProjects={options.compactNavProps.onGoProjects}
+    />
+  );
 
-  const compactGitBackNode = buildCompactGitBackNode(options.compactNavProps);
+  const compactGitBackNode = (
+    <CompactGitBackNode compactNavProps={options.compactNavProps} />
+  );
 
   return {
     planPanelNode,

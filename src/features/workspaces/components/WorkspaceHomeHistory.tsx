@@ -81,7 +81,7 @@ export function WorkspaceHomeHistory({
   threadStatusById,
   onSelectInstance,
 }: WorkspaceHomeHistoryProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   return (
     <>
@@ -115,8 +115,8 @@ export function WorkspaceHomeHistory({
                         {run.status === "partial" && ` · ${t("workspace.home.partial")}`}
                       </div>
                     </div>
-                    <div className="workspace-home-run-time">
-                      {formatRelativeTime(run.createdAt)}
+                  <div className="workspace-home-run-time">
+                      {formatRelativeTime(run.createdAt, language)}
                     </div>
                   </div>
                   {run.error && <div className="workspace-home-run-error">{run.error}</div>}
@@ -184,7 +184,7 @@ export function WorkspaceHomeHistory({
                 </div>
                 {recentThreadsUpdatedAt ? (
                   <div className="workspace-home-run-time">
-                    {formatRelativeTime(recentThreadsUpdatedAt)}
+                    {formatRelativeTime(recentThreadsUpdatedAt, language)}
                   </div>
                 ) : null}
               </div>

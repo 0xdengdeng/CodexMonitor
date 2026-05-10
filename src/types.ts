@@ -206,6 +206,14 @@ export type RemoteBackendTarget = {
   token: string | null;
   lastConnectedAtMs?: number | null;
 };
+export type ManagedRuntimeConfig = {
+  enabled: boolean;
+  baseUrl: string | null;
+  model: string | null;
+};
+export type RuntimeApiKeyStatus = {
+  hasApiKey: boolean;
+};
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type InterfaceLanguagePreference = "system" | "en" | "zh-CN";
 export type PersonalityPreference = "friendly" | "pragmatic";
@@ -246,6 +254,7 @@ export type AppSettings = {
   remoteBackendToken: string | null;
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
+  managedRuntime: ManagedRuntimeConfig;
   keepDaemonRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;
   reviewDeliveryMode: "inline" | "detached";

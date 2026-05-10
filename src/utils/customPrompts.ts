@@ -225,15 +225,47 @@ type PromptArgsError =
   | { kind: "MissingAssignment"; token: string }
   | { kind: "MissingKey"; token: string };
 
+type PromptExpansionCopy = {
+  parseMissingAssignment: string;
+  parseMissingKey: string;
+  missingArgs: string;
+};
+
+const defaultPromptExpansionCopy: PromptExpansionCopy = {
+  parseMissingAssignment:
+    "Could not parse {command}: expected key=value but found '{token}'. Wrap values in double quotes if they contain spaces.",
+  parseMissingKey:
+    "Could not parse {command}: expected a name before '=' in '{token}'.",
+  missingArgs:
+    "Missing required args for /{command}: {args}. Provide as key=value (quote values with spaces).",
+};
+
+function formatTemplate(
+  template: string,
+  values: Record<string, string>,
+) {
+  return template.replace(/\{(\w+)\}/g, (match, name) => values[name] ?? match);
+}
+
 type PromptInputsResult =
   | { values: Record<string, string> }
   | { error: PromptArgsError };
 
-function formatPromptArgsError(command: string, error: PromptArgsError) {
+function formatPromptArgsError(
+  command: string,
+  error: PromptArgsError,
+  copy: PromptExpansionCopy,
+) {
   if (error.kind === "MissingAssignment") {
-    return `Could not parse ${command}: expected key=value but found '${error.token}'. Wrap values in double quotes if they contain spaces.`;
+    return formatTemplate(copy.parseMissingAssignment, {
+      command,
+      token: error.token,
+    });
   }
-  return `Could not parse ${command}: expected a name before '=' in '${error.token}'.`;
+  return formatTemplate(copy.parseMissingKey, {
+    command,
+    token: error.token,
+  });
 }
 
 function parsePromptInputs(rest: string): PromptInputsResult {
@@ -318,6 +350,7 @@ function expandNumericPlaceholders(content: string, args: string[]) {
 export function expandCustomPromptText(
   text: string,
   prompts: CustomPromptOption[],
+  copy: PromptExpansionCopy = defaultPromptExpansionCopy,
 ): { expanded: string } | { error: string } | null {
   const parsed = parseSlashName(text);
   if (!parsed) {
@@ -340,13 +373,16 @@ export function expandCustomPromptText(
     const parsedInputs = parsePromptInputs(parsed.rest);
     if ("error" in parsedInputs) {
       return {
-        error: formatPromptArgsError(`/${parsed.name}`, parsedInputs.error),
+        error: formatPromptArgsError(`/${parsed.name}`, parsedInputs.error, copy),
       } as const;
     }
     const missing = required.filter((name) => !(name in parsedInputs.values));
     if (missing.length > 0) {
       return {
-        error: `Missing required args for /${parsed.name}: ${missing.join(", ")}. Provide as key=value (quote values with spaces).`,
+        error: formatTemplate(copy.missingArgs, {
+          command: parsed.name,
+          args: missing.join(", "),
+        }),
       } as const;
     }
     return {

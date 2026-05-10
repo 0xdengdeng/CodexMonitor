@@ -8,6 +8,7 @@ import type {
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
+  RuntimeApiKeyStatus,
   TcpDaemonStatus,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
@@ -83,9 +84,10 @@ export async function pickImageFiles(): Promise<string[]> {
 export async function exportMarkdownFile(
   content: string,
   defaultFileName = "plan.md",
+  title = "Export plan as Markdown",
 ): Promise<string | null> {
   const selection = await save({
-    title: "Export plan as Markdown",
+    title,
     defaultPath: defaultFileName,
     filters: [
       {
@@ -871,6 +873,18 @@ export async function isMobileRuntime(): Promise<boolean> {
 
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
+}
+
+export async function getRuntimeApiKeyStatus(): Promise<RuntimeApiKeyStatus> {
+  return invoke<RuntimeApiKeyStatus>("runtime_api_key_status");
+}
+
+export async function setRuntimeApiKey(apiKey: string): Promise<RuntimeApiKeyStatus> {
+  return invoke<RuntimeApiKeyStatus>("runtime_api_key_set", { apiKey });
+}
+
+export async function clearRuntimeApiKey(): Promise<RuntimeApiKeyStatus> {
+  return invoke<RuntimeApiKeyStatus>("runtime_api_key_clear");
 }
 
 export async function tailscaleStatus(): Promise<TailscaleStatus> {

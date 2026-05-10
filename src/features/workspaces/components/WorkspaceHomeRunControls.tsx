@@ -76,8 +76,16 @@ export function WorkspaceHomeRunControls({
   const selectedModel = selectedModelId
     ? models.find((model) => model.id === selectedModelId) ?? null
     : null;
-  const selectedModelLabel = resolveModelLabel(selectedModel);
-  const modelSummary = buildModelSummary(models, modelSelections);
+  const selectedModelLabel = resolveModelLabel(
+    selectedModel,
+    t("workspace.home.defaultModel"),
+  );
+  const modelSummary = buildModelSummary(models, modelSelections, {
+    defaultModel: t("workspace.home.defaultModel"),
+    selectModels: t("workspace.home.selectModels"),
+    modelCount: t("workspace.home.models"),
+    runCount: t("workspace.home.runs"),
+  });
   const showRunMode = (workspaceKind ?? "main") !== "worktree";
   const runModeLabel =
     runMode === "local" ? t("workspace.home.local") : t("workspace.home.worktree");
@@ -201,7 +209,7 @@ export function WorkspaceHomeRunControls({
                 icon={<Cpu className="workspace-home-mode-icon" aria-hidden />}
                 active={isSelected}
               >
-                {resolveModelLabel(model)}
+                {resolveModelLabel(model, t("workspace.home.defaultModel"))}
               </PopoverMenuItem>
               {runMode === "worktree" && (
                 <>

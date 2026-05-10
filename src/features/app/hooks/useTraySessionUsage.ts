@@ -20,6 +20,7 @@ export function buildTraySessionUsage(
   accountRateLimits: RateLimitSnapshot | null,
   showRemaining: boolean,
   copy?: UsageLabelsCopy,
+  language?: string | null,
 ): TraySessionUsage | null {
   const {
     sessionPercent,
@@ -30,6 +31,7 @@ export function buildTraySessionUsage(
     accountRateLimits,
     showRemaining,
     copy,
+    language,
   );
   if (sessionPercent === null) {
     return null;
@@ -59,7 +61,7 @@ export function useTraySessionUsage({
   accountRateLimits,
   showRemaining,
 }: UseTraySessionUsageParams) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const copy: UsageLabelsCopy = useMemo(
     () => ({
       availableCredits: t("sidebar.usage.availableCredits"),
@@ -71,8 +73,8 @@ export function useTraySessionUsage({
     [t],
   );
   const usage = useMemo(
-    () => buildTraySessionUsage(accountRateLimits, showRemaining, copy),
-    [accountRateLimits, copy, showRemaining],
+    () => buildTraySessionUsage(accountRateLimits, showRemaining, copy, language),
+    [accountRateLimits, copy, language, showRemaining],
   );
   const lastSyncedUsageRef = useRef<string | null>(null);
 

@@ -32,12 +32,15 @@ const clampPercent = (value: number) =>
 function formatResetLabel(
   resetsAt: number | null | undefined,
   copy: UsageLabelsCopy,
+  language?: string | null,
 ) {
   if (typeof resetsAt !== "number" || !Number.isFinite(resetsAt)) {
     return null;
   }
   const resetMs = resetsAt > 1_000_000_000_000 ? resetsAt : resetsAt * 1000;
-  const relative = formatRelativeTime(resetMs).replace(/^in\s+/i, "");
+  const relative = formatRelativeTime(resetMs, language)
+    .replace(/^in\s+/i, "")
+    .replace(/后$/, "");
   return copy.resets.replace("{time}", relative);
 }
 
@@ -74,6 +77,7 @@ export function getUsageLabels(
   accountRateLimits: RateLimitSnapshot | null,
   showRemaining: boolean,
   copy: UsageLabelsCopy = defaultUsageLabelsCopy,
+  language?: string | null,
 ): UsageLabels {
   const usagePercent = accountRateLimits?.primary?.usedPercent;
   const globalUsagePercent = accountRateLimits?.secondary?.usedPercent;
@@ -93,8 +97,16 @@ export function getUsageLabels(
   return {
     sessionPercent,
     weeklyPercent,
-    sessionResetLabel: formatResetLabel(accountRateLimits?.primary?.resetsAt, copy),
-    weeklyResetLabel: formatResetLabel(accountRateLimits?.secondary?.resetsAt, copy),
+    sessionResetLabel: formatResetLabel(
+      accountRateLimits?.primary?.resetsAt,
+      copy,
+      language,
+    ),
+    weeklyResetLabel: formatResetLabel(
+      accountRateLimits?.secondary?.resetsAt,
+      copy,
+      language,
+    ),
     creditsLabel: formatCreditsLabel(accountRateLimits, copy),
     showWeekly: Boolean(accountRateLimits?.secondary),
   };

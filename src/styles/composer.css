@@ -686,60 +686,120 @@
 
 .composer-context {
   margin-left: auto;
-  display: grid;
-  grid-template-columns: auto;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
+  justify-content: flex-end;
+  min-width: max-content;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
+.composer-context-meter {
+  --context-used: 0;
+  --context-meter-color: var(--border-accent);
+  --context-meter-track: color-mix(in srgb, var(--border-strong) 42%, transparent);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 3px 6px 3px 4px;
+  border-radius: 999px;
+  color: var(--text-subtle);
+}
+
+.composer-context-meter[data-pressure="low"] {
+  --context-meter-color: var(--border-accent);
+}
+
+.composer-context-meter[data-pressure="medium"] {
+  --context-meter-color: color-mix(in srgb, var(--border-accent) 72%, var(--status-warning) 28%);
+}
+
+.composer-context-meter[data-pressure="high"] {
+  --context-meter-color: var(--status-warning);
+}
+
+.composer-context-meter[data-pressure="critical"] {
+  --context-meter-color: var(--status-error);
+}
+
+.composer-context-meter[data-pressure="unknown"] {
+  --context-meter-color: var(--status-unknown);
+}
+
 .composer-context-ring {
-  --context-free: 0;
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   display: grid;
   place-items: center;
-  position: relative;
+  flex: 0 0 auto;
   background:
     radial-gradient(circle, var(--surface-context-core) 54%, transparent 56%),
     conic-gradient(
       from 180deg,
-      hsl(calc(120deg * var(--context-free) / 100), 80%, 55%)
-        calc(var(--context-free) * 1%),
-      var(--border-strong) 0
+      var(--context-meter-color) calc(var(--context-used) * 1%),
+      var(--context-meter-track) 0
     );
-  transition: background 0.2s ease;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 56%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--surface-context-core) 88%, transparent);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.composer-context-ring::after {
+.composer-context-meter::after {
   content: attr(data-tooltip);
   position: absolute;
   right: 0;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   transform: translateY(4px);
-  padding: 4px 8px;
-  border-radius: 999px;
+  width: max-content;
+  max-width: min(460px, 58vw);
+  padding: 7px 10px;
+  border-radius: 10px;
   background: var(--surface-command);
   color: var(--text-emphasis);
   font-size: 10px;
-  white-space: nowrap;
+  line-height: 1.45;
+  white-space: normal;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
   border: 1px solid var(--border-subtle);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  z-index: 20;
 }
 
-.composer-context-ring:hover::after {
+.composer-context-meter:hover::after {
   opacity: 1;
   transform: translateY(0);
 }
 
 .composer-context-value {
-  font-weight: 600;
-  font-size: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
   color: var(--text-quiet);
+}
+
+.composer-context-copy {
+  display: grid;
+  gap: 1px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.composer-context-label {
+  color: var(--text-stronger);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.composer-context-tokens {
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 600;
 }
 
 

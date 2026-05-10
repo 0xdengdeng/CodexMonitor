@@ -182,6 +182,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             settings::get_app_settings,
             settings::update_app_settings,
+            settings::runtime_api_key_status,
+            settings::runtime_api_key_set,
+            settings::runtime_api_key_clear,
             settings::get_codex_config_path,
             files::file_read,
             files::file_write,

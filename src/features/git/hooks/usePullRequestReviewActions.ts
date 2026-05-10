@@ -9,14 +9,15 @@ import type {
   SendMessageResult,
   WorkspaceInfo,
 } from "@/types";
+import { useI18n } from "@/features/i18n/i18n";
 import { pushErrorToast } from "@services/toasts";
 import { buildPullRequestReviewPrompt } from "@utils/pullRequestReviewPrompt";
 
-const REVIEW_ACTIONS: PullRequestReviewAction[] = [
-  { id: "pr-review-full", label: "Review PR", intent: "full" },
-  { id: "pr-review-risks", label: "Risk Scan", intent: "risks" },
-  { id: "pr-review-tests", label: "Test Plan", intent: "tests" },
-  { id: "pr-review-summary", label: "Summarize", intent: "summary" },
+const REVIEW_ACTIONS: Array<Omit<PullRequestReviewAction, "label"> & { labelKey: string }> = [
+  { id: "pr-review-full", labelKey: "git.prReview.full", intent: "full" },
+  { id: "pr-review-risks", labelKey: "git.prReview.risks", intent: "risks" },
+  { id: "pr-review-tests", labelKey: "git.prReview.tests", intent: "tests" },
+  { id: "pr-review-summary", labelKey: "git.prReview.summary", intent: "summary" },
 ];
 
 type UsePullRequestReviewActionsOptions = {
@@ -58,6 +59,7 @@ export function usePullRequestReviewActions({
   startThreadForWorkspace,
   sendUserMessageToThread,
 }: UsePullRequestReviewActionsOptions) {
+  const { t } = useI18n();
   const [isLaunchingReview, setIsLaunchingReview] = useState(false);
   const [lastReviewThreadId, setLastReviewThreadId] = useState<string | null>(null);
   const launchInFlightRef = useRef(false);
@@ -92,7 +94,7 @@ export function usePullRequestReviewActions({
             activate: activateThread,
           });
         if (!reviewThreadId) {
-          throw new Error("Failed to start a review thread.");
+          throw new Error(t("git.prReview.startThreadFailed"));
         }
 
         const prompt = buildPullRequestReviewPrompt({
@@ -110,7 +112,7 @@ export function usePullRequestReviewActions({
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         pushErrorToast({
-          title: "PR review failed",
+          title: t("git.prReview.failed"),
           message,
         });
         return null;
@@ -129,10 +131,18 @@ export function usePullRequestReviewActions({
       reviewDeliveryMode,
       sendUserMessageToThread,
       startThreadForWorkspace,
+      t,
     ],
   );
 
-  const reviewActions = useMemo(() => REVIEW_ACTIONS, []);
+  const reviewActions = useMemo<PullRequestReviewAction[]>(
+    () =>
+      REVIEW_ACTIONS.map(({ labelKey, ...action }) => ({
+        ...action,
+        label: t(labelKey),
+      })),
+    [t],
+  );
 
   return {
     isLaunchingReview,

@@ -376,6 +376,32 @@ pub(crate) struct RemoteBackendTarget {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct ManagedRuntimeConfig {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default, rename = "baseUrl")]
+    pub(crate) base_url: Option<String>,
+    #[serde(default)]
+    pub(crate) model: Option<String>,
+}
+
+impl Default for ManagedRuntimeConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: None,
+            model: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct RuntimeApiKeyStatus {
+    #[serde(rename = "hasApiKey")]
+    pub(crate) has_api_key: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
@@ -650,6 +676,8 @@ pub(crate) struct AppSettings {
     pub(crate) open_app_targets: Vec<OpenAppTarget>,
     #[serde(default = "default_selected_open_app_id", rename = "selectedOpenAppId")]
     pub(crate) selected_open_app_id: String,
+    #[serde(default, rename = "managedRuntime")]
+    pub(crate) managed_runtime: ManagedRuntimeConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1206,6 +1234,7 @@ impl Default for AppSettings {
             global_worktrees_folder: None,
             open_app_targets: default_open_app_targets(),
             selected_open_app_id: default_selected_open_app_id(),
+            managed_runtime: ManagedRuntimeConfig::default(),
         }
     }
 }

@@ -594,11 +594,11 @@ export function PromptPanel({
                       className="prompt-empty-link"
                       onClick={() => void onRevealGeneralPrompts()}
                     >
-                      CODEX_HOME/prompts
+                      {t("prompts.generalRuntimePath")}
                     </button>
                   ) : (
                     <span className="prompt-empty-link is-disabled">
-                      CODEX_HOME/prompts
+                      {t("prompts.generalRuntimePath")}
                     </span>
                   )}
                   .

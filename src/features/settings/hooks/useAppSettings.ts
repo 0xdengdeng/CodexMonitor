@@ -51,6 +51,20 @@ function normalizeRemoteName(value: string | null | undefined, fallback: string)
   return value?.trim() ? value.trim() : fallback;
 }
 
+function normalizeNullableString(value: string | null | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
+}
+
+function normalizeManagedRuntime(
+  value: AppSettings["managedRuntime"] | null | undefined,
+): AppSettings["managedRuntime"] {
+  return {
+    enabled: value?.enabled === true,
+    baseUrl: normalizeNullableString(value?.baseUrl),
+    model: normalizeNullableString(value?.model),
+  };
+}
+
 function normalizeRemoteBackends(settings: AppSettings): {
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
@@ -146,6 +160,11 @@ function buildDefaultSettings(): AppSettings {
     remoteBackendToken: null,
     remoteBackends: [defaultRemote],
     activeRemoteBackendId: defaultRemote.id,
+    managedRuntime: {
+      enabled: false,
+      baseUrl: null,
+      model: null,
+    },
     keepDaemonRunningAfterAppClose: false,
     defaultAccessMode: "current",
     reviewDeliveryMode: "inline",
@@ -250,6 +269,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     ...remoteBackendSettings,
     codexBin: null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
+    managedRuntime: normalizeManagedRuntime(settings.managedRuntime),
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     interfaceLanguage: normalizeInterfaceLanguage(settings.interfaceLanguage),

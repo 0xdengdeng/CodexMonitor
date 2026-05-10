@@ -398,6 +398,104 @@ describe("useThreadMessaging telemetry", () => {
     });
   });
 
+  it("localizes built-in fast mode replies", async () => {
+    const dispatch = vi.fn();
+    const onSelectServiceTier = vi.fn();
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        interfaceLanguage: "zh-CN",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        serviceTier: null,
+        collaborationMode: null,
+        onSelectServiceTier,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch,
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startFast("/fast on");
+    });
+
+    expect(onSelectServiceTier).toHaveBeenCalledWith("fast");
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "addAssistantMessage",
+      threadId: "thread-1",
+      text: "快速模式已开启。",
+    });
+  });
+
+  it("localizes the interrupt assistant message", async () => {
+    const dispatch = vi.fn();
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        interfaceLanguage: "zh-CN",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {
+          "thread-1": "turn-1",
+        },
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch,
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.interruptTurn();
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "addAssistantMessage",
+      threadId: "thread-1",
+      text: "会话已停止。",
+    });
+  });
+
   it("uses turn/steer when steer mode is enabled and an active turn is present", async () => {
     const dispatch = vi.fn();
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);

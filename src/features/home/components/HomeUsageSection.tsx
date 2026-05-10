@@ -59,7 +59,7 @@ export function HomeUsageSection({
   usageWorkspaceId,
   usageWorkspaceOptions,
 }: HomeUsageSectionProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [chartWeekOffset, setChartWeekOffset] = useState(0);
   const usageCopy: HomeUsageCopy = {
     activeDays: t("home.usage.card.activeDays"),
@@ -132,6 +132,7 @@ export function HomeUsageSection({
     localUsageSnapshot,
     usageMetric,
     usageShowRemaining,
+    language,
   });
 
   const maxHistoricalWeekOffset = Math.max(0, Math.ceil(usageDays.length / 7) - 1);
