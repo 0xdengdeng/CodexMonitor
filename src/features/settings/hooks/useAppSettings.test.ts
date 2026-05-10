@@ -152,6 +152,62 @@ describe("useAppSettings", () => {
     expect(result.current.settings.uiScale).toBe(2.4);
   });
 
+  it("optimistically updates settings while save is pending", async () => {
+    getAppSettingsMock.mockResolvedValue({} as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let resolveSave: ((settings: AppSettings) => void) | undefined;
+    const pendingSave = new Promise<AppSettings>((resolve) => {
+      resolveSave = resolve;
+    });
+    updateAppSettingsMock.mockReturnValue(pendingSave);
+    const next: AppSettings = {
+      ...result.current.settings,
+      theme: "dark",
+    };
+
+    let savePromise: Promise<AppSettings>;
+    await act(async () => {
+      savePromise = result.current.saveSettings(next);
+    });
+
+    expect(result.current.settings.theme).toBe("dark");
+
+    const saved: AppSettings = {
+      ...next,
+      theme: "dim",
+    };
+    await act(async () => {
+      resolveSave?.(saved);
+      await savePromise;
+    });
+
+    expect(result.current.settings.theme).toBe("dim");
+  });
+
+  it("rolls back optimistic settings when save fails", async () => {
+    getAppSettingsMock.mockResolvedValue({ theme: "light" } as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.settings.theme).toBe("light");
+
+    updateAppSettingsMock.mockRejectedValue(new Error("save failed"));
+
+    await expect(
+      act(async () => {
+        await result.current.saveSettings({
+          ...result.current.settings,
+          theme: "dark",
+        });
+      }),
+    ).rejects.toThrow("save failed");
+
+    expect(result.current.settings.theme).toBe("light");
+  });
+
   it("surfaces doctor errors", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
     runCodexDoctorMock.mockRejectedValue(new Error("doctor fail"));

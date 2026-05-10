@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppSettings } from "@/types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
@@ -339,6 +339,7 @@ export function useAppSettings() {
   const defaultSettings = useMemo(() => buildDefaultSettings(), []);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
+  const saveGenerationRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -367,16 +368,33 @@ export function useAppSettings() {
   }, [defaultSettings]);
 
   const saveSettings = useCallback(async (next: AppSettings) => {
-    const normalized = normalizeAppSettings(next);
-    const saved = await updateAppSettings(normalized);
-    setSettings(
-      normalizeAppSettings({
-        ...defaultSettings,
-        ...saved,
-      }),
-    );
-    return saved;
-  }, [defaultSettings]);
+    const generation = saveGenerationRef.current + 1;
+    saveGenerationRef.current = generation;
+    const previous = settings;
+    const normalized = normalizeAppSettings({
+      ...defaultSettings,
+      ...next,
+    });
+    setSettings(normalized);
+
+    try {
+      const saved = await updateAppSettings(normalized);
+      if (saveGenerationRef.current === generation) {
+        setSettings(
+          normalizeAppSettings({
+            ...defaultSettings,
+            ...saved,
+          }),
+        );
+      }
+      return saved;
+    } catch (error) {
+      if (saveGenerationRef.current === generation) {
+        setSettings(previous);
+      }
+      throw error;
+    }
+  }, [defaultSettings, settings]);
 
   const doctor = useCallback(
     async (_codexBin: string | null, codexArgs: string | null) => {
