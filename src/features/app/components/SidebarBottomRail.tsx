@@ -105,7 +105,17 @@ export function SidebarBottomRail({
       <div className="sidebar-usage-panel">
         <div className="sidebar-usage-header">
           <div className="sidebar-usage-kicker">{t("sidebar.usage.title")}</div>
-          {creditsLabel && <div className="sidebar-usage-credits">{creditsLabel}</div>}
+          {!accountSignedIn ? (
+            <button
+              type="button"
+              className="ghost sidebar-usage-login"
+              onClick={onOpenEnterpriseAiSettings}
+            >
+              {t("sidebar.account.enterpriseSignInShort")}
+            </button>
+          ) : (
+            creditsLabel && <div className="sidebar-usage-credits">{creditsLabel}</div>
+          )}
         </div>
         <div className="sidebar-usage-list">
           <UsageRow

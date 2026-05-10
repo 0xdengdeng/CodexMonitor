@@ -1748,6 +1748,22 @@
   text-align: right;
 }
 
+.sidebar-usage-login {
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: var(--sidebar-small-radius);
+  color: var(--text-stronger);
+  font-size: 11px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--surface-card-muted) 78%, transparent);
+  border: 1px solid var(--border-subtle);
+}
+
+.sidebar-usage-login:hover {
+  background: color-mix(in srgb, var(--surface-card-muted) 90%, var(--accent-soft));
+  border-color: var(--border-strong);
+}
+
 .sidebar-usage-list {
   display: flex;
   flex-direction: column;

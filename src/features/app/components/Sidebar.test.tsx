@@ -138,6 +138,11 @@ describe("Sidebar", () => {
     render(
       <Sidebar
         {...baseProps}
+        enterpriseAi={{
+          tenantDomain: "free-bai",
+          status: "connected",
+          accountName: "Free-BAI",
+        }}
         accountRateLimits={{
           primary: {
             usedPercent: 62,
@@ -169,9 +174,52 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    const buttons = screen.getAllByRole("button", { name: "Sign in" });
+    fireEvent.click(buttons[1]);
 
     expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a sign in button in the usage panel when signed out", () => {
+    const onOpenEnterpriseAiSettings = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button", { name: "Sign in" });
+    fireEvent.click(buttons[0]);
+
+    expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows credits instead of usage login when signed in", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+        enterpriseAi={{
+          tenantDomain: "free-bai",
+          status: "connected",
+          accountName: "Free-BAI",
+        }}
+        accountRateLimits={{
+          primary: null,
+          secondary: null,
+          credits: {
+            hasCredits: true,
+            unlimited: false,
+            balance: "42",
+          },
+          planType: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/^Available credits:/)).toBeTruthy();
   });
 
   it("opens the account menu from the bottom rail", () => {
