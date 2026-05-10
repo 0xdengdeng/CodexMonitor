@@ -3,11 +3,11 @@
   flex-direction: column;
   gap: 10px;
   -webkit-app-region: no-drag;
-  padding: 10px var(--main-panel-padding) 20px;
+  padding: 12px var(--main-panel-padding) 20px;
   border-top: 1px solid var(--cm-border-default);
   background: var(--cm-surface-composer);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   grid-column: 1;
   grid-row: 3;
 }
@@ -27,8 +27,8 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 16px;
-  background: var(--cm-surface-panel);
+  border-radius: 12px;
+  background: var(--surface-card);
   border: 1px solid var(--cm-border-emphasis);
 }
 
@@ -102,9 +102,9 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--cm-border-emphasis);
-  background: var(--cm-surface-panel);
+  background: var(--surface-card);
 }
 
 .composer-followup-title {
@@ -131,7 +131,7 @@
   padding: 6px 11px;
   border-radius: 999px;
   border: 1px solid var(--cm-border-emphasis);
-  background: var(--cm-surface-panel-strong);
+  background: var(--surface-card);
   color: var(--text-muted);
 }
 
@@ -148,10 +148,10 @@
   position: relative;
   min-width: 0;
   border: 1px solid var(--cm-border-heavy);
-  background: var(--cm-surface-panel-elevated);
-  border-radius: 20px;
+  background: var(--surface-card);
+  border-radius: 14px;
   padding: 10px 12px 10px 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: none;
 }
 
 .composer-input-area.is-drag-over {
@@ -192,7 +192,7 @@
 
 .composer-attach {
   border: 1px solid var(--cm-border-strong);
-  background: var(--cm-surface-panel-solid);
+  background: var(--surface-card);
   color: var(--text-muted);
   padding: 0;
   border-radius: 999px;
@@ -207,7 +207,7 @@
 }
 
 .composer-attach:hover {
-  background: var(--cm-surface-panel-solid);
+  background: var(--surface-hover);
   color: var(--text-strong);
 }
 
@@ -350,7 +350,7 @@
 
 .composer-action {
   border: 1px solid var(--cm-border-emphasis);
-  background: var(--cm-surface-panel-strong);
+  background: var(--surface-card);
   color: var(--text-strong);
   padding: 0;
   border-radius: 999px;
@@ -674,7 +674,7 @@
   display: flex;
   align-items: center;
   padding-top: 10px;
-  border-top: 1px solid var(--cm-border-strong);
+  border-top: 1px solid var(--cm-border-default);
   gap: 12px;
 }
 
@@ -811,7 +811,7 @@
   padding: 4px 8px;
   border: 1px solid var(--button-secondary-border, var(--cm-border-default));
   border-radius: var(--cm-control-radius, 10px);
-  background: var(--cm-surface-panel-strong);
+  background: var(--surface-card);
   box-shadow: var(--control-shadow, none);
   width: max-content;
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;

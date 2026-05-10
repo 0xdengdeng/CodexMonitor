@@ -181,12 +181,15 @@ export function SidebarBottomRail({
             </button>
           {showDebugButton && (
             <button
-              className="ghost sidebar-utility-button"
+              className="ghost sidebar-labeled-button sidebar-utility-button"
               type="button"
               onClick={onOpenDebug}
               aria-label={t("sidebar.debug.open")}
             >
-              <ScrollText size={14} aria-hidden />
+              <span className="sidebar-labeled-button-icon" aria-hidden>
+                <ScrollText size={14} aria-hidden />
+              </span>
+              <span>{t("sidebar.debug.label")}</span>
             </button>
           )}
         </div>

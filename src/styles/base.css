@@ -1,6 +1,6 @@
 @import "./themes.css";
 
-.app.reduced-transparency {
+:root[data-theme="dark"] .app.reduced-transparency {
   --surface-sidebar: rgb(13, 20, 32);
   --surface-sidebar-opaque: rgb(13, 20, 32);
   --surface-topbar: rgb(11, 17, 28);
@@ -24,6 +24,34 @@
   --surface-bubble-user: rgb(54, 106, 191);
   --surface-context-core: rgb(11, 17, 28);
   --surface-popover: rgb(15, 23, 36);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .app.reduced-transparency {
+    --surface-sidebar: rgb(13, 20, 32);
+    --surface-sidebar-opaque: rgb(13, 20, 32);
+    --surface-topbar: rgb(11, 17, 28);
+    --surface-right-panel: rgb(12, 19, 31);
+    --surface-composer: rgb(11, 17, 28);
+    --surface-messages: rgb(9, 14, 24);
+    --surface-card: rgb(30, 42, 61);
+    --surface-card-strong: rgb(37, 51, 72);
+    --surface-card-muted: rgb(25, 36, 54);
+    --surface-item: rgb(23, 34, 52);
+    --surface-control: rgb(35, 49, 70);
+    --surface-control-hover: rgb(48, 68, 97);
+    --surface-control-disabled: rgb(25, 36, 54);
+    --surface-hover: rgb(44, 62, 90);
+    --surface-active: rgb(31, 54, 85);
+    --surface-approval: rgb(13, 21, 34);
+    --surface-debug: rgb(12, 19, 31);
+    --surface-command: rgb(12, 18, 29);
+    --surface-diff-card: rgb(16, 24, 39);
+    --surface-bubble: rgb(35, 48, 69);
+    --surface-bubble-user: rgb(54, 106, 191);
+    --surface-context-core: rgb(11, 17, 28);
+    --surface-popover: rgb(15, 23, 36);
+  }
 }
 
 * {
@@ -58,26 +86,26 @@ body {
   position: relative;
   --main-topbar-height: 44px;
   /* Shared AgentDesk chrome language */
-  --cm-surface-row: color-mix(in srgb, var(--surface-card) 44%, var(--surface-messages));
-  --cm-surface-panel-soft: color-mix(in srgb, var(--surface-card) 56%, var(--surface-messages));
-  --cm-surface-panel: color-mix(in srgb, var(--surface-card) 64%, var(--surface-messages));
-  --cm-surface-panel-strong: color-mix(in srgb, var(--surface-card) 72%, var(--surface-messages));
-  --cm-surface-panel-elevated: color-mix(in srgb, var(--surface-card) 78%, var(--surface-messages));
-  --cm-surface-panel-quiet: color-mix(in srgb, var(--surface-card) 80%, var(--surface-messages));
-  --cm-surface-panel-loud: color-mix(in srgb, var(--surface-card) 84%, var(--surface-messages));
-  --cm-surface-panel-hover: color-mix(in srgb, var(--surface-card) 90%, var(--surface-messages));
-  --cm-surface-panel-solid: color-mix(in srgb, var(--surface-card) 92%, var(--surface-messages));
-  --cm-surface-panel-active: color-mix(in srgb, var(--surface-active) 96%, var(--surface-messages));
-  --cm-surface-command-panel: color-mix(in srgb, var(--surface-command) 94%, var(--surface-messages));
-  --cm-surface-topbar: color-mix(in srgb, var(--surface-topbar) 86%, var(--surface-card) 14%);
-  --cm-surface-composer: color-mix(in srgb, var(--surface-composer) 98%, var(--surface-card) 2%);
-  --cm-border-soft: color-mix(in srgb, var(--border-subtle) 72%, transparent);
-  --cm-border-default: color-mix(in srgb, var(--border-subtle) 78%, transparent);
-  --cm-border-strong: color-mix(in srgb, var(--border-subtle) 82%, transparent);
-  --cm-border-emphasis: color-mix(in srgb, var(--border-subtle) 84%, transparent);
-  --cm-border-elevated: color-mix(in srgb, var(--border-subtle) 86%, transparent);
-  --cm-border-heavy: color-mix(in srgb, var(--border-subtle) 88%, transparent);
-  --cm-border-hover: color-mix(in srgb, var(--border-subtle) 92%, transparent);
+  --cm-surface-row: color-mix(in srgb, var(--surface-card) 78%, var(--surface-messages));
+  --cm-surface-panel-soft: color-mix(in srgb, var(--surface-card) 86%, var(--surface-messages));
+  --cm-surface-panel: color-mix(in srgb, var(--surface-card) 90%, var(--surface-messages));
+  --cm-surface-panel-strong: color-mix(in srgb, var(--surface-card) 94%, var(--surface-messages));
+  --cm-surface-panel-elevated: var(--surface-card);
+  --cm-surface-panel-quiet: color-mix(in srgb, var(--surface-card) 88%, var(--surface-messages));
+  --cm-surface-panel-loud: var(--surface-card);
+  --cm-surface-panel-hover: color-mix(in srgb, var(--surface-hover) 64%, var(--surface-card));
+  --cm-surface-panel-solid: var(--surface-card);
+  --cm-surface-panel-active: color-mix(in srgb, var(--surface-active) 86%, var(--surface-card));
+  --cm-surface-command-panel: var(--surface-command);
+  --cm-surface-topbar: var(--surface-topbar);
+  --cm-surface-composer: var(--surface-composer);
+  --cm-border-soft: color-mix(in srgb, var(--border-subtle) 64%, transparent);
+  --cm-border-default: color-mix(in srgb, var(--border-subtle) 86%, transparent);
+  --cm-border-strong: color-mix(in srgb, var(--border-strong) 78%, transparent);
+  --cm-border-emphasis: color-mix(in srgb, var(--border-strong) 84%, transparent);
+  --cm-border-elevated: color-mix(in srgb, var(--border-strong) 88%, transparent);
+  --cm-border-heavy: color-mix(in srgb, var(--border-stronger) 88%, transparent);
+  --cm-border-hover: color-mix(in srgb, var(--border-stronger) 92%, transparent);
   --cm-border-contrast: color-mix(in srgb, var(--border-subtle) 100%, transparent);
   --cm-border-accent: color-mix(in srgb, var(--border-accent) 36%, transparent);
   --cm-border-accent-strong: color-mix(in srgb, var(--border-accent) 46%, transparent);
