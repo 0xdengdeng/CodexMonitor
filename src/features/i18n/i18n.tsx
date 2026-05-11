@@ -19,9 +19,7 @@ export const SUPPORTED_INTERFACE_LANGUAGES: InterfaceLanguagePreference[] = [
 
 const enMessages = {
   "app.name": "AgentDesk",
-  "home.kicker": "AI project workbench",
-  "home.title": "Start from a project. Ship with a plan.",
-  "home.subtitle": "Let an agent read your project, turn plain-language needs into a plan, and wait for your confirmation before changing files.",
+  "home.myProjects": "My Projects",
   "home.journey.aria": "Getting started path",
   "home.journey.title": "Start in this order",
   "home.journey.stepLogin": "Sign in",
@@ -1565,9 +1563,7 @@ const enMessages = {
 
 const zhCnMessages: Record<I18nKey, string> = {
   "app.name": "启航AI智慧平台",
-  "home.kicker": "AI 项目工作台",
-  "home.title": "从项目开始，把需求变成可确认的计划。",
-  "home.subtitle": "让智能体读取你的项目，把一句需求变成计划；确认后，才会修改文件。",
+  "home.myProjects": "我的项目",
   "home.journey.aria": "开始使用路径",
   "home.journey.title": "按这个顺序开始",
   "home.journey.stepLogin": "登录账号",

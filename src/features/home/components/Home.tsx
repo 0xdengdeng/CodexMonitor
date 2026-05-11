@@ -56,70 +56,21 @@ export function Home({
   onSelectThread,
 }: HomeProps) {
   const { t } = useI18n();
-  const journeySteps = [
-    t("home.journey.stepLogin"),
-    t("home.journey.stepProject"),
-    t("home.journey.stepNeed"),
-    t("home.journey.stepConfirm"),
-  ];
 
   return (
     <div className="home">
-      <section className="home-hero">
-        <div className="home-hero-copy">
-          <div className="home-kicker">{t("home.kicker")}</div>
-          <h1 className="home-title">{t("home.title")}</h1>
-          <p className="home-subtitle">{t("home.subtitle")}</p>
-        </div>
-        <div className="home-journey-card" aria-label={t("home.journey.aria")}>
-          <div className="home-journey-title">{t("home.journey.title")}</div>
-          <div className="home-journey-list">
-            {journeySteps.map((step, index) => (
-              <div className="home-journey-step" key={step}>
-                <span className="home-journey-index">{index + 1}</span>
-                <span>{step}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="home-workbench">
-        <div className="home-command-panel">
-          <div className="home-command-header">
-            <div>
-              <div className="home-section-title">{t("home.command.title")}</div>
-              <div className="home-command-subtitle">{t("home.command.subtitle")}</div>
-            </div>
-            <div className="home-command-badge">{t("home.command.badge")}</div>
-          </div>
-          <div className="home-command-surface">
-            <div className="home-command-field-label">{t("home.command.fieldLabel")}</div>
-            <div className="home-command-placeholder">{t("home.command.placeholder")}</div>
-            <div className="home-command-safety" aria-label={t("home.guard.aria")}>
-              <span className="home-guard-indicator" aria-hidden />
-              <span>
-                <strong>{t("home.guard.title")}</strong>
-                {t("home.guard.copy")}
-              </span>
-            </div>
-            <div className="home-command-steps" aria-label={t("home.command.stepsAria")}>
-              <span>{t("home.command.stepProject")}</span>
-              <span>{t("home.command.stepPlan")}</span>
-              <span>{t("home.command.stepApply")}</span>
-            </div>
-          </div>
-          <HomeActions
-            onAddWorkspace={onAddWorkspace}
-            onAddWorkspaceFromUrl={onAddWorkspaceFromUrl}
-          />
-        </div>
-        <HomeLatestAgentsSection
-          latestAgentRuns={latestAgentRuns}
-          isLoadingLatestAgents={isLoadingLatestAgents}
-          onSelectThread={onSelectThread}
+      <header className="home-top">
+        <h1 className="home-top-title">{t("home.myProjects")}</h1>
+        <HomeActions
+          onAddWorkspace={onAddWorkspace}
+          onAddWorkspaceFromUrl={onAddWorkspaceFromUrl}
         />
-      </section>
+      </header>
+      <HomeLatestAgentsSection
+        latestAgentRuns={latestAgentRuns}
+        isLoadingLatestAgents={isLoadingLatestAgents}
+        onSelectThread={onSelectThread}
+      />
       <HomeUsageSection
         accountInfo={accountInfo}
         accountRateLimits={accountRateLimits}

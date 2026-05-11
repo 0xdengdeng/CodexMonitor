@@ -60,6 +60,35 @@
    - 在 `SettingsSectionContainers.tsx` 加回对应 `if (activeSection === "xxx")` 分支
    - 在 `i18n.tsx` 加回 `settings.nav.{xxx}` 中英文 key
 
+### Cut #2:Home 首屏砍掉营销 hero / journey / command-panel
+
+**砍掉**:
+- Hero(kicker + title + subtitle):"AI project workbench / Start from a project..."
+- Journey card(4 步引导):Sign in → Use a project → Describe → Confirm
+- Command panel:占位的"告诉 AI 你需要什么"假输入框
+
+**原因**:员工每天打开看的是最近项目,不是营销文案。**新员工的引导靠销售上门现场教**,不靠产品自己讲。
+
+**改成**:简单顶部标题 "我的项目" + 添加项目按钮,然后直接是最近的 agent 运行列表 + 用量。
+
+**i18n key 已删除**:
+- `home.kicker`(中英)
+- `home.title`(中英)
+- `home.subtitle`(中英)
+
+**i18n key 暂留(下个 cleanup commit 清)**:
+- `home.journey.*`(5 个)
+- `home.command.*`(8 个)
+- `home.guard.*`(3 个)
+
+**底层保留**:
+- ✅ `HomeActions` / `HomeLatestAgentsSection` / `HomeUsageSection` 全部保留并继续展示
+- ✅ `home.css` 类名(`home-hero` / `home-journey-card` / `home-command-panel`)在 CSS 文件里仍在,但 Home.tsx 不再渲染。CSS 后续清理。
+
+**恢复方法**:
+1. **完整恢复**:`git revert <commit-hash>`
+2. **手动恢复**:从 git 历史拉回旧 Home.tsx,加回 i18n key 即可。
+
 ---
 
 ## 待砍未砍清单(进行中)
