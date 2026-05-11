@@ -10,6 +10,9 @@
 - **短码 / 邀请链接登录**:替代 `sk-xxxx` 复制粘贴。当前 key 登录销售可现场教,暂不优先。
 - **模板库 / 起手项目**:先验证空白起步 + 少量预置样板项目的效果,再决定要不要做完整模板库。
 
+## 工程跟进(已铺路待扩散)
+- **错误信息人话化扩散**:Sprint 1 收尾加了 `src/utils/friendlyError.ts` + `pushFriendlyError(error)`,并把 `PromptPanel.tsx` 的 `window.alert` 替换为 toast 兜底。但项目里仍有 **~148 处** 直接显示 `error.message` 的位置(grep `error\.message|err\.message|e\.message`)。逐步用 `pushFriendlyError` 替换,优先 toast / banner 这类用户能看到的;catch 里只打日志的不动。
+
 ## 战略层面
 - **员工视角访谈**:目前 5 个访谈都是老板,使用者视角缺失,需要补访谈来纠正产品判断。
 - **多模型抽象 / 国产模型支持**:对冲 GPT 中转业务的不可持续风险。

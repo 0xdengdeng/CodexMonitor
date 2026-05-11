@@ -21,6 +21,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useI18n } from "@/features/i18n/i18n";
+import { pushFriendlyError } from "@utils/friendlyError";
 
 type PromptPanelProps = {
   prompts: CustomPromptOption[];
@@ -98,7 +99,7 @@ export function PromptPanel({
   const normalizedQuery = query.trim().toLowerCase();
 
   const showError = (error: unknown) => {
-    window.alert(error instanceof Error ? error.message : String(error));
+    pushFriendlyError(error);
   };
 
   const resetEditorState = () => {
