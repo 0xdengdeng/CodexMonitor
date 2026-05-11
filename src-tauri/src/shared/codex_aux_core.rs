@@ -300,7 +300,7 @@ pub(crate) async fn codex_doctor_core(
         .clone()
         .filter(|value| !value.trim().is_empty())
         .or(default_args);
-    let path_env = build_codex_path_env(resolved.as_deref());
+    let path_env = build_codex_path_env();
     let version = check_codex_installation(resolved.clone()).await?;
     let mut command = build_codex_command_with_bin(
         resolved.clone(),

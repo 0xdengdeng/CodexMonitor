@@ -562,7 +562,7 @@ impl WorkspaceSession {
     }
 }
 
-pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
+pub(crate) fn build_codex_path_env() -> Option<String> {
     let mut paths: Vec<PathBuf> = env::var_os("PATH")
         .map(|value| env::split_paths(&value).collect())
         .unwrap_or_default();
@@ -624,12 +624,6 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
         }
     }
 
-    if let Some(bin_path) = codex_bin.filter(|value| !value.trim().is_empty()) {
-        if let Some(parent) = Path::new(bin_path).parent() {
-            extras.push(parent.to_path_buf());
-        }
-    }
-
     for extra in extras {
         if !paths.iter().any(|path| path == &extra) {
             paths.push(extra);
@@ -655,7 +649,7 @@ pub(crate) fn build_codex_command_with_bin(
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "codex".into());
 
-    let path_env = build_codex_path_env(codex_bin.as_deref());
+    let path_env = build_codex_path_env();
     let mut command_args = parse_codex_args(codex_args)?;
     command_args.extend(args);
 
