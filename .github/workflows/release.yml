@@ -12,8 +12,17 @@ env:
 
 jobs:
   build_macos:
+    name: macOS bundles (${{ matrix.arch }})
     runs-on: macos-latest
     environment: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            arch: aarch64
+          - target: x86_64-apple-darwin
+            arch: x86_64
     env:
       CODESIGN_IDENTITY: ${{ vars.CODESIGN_IDENTITY }}
       NOTARY_PROFILE_NAME: ${{ vars.NOTARY_PROFILE_NAME }}
@@ -35,17 +44,25 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          key: ${{ matrix.target }}
 
       - name: Install CMake
         run: brew install cmake
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Sync Codex runtime sidecar
+        env:
+          AGENTDESK_CODEX_TARGET: ${{ matrix.target }}
+        run: npm run sync:codex-runtime:release
 
       - name: Import signing certificate
         env:
@@ -91,35 +108,38 @@ jobs:
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
-          npm run tauri -- build --bundles app
-
-      - name: Build daemon binaries
-        run: |
-          set -euo pipefail
-          cd src-tauri
-          cargo build --release --bin agentdesk-daemon --bin agentdesk-daemonctl
+          npm run tauri -- build --target ${{ matrix.target }} --bundles app
 
       - name: Bundle OpenSSL and re-sign
+        env:
+          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/启航AI智慧平台.app
+          DAEMON_BINARY_PATH: src-tauri/target/${{ matrix.target }}/release/agentdesk-daemon
+          DAEMONCTL_BINARY_PATH: src-tauri/target/${{ matrix.target }}/release/agentdesk-daemonctl
+          MAC_TARGET_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           CODESIGN_IDENTITY="$CODESIGN_IDENTITY" \
-            scripts/macos-fix-openssl.sh
+            scripts/macos-fix-openssl.sh "$APP_PATH"
 
       - name: Notarize and staple
+        env:
+          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/启航AI智慧平台.app
+          ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
-          ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/启航AI智慧平台.app" \
-            AgentDesk.zip
+          ditto -c -k --keepParent "$APP_PATH" "AgentDesk-${ARCH}-notarize.zip"
 
-          xcrun notarytool submit AgentDesk.zip \
+          xcrun notarytool submit "AgentDesk-${ARCH}-notarize.zip" \
             --keychain-profile "$NOTARY_PROFILE_NAME" \
             --wait
 
-          xcrun stapler staple \
-            "src-tauri/target/release/bundle/macos/启航AI智慧平台.app"
+          xcrun stapler staple "$APP_PATH"
 
       - name: Package artifacts
+        env:
+          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/启航AI智慧平台.app
+          BUNDLE_DIR: src-tauri/target/${{ matrix.target }}/release/bundle/macos
+          ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           VERSION=$(python3 - <<'PY'
@@ -133,41 +153,38 @@ jobs:
 
           mkdir -p release-artifacts release-artifacts/dmg-root
           rm -rf "release-artifacts/dmg-root/启航AI智慧平台.app"
-          ditto "src-tauri/target/release/bundle/macos/启航AI智慧平台.app" \
-            "release-artifacts/dmg-root/启航AI智慧平台.app"
+          ditto "$APP_PATH" "release-artifacts/dmg-root/启航AI智慧平台.app"
 
-          ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/启航AI智慧平台.app" \
-            release-artifacts/AgentDesk.zip
+          ditto -c -k --keepParent "$APP_PATH" "release-artifacts/AgentDesk-${ARCH}.zip"
 
           hdiutil create -volname "启航AI智慧平台" \
             -srcfolder release-artifacts/dmg-root \
             -ov -format UDZO \
-            release-artifacts/AgentDesk_${VERSION}_aarch64.dmg
+            "release-artifacts/AgentDesk_${VERSION}_${ARCH}.dmg"
 
           COPYFILE_DISABLE=1 tar -czf \
-            "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz" \
-            -C src-tauri/target/release/bundle/macos "启航AI智慧平台.app"
+            "${BUNDLE_DIR}/AgentDesk.app.tar.gz" \
+            -C "${BUNDLE_DIR}" "启航AI智慧平台.app"
 
           npm run tauri signer sign -- \
             -f "$HOME/.tauri/agentdesk.key" \
             -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
-            "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz"
+            "${BUNDLE_DIR}/AgentDesk.app.tar.gz"
 
-          cp "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz" \
-            release-artifacts/AgentDesk.app.tar.gz
-          cp "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz.sig" \
-            release-artifacts/AgentDesk.app.tar.gz.sig
+          cp "${BUNDLE_DIR}/AgentDesk.app.tar.gz" \
+            "release-artifacts/AgentDesk-${ARCH}.app.tar.gz"
+          cp "${BUNDLE_DIR}/AgentDesk.app.tar.gz.sig" \
+            "release-artifacts/AgentDesk-${ARCH}.app.tar.gz.sig"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-artifacts
+          name: macos-artifacts-${{ matrix.arch }}
           path: |
-            release-artifacts/AgentDesk.zip
-            release-artifacts/AgentDesk_*_aarch64.dmg
-            release-artifacts/AgentDesk.app.tar.gz
-            release-artifacts/AgentDesk.app.tar.gz.sig
+            release-artifacts/AgentDesk-${{ matrix.arch }}.zip
+            release-artifacts/AgentDesk_*_${{ matrix.arch }}.dmg
+            release-artifacts/AgentDesk-${{ matrix.arch }}.app.tar.gz
+            release-artifacts/AgentDesk-${{ matrix.arch }}.app.tar.gz.sig
 
   build_linux:
     name: linux bundles (${{ matrix.arch }})
@@ -326,8 +343,9 @@ jobs:
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
-          name: macos-artifacts
+          pattern: macos-artifacts-*
           path: release-artifacts
+          merge-multiple: true
 
       - name: Download Linux bundles
         uses: actions/download-artifact@v4
@@ -389,7 +407,6 @@ jobs:
           PY
           )
 
-          SIGNATURE=$(cat release-artifacts/AgentDesk.app.tar.gz.sig)
           LAST_TAG=$(git tag --sort=-version:refname \
             | grep -v "^v${VERSION}$" \
             | head -n 1 || true)
@@ -451,19 +468,6 @@ jobs:
           def release_url(filename):
             return f"https://github.com/{release_repository}/releases/download/v${VERSION}/{quote(filename)}"
 
-          platforms = {
-            "darwin-aarch64": {
-              "url": release_url("AgentDesk.app.tar.gz"),
-              "signature": "${SIGNATURE}",
-            }
-          }
-
-          appimages = list(artifacts_dir.rglob("*.AppImage.tar.gz"))
-          if not appimages:
-            appimages = list(artifacts_dir.rglob("*.AppImage"))
-          if not appimages:
-            raise SystemExit("No AppImage artifacts found for latest.json")
-
           def detect_arch(name):
             lowered = name.lower()
             if "aarch64" in lowered or "arm64" in lowered:
@@ -471,6 +475,28 @@ jobs:
             if "x86_64" in lowered or "amd64" in lowered:
               return "x86_64"
             return None
+
+          platforms = {}
+          macos_tarballs = sorted(artifacts_dir.glob("AgentDesk-*.app.tar.gz"))
+          if not macos_tarballs:
+            raise SystemExit("No macOS artifacts (AgentDesk-*.app.tar.gz) found for latest.json")
+          for tarball in macos_tarballs:
+            arch = detect_arch(tarball.name)
+            if not arch:
+              raise SystemExit(f"Cannot detect arch from macOS artifact: {tarball.name}")
+            sig_path = tarball.with_suffix(tarball.suffix + ".sig")
+            if not sig_path.exists():
+              raise SystemExit(f"Missing signature for {tarball.name}")
+            platforms[f"darwin-{arch}"] = {
+              "url": release_url(tarball.name),
+              "signature": sig_path.read_text().strip(),
+            }
+
+          appimages = list(artifacts_dir.rglob("*.AppImage.tar.gz"))
+          if not appimages:
+            appimages = list(artifacts_dir.rglob("*.AppImage"))
+          if not appimages:
+            raise SystemExit("No AppImage artifacts found for latest.json")
 
           for appimage in appimages:
             arch = detect_arch(appimage.name)
@@ -570,9 +596,23 @@ jobs:
 
           shopt -s nullglob globstar
           appimages=(release-artifacts/**/*.AppImage*)
+          mapfile -t macos_zips < <(find release-artifacts -type f -name 'AgentDesk-*.zip' | sort)
+          mapfile -t macos_dmgs < <(find release-artifacts -type f -name 'AgentDesk_*.dmg' | sort)
+          mapfile -t macos_tarballs < <(find release-artifacts -type f -name 'AgentDesk-*.app.tar.gz' | sort)
+          mapfile -t macos_sigs < <(find release-artifacts -type f -name 'AgentDesk-*.app.tar.gz.sig' | sort)
           mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
           mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
           mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
+          if [ ${#macos_tarballs[@]} -eq 0 ]; then
+            echo "No macOS .app.tar.gz artifacts found for release upload"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          if [ ${#macos_dmgs[@]} -eq 0 ]; then
+            echo "No macOS .dmg artifacts found for release upload"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
           if [ ${#rpms[@]} -eq 0 ]; then
             echo "No RPM artifacts found for release upload"
             find release-artifacts -type f | sort
@@ -593,10 +633,10 @@ jobs:
             --title "v${VERSION}" \
             --notes-file release-artifacts/release-notes.md \
             --target "$GITHUB_SHA" \
-            release-artifacts/AgentDesk.zip \
-            release-artifacts/AgentDesk_*_aarch64.dmg \
-            release-artifacts/AgentDesk.app.tar.gz \
-            release-artifacts/AgentDesk.app.tar.gz.sig \
+            "${macos_zips[@]}" \
+            "${macos_dmgs[@]}" \
+            "${macos_tarballs[@]}" \
+            "${macos_sigs[@]}" \
             "${appimages[@]}" \
             "${rpms[@]}" \
             "${windows_exes[@]}" \
