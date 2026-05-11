@@ -36,9 +36,6 @@ export function DebugPanel({
   variant = "dock",
 }: DebugPanelProps) {
   const { t } = useI18n();
-  if (!FEATURE_VISIBILITY.debugPanel) {
-    return null;
-  }
   const isVisible = variant === "full" || isOpen;
 
   type FormattedDebugEntry = DebugEntry & {
@@ -89,7 +86,7 @@ export function DebugPanel({
     return nextFormatted;
   }, [entries, isVisible]);
 
-  if (!isVisible) {
+  if (!FEATURE_VISIBILITY.debugPanel || !isVisible) {
     return null;
   }
 
