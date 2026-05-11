@@ -25,7 +25,6 @@ use crate::types::WorkspaceEntry;
 async fn resolve_command_codex_runtime(
     _state: &AppState,
     app: &AppHandle,
-    _requested_codex_bin: Option<String>,
 ) -> Result<runtime::ResolvedCodexRuntime, String> {
     runtime::resolve_codex_runtime(app, None)
 }
@@ -72,12 +71,11 @@ pub(crate) async fn spawn_workspace_session(
 
 #[tauri::command]
 pub(crate) async fn codex_doctor(
-    codex_bin: Option<String>,
     codex_args: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
-    let codex_runtime = resolve_command_codex_runtime(&state, &app, codex_bin).await?;
+    let codex_runtime = resolve_command_codex_runtime(&state, &app).await?;
     crate::shared::codex_aux_core::codex_doctor_core(
         &state.app_settings,
         Some(codex_runtime.bin),
@@ -88,13 +86,10 @@ pub(crate) async fn codex_doctor(
 
 #[tauri::command]
 pub(crate) async fn codex_update(
-    codex_bin: Option<String>,
-    codex_args: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
-    let _ = codex_args;
-    let codex_runtime = resolve_command_codex_runtime(&state, &app, codex_bin).await?;
+    let codex_runtime = resolve_command_codex_runtime(&state, &app).await?;
     let version = check_codex_installation(Some(codex_runtime.bin))
         .await
         .ok()

@@ -404,8 +404,8 @@ export function useAppSettings() {
   }, [defaultSettings, setSettingsState]);
 
   const doctor = useCallback(
-    async (_codexBin: string | null, codexArgs: string | null) => {
-      return runCodexDoctor(null, codexArgs);
+    async (codexArgs: string | null) => {
+      return runCodexDoctor(codexArgs);
     },
     [],
   );

@@ -947,17 +947,13 @@ export async function setMenuAccelerators(
 }
 
 export async function runCodexDoctor(
-  codexBin: string | null,
   codexArgs: string | null,
 ): Promise<CodexDoctorResult> {
-  return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
+  return invoke<CodexDoctorResult>("codex_doctor", { codexArgs });
 }
 
-export async function runCodexUpdate(
-  codexBin: string | null,
-  codexArgs: string | null,
-): Promise<CodexUpdateResult> {
-  return invoke<CodexUpdateResult>("codex_update", { codexBin, codexArgs });
+export async function runCodexUpdate(): Promise<CodexUpdateResult> {
+  return invoke<CodexUpdateResult>("codex_update");
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {

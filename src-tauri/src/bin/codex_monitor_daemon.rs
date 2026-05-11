@@ -1305,7 +1305,6 @@ impl DaemonState {
 
     async fn codex_doctor(
         &self,
-        _codex_bin: Option<String>,
         codex_args: Option<String>,
     ) -> Result<Value, String> {
         let codex_runtime = codex_runtime::resolve_codex_runtime_from_current_exe()?;

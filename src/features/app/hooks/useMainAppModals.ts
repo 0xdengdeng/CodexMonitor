@@ -108,14 +108,8 @@ type UseMainAppModalsArgs = {
     openAppIconById: Record<string, string>;
     queueSaveSettings: (next: AppSettings) => Promise<unknown>;
     handleToggleAutomaticAppUpdateChecks: () => void;
-    doctor: (
-      codexBin: string | null,
-      codexArgs: string | null,
-    ) => Promise<CodexDoctorResult>;
-    codexUpdate?: (
-      codexBin: string | null,
-      codexArgs: string | null,
-    ) => Promise<CodexUpdateResult>;
+    doctor: (codexArgs: string | null) => Promise<CodexDoctorResult>;
+    codexUpdate?: () => Promise<CodexUpdateResult>;
     updateWorkspaceSettings: (
       id: string,
       settings: Partial<WorkspaceSettings>,

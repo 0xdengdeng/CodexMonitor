@@ -26,14 +26,8 @@ type UseSettingsCodexSectionArgs = {
   appSettings: AppSettings;
   projects: WorkspaceInfo[];
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
-  onRunDoctor: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexDoctorResult>;
-  onRunCodexUpdate?: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexUpdateResult>;
+  onRunDoctor: (codexArgs: string | null) => Promise<CodexDoctorResult>;
+  onRunCodexUpdate?: () => Promise<CodexUpdateResult>;
 };
 
 export type SettingsCodexSectionProps = {
@@ -252,7 +246,7 @@ export const useSettingsCodexSection = ({
   const handleRunDoctor = async () => {
     setDoctorState({ status: "running", result: null });
     try {
-      const result = await onRunDoctor(null, nextCodexArgs);
+      const result = await onRunDoctor(nextCodexArgs);
       setDoctorState({ status: "done", result });
     } catch (error) {
       setDoctorState({
@@ -292,7 +286,7 @@ export const useSettingsCodexSection = ({
         return;
       }
 
-      const result = await onRunCodexUpdate(null, nextCodexArgs);
+      const result = await onRunCodexUpdate();
       setCodexUpdateState({ status: "done", result });
     } catch (error) {
       setCodexUpdateState({

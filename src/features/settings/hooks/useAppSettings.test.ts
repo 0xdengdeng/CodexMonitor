@@ -268,10 +268,10 @@ describe("useAppSettings", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/codex", "--profile test")).rejects.toThrow(
+    await expect(result.current.doctor("--profile test")).rejects.toThrow(
       "doctor fail",
     );
-    expect(runCodexDoctorMock).toHaveBeenCalledWith(null, "--profile test");
+    expect(runCodexDoctorMock).toHaveBeenCalledWith("--profile test");
   });
 
   it("returns doctor results", async () => {
@@ -292,9 +292,7 @@ describe("useAppSettings", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/codex", null)).resolves.toEqual(
-      response,
-    );
-    expect(runCodexDoctorMock).toHaveBeenCalledWith(null, null);
+    await expect(result.current.doctor(null)).resolves.toEqual(response);
+    expect(runCodexDoctorMock).toHaveBeenCalledWith(null);
   });
 });
