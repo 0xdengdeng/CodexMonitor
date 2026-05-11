@@ -5,7 +5,9 @@ use serde_json::{json, Value};
 use tauri::State;
 
 use crate::shared::runtime_secret_core;
-use crate::shared::settings_core::update_app_settings_core;
+use crate::shared::settings_core::{
+    update_app_settings_core, update_app_settings_core_allow_managed_runtime_clear,
+};
 use crate::state::AppState;
 use crate::types::{
     AppSettings, EnterpriseAiConfig, EnterpriseAiLoginResult, EnterpriseAiStatus,
@@ -176,6 +178,18 @@ async fn persist_settings(
     update_app_settings_core(settings, &state.app_settings, &state.settings_path).await
 }
 
+async fn persist_settings_allow_managed_runtime_clear(
+    settings: AppSettings,
+    state: &State<'_, AppState>,
+) -> Result<AppSettings, String> {
+    update_app_settings_core_allow_managed_runtime_clear(
+        settings,
+        &state.app_settings,
+        &state.settings_path,
+    )
+    .await
+}
+
 async fn fetch_json(path: &str, cookie: &str) -> Result<Value, String> {
     let client = reqwest::Client::builder()
         .build()
@@ -283,7 +297,7 @@ pub(crate) async fn enterprise_ai_logout(
     next.enterprise_ai = EnterpriseAiConfig::default();
     next.managed_runtime.enabled = false;
     next.managed_runtime.base_url = None;
-    persist_settings(next, &state).await
+    persist_settings_allow_managed_runtime_clear(next, &state).await
 }
 
 #[tauri::command]

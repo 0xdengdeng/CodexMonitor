@@ -55,15 +55,23 @@ type SettingsCodexSectionProps = {
   enterpriseAiLoading: boolean;
   enterpriseAiSaving: boolean;
   enterpriseAiError: string | null;
+  developerModeEnabled: boolean;
+  developerBaseUrlDraft: string;
+  developerApiKeyDraft: string;
+  developerRuntimeSaving: boolean;
+  developerRuntimeError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
   onSetEnterpriseTenantDomainDraft: Dispatch<SetStateAction<string>>;
   onSetEnterpriseApiKeyDraft: Dispatch<SetStateAction<string>>;
+  onSetDeveloperBaseUrlDraft: Dispatch<SetStateAction<string>>;
+  onSetDeveloperApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
   onEnterpriseAiLogin: () => Promise<void>;
   onEnterpriseAiValidate: () => Promise<void>;
   onEnterpriseAiLogout: () => Promise<void>;
   onRefreshEnterpriseAiUsage: () => Promise<void>;
+  onSaveDeveloperRuntime: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -157,15 +165,23 @@ export function SettingsCodexSection({
   enterpriseAiLoading,
   enterpriseAiSaving,
   enterpriseAiError,
+  developerModeEnabled,
+  developerBaseUrlDraft,
+  developerApiKeyDraft,
+  developerRuntimeSaving,
+  developerRuntimeError,
   onSetCodexArgsDraft,
   onSetEnterpriseTenantDomainDraft,
   onSetEnterpriseApiKeyDraft,
+  onSetDeveloperBaseUrlDraft,
+  onSetDeveloperApiKeyDraft,
   onSetGlobalAgentsContent,
   onSetGlobalConfigContent,
   onEnterpriseAiLogin,
   onEnterpriseAiValidate,
   onEnterpriseAiLogout,
   onRefreshEnterpriseAiUsage,
+  onSaveDeveloperRuntime,
   onSaveCodexSettings,
   onRunDoctor,
   onRunCodexUpdate,
@@ -372,6 +388,54 @@ export function SettingsCodexSection({
             >
               {enterpriseAiLoading ? t("settings.common.loading") : t("settings.codex.enterpriseRefreshUsage")}
             </button>
+          </div>
+        )}
+        {developerModeEnabled && (
+          <div className="settings-runtime-card settings-developer-runtime-card">
+            <div className="settings-runtime-title">
+              {t("settings.codex.developerModeTitle")}
+            </div>
+            <div className="settings-help">{t("settings.codex.developerModeHelp")}</div>
+            <label className="settings-field-label" htmlFor="developer-runtime-base-url">
+              {t("settings.codex.developerBaseUrl")}
+            </label>
+            <input
+              id="developer-runtime-base-url"
+              className="settings-input"
+              value={developerBaseUrlDraft}
+              placeholder={t("settings.codex.developerBaseUrlPlaceholder")}
+              onChange={(event) => onSetDeveloperBaseUrlDraft(event.target.value)}
+            />
+            <label className="settings-field-label" htmlFor="developer-runtime-api-key">
+              {t("settings.codex.managedRuntimeApiKey")}
+            </label>
+            <div className="settings-field-row">
+              <input
+                id="developer-runtime-api-key"
+                className="settings-input"
+                type="password"
+                autoComplete="off"
+                value={developerApiKeyDraft}
+                placeholder={t("settings.codex.developerApiKeyPlaceholder")}
+                onChange={(event) => onSetDeveloperApiKeyDraft(event.target.value)}
+              />
+              <button
+                type="button"
+                className="primary settings-button-compact"
+                disabled={developerRuntimeSaving}
+                onClick={() => {
+                  void onSaveDeveloperRuntime();
+                }}
+              >
+                {developerRuntimeSaving
+                  ? t("settings.common.saving")
+                  : t("settings.codex.developerSave")}
+              </button>
+            </div>
+            <div className="settings-help">{t("settings.codex.developerSecretHelp")}</div>
+            {developerRuntimeError && (
+              <div className="settings-agents-error">{developerRuntimeError}</div>
+            )}
           </div>
         )}
         <label className="settings-field-label" htmlFor="codex-args">

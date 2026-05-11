@@ -51,6 +51,7 @@ import {
   enterpriseAiLogout,
   enterpriseAiUsage,
   enterpriseAiValidate,
+  isDeveloperModeEnabled,
   getRuntimeApiKeyStatus,
   setRuntimeApiKey,
   updateAgent,
@@ -506,12 +507,14 @@ describe("tauri invoke wrappers", () => {
     await getRuntimeApiKeyStatus();
     await setRuntimeApiKey("sk-test");
     await clearRuntimeApiKey();
+    await isDeveloperModeEnabled();
 
     expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_status");
     expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_set", {
       apiKey: "sk-test",
     });
     expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_clear");
+    expect(invokeMock).toHaveBeenCalledWith("is_developer_mode_enabled");
   });
 
   it("invokes enterprise ai wrappers", async () => {

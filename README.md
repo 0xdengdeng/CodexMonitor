@@ -228,6 +228,12 @@ npm run tauri:build
 
 Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
+### Desktop OTA Updates
+
+Installed desktop clients update through the Tauri updater, so users do not need to return to the website and download a new installer manually. The release workflow publishes signed updater artifacts plus `latest.json` to GitHub Releases.
+
+See `docs/ota-release.md` for the release secrets, signing setup, and smoke-test checklist.
+
 ### Windows (opt-in)
 
 Windows builds are opt-in and use a separate Tauri config file to avoid macOS-only window effects.

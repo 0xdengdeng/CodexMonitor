@@ -3,7 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useI18n } from "@/features/i18n/i18n";
 
-const GITHUB_URL = "https://github.com/Dimillian/CodexMonitor";
+const GITHUB_URL = "https://github.com/0xdengdeng/CodexMonitor";
 const TWITTER_URL = "https://x.com/dimillian";
 
 export function AboutView() {

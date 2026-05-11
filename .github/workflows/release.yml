@@ -7,6 +7,9 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  RELEASE_REPOSITORY: 0xdengdeng/CodexMonitor
+
 jobs:
   build_macos:
     runs-on: macos-latest
@@ -443,8 +446,10 @@ jobs:
           notes = Path("release-artifacts/release-notes.md").read_text().strip()
           artifacts_dir = Path("release-artifacts")
 
+          release_repository = "${RELEASE_REPOSITORY}"
+
           def release_url(filename):
-            return f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{quote(filename)}"
+            return f"https://github.com/{release_repository}/releases/download/v${VERSION}/{quote(filename)}"
 
           platforms = {
             "darwin-aarch64": {

@@ -26,22 +26,6 @@ pub(crate) fn read_personality() -> Result<Option<String>, String> {
     Ok(read_personality_from_document(&document))
 }
 
-pub(crate) fn write_steer_enabled(enabled: bool) -> Result<(), String> {
-    write_feature_flag("steer", enabled)
-}
-
-pub(crate) fn write_collaboration_modes_enabled(enabled: bool) -> Result<(), String> {
-    write_feature_flag("collaboration_modes", enabled)
-}
-
-pub(crate) fn write_unified_exec_enabled(enabled: bool) -> Result<(), String> {
-    write_feature_flag("unified_exec", enabled)
-}
-
-pub(crate) fn write_apps_enabled(enabled: bool) -> Result<(), String> {
-    write_feature_flag("apps", enabled)
-}
-
 pub(crate) fn write_feature_enabled(feature_key: &str, enabled: bool) -> Result<(), String> {
     let key = feature_key.trim();
     if key.is_empty() {
@@ -51,16 +35,6 @@ pub(crate) fn write_feature_enabled(feature_key: &str, enabled: bool) -> Result<
         return Err("feature key `collab` is no longer supported; use `multi_agent`".to_string());
     }
     write_feature_flag(key, enabled)
-}
-
-pub(crate) fn write_personality(personality: &str) -> Result<(), String> {
-    let Some(root) = resolve_default_codex_home() else {
-        return Ok(());
-    };
-    let (_, mut document) = config_toml_core::load_global_config_document(&root)?;
-    let normalized = normalize_personality_value(personality);
-    config_toml_core::set_top_level_string(&mut document, "personality", normalized);
-    config_toml_core::persist_global_config_document(&root, &document)
 }
 
 fn read_feature_flag(key: &str) -> Result<Option<bool>, String> {

@@ -873,6 +873,10 @@ export async function isMobileRuntime(): Promise<boolean> {
   return invoke<boolean>("is_mobile_runtime");
 }
 
+export async function isDeveloperModeEnabled(): Promise<boolean> {
+  return invoke<boolean>("is_developer_mode_enabled");
+}
+
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
 }

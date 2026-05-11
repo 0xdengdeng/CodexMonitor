@@ -12,6 +12,8 @@ import {
   enterpriseAiLogout,
   enterpriseAiUsage,
   enterpriseAiValidate,
+  isDeveloperModeEnabled,
+  setRuntimeApiKey,
 } from "@services/tauri";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
@@ -73,15 +75,23 @@ export type SettingsCodexSectionProps = {
   enterpriseAiLoading: boolean;
   enterpriseAiSaving: boolean;
   enterpriseAiError: string | null;
+  developerModeEnabled: boolean;
+  developerBaseUrlDraft: string;
+  developerApiKeyDraft: string;
+  developerRuntimeSaving: boolean;
+  developerRuntimeError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
   onSetEnterpriseTenantDomainDraft: Dispatch<SetStateAction<string>>;
   onSetEnterpriseApiKeyDraft: Dispatch<SetStateAction<string>>;
+  onSetDeveloperBaseUrlDraft: Dispatch<SetStateAction<string>>;
+  onSetDeveloperApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
   onEnterpriseAiLogin: () => Promise<void>;
   onEnterpriseAiValidate: () => Promise<void>;
   onEnterpriseAiLogout: () => Promise<void>;
   onRefreshEnterpriseAiUsage: () => Promise<void>;
+  onSaveDeveloperRuntime: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -104,11 +114,18 @@ export const useSettingsCodexSection = ({
     appSettings.enterpriseAi.tenantDomain ?? "",
   );
   const [enterpriseApiKeyDraft, setEnterpriseApiKeyDraft] = useState("");
+  const [developerModeEnabled, setDeveloperModeEnabled] = useState(false);
+  const [developerBaseUrlDraft, setDeveloperBaseUrlDraft] = useState(
+    appSettings.managedRuntime.baseUrl ?? "",
+  );
+  const [developerApiKeyDraft, setDeveloperApiKeyDraft] = useState("");
   const [enterpriseAiUsageSnapshot, setEnterpriseAiUsageSnapshot] =
     useState<EnterpriseAiUsageSnapshot | null>(null);
   const [enterpriseAiLoading, setEnterpriseAiLoading] = useState(false);
   const [enterpriseAiSaving, setEnterpriseAiSaving] = useState(false);
   const [enterpriseAiError, setEnterpriseAiError] = useState<string | null>(null);
+  const [developerRuntimeSaving, setDeveloperRuntimeSaving] = useState(false);
+  const [developerRuntimeError, setDeveloperRuntimeError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
@@ -192,6 +209,28 @@ export const useSettingsCodexSection = ({
   useEffect(() => {
     setEnterpriseTenantDomainDraft(appSettings.enterpriseAi.tenantDomain ?? "");
   }, [appSettings.enterpriseAi.tenantDomain]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void isDeveloperModeEnabled()
+      .then((enabled) => {
+        if (!cancelled) {
+          setDeveloperModeEnabled(enabled);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDeveloperModeEnabled(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setDeveloperBaseUrlDraft(appSettings.managedRuntime.baseUrl ?? "");
+  }, [appSettings.managedRuntime.baseUrl]);
 
   const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
   const codexDirty =
@@ -338,6 +377,35 @@ export const useSettingsCodexSection = ({
     }
   };
 
+  const handleSaveDeveloperRuntime = async () => {
+    const baseUrl = developerBaseUrlDraft.trim();
+    const apiKey = developerApiKeyDraft.trim();
+    if (!baseUrl) {
+      setDeveloperRuntimeError(t("settings.codex.developerBaseUrlRequired"));
+      return;
+    }
+    setDeveloperRuntimeSaving(true);
+    setDeveloperRuntimeError(null);
+    try {
+      if (apiKey) {
+        await setRuntimeApiKey(apiKey);
+      }
+      await onUpdateAppSettings({
+        ...appSettings,
+        managedRuntime: {
+          ...appSettings.managedRuntime,
+          enabled: true,
+          baseUrl,
+        },
+      });
+      setDeveloperApiKeyDraft("");
+    } catch (error) {
+      setDeveloperRuntimeError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeveloperRuntimeSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (appSettings.enterpriseAi.tenantDomain) {
       void handleEnterpriseAiValidate();
@@ -379,15 +447,23 @@ export const useSettingsCodexSection = ({
     enterpriseAiLoading,
     enterpriseAiSaving,
     enterpriseAiError,
+    developerModeEnabled,
+    developerBaseUrlDraft,
+    developerApiKeyDraft,
+    developerRuntimeSaving,
+    developerRuntimeError,
     onSetCodexArgsDraft: setCodexArgsDraft,
     onSetEnterpriseTenantDomainDraft: setEnterpriseTenantDomainDraft,
     onSetEnterpriseApiKeyDraft: setEnterpriseApiKeyDraft,
+    onSetDeveloperBaseUrlDraft: setDeveloperBaseUrlDraft,
+    onSetDeveloperApiKeyDraft: setDeveloperApiKeyDraft,
     onSetGlobalAgentsContent: setGlobalAgentsContent,
     onSetGlobalConfigContent: setGlobalConfigContent,
     onEnterpriseAiLogin: handleEnterpriseAiLogin,
     onEnterpriseAiValidate: handleEnterpriseAiValidate,
     onEnterpriseAiLogout: handleEnterpriseAiLogout,
     onRefreshEnterpriseAiUsage: handleRefreshEnterpriseAiUsage,
+    onSaveDeveloperRuntime: handleSaveDeveloperRuntime,
     onSaveCodexSettings: handleSaveCodexSettings,
     onRunDoctor: handleRunDoctor,
     onRunCodexUpdate: handleRunCodexUpdate,

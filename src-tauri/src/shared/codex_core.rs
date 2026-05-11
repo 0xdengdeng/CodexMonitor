@@ -31,6 +31,26 @@ const THREAD_LIST_SOURCE_KINDS: &[&str] = &[
     "unknown",
 ];
 
+fn build_thread_list_params(
+    cursor: Option<String>,
+    limit: Option<u32>,
+    sort_key: Option<String>,
+) -> Value {
+    json!({
+        "cursor": cursor,
+        "limit": limit,
+        "sortKey": sort_key,
+        // Keep historical conversations visible when the active account/runtime
+        // changes. Upstream treats an empty provider list as "all providers".
+        "modelProviders": [],
+        // Keep interactive and sub-agent sessions visible across CLI versions so
+        // thread/list refreshes do not drop valid historical conversations.
+        // Intentionally exclude generic "subAgent" so parentless internal jobs
+        // (for example memory consolidation) do not leak back into app state.
+        "sourceKinds": THREAD_LIST_SOURCE_KINDS
+    })
+}
+
 #[allow(dead_code)]
 fn image_extension_for_path(path: &str) -> Option<String> {
     Path::new(path)
@@ -332,16 +352,7 @@ pub(crate) async fn list_threads_core(
     sort_key: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({
-        "cursor": cursor,
-        "limit": limit,
-        "sortKey": sort_key,
-        // Keep interactive and sub-agent sessions visible across CLI versions so
-        // thread/list refreshes do not drop valid historical conversations.
-        // Intentionally exclude generic "subAgent" so parentless internal jobs
-        // (for example memory consolidation) do not leak back into app state.
-        "sourceKinds": THREAD_LIST_SOURCE_KINDS
-    });
+    let params = build_thread_list_params(cursor, limit, sort_key);
     session
         .send_request_for_workspace(&workspace_id, "thread/list", params)
         .await
@@ -471,6 +482,24 @@ pub(crate) fn insert_optional_nullable_string(
     }
 }
 
+fn json_rpc_error_message(value: &Value) -> Option<&str> {
+    let error = value.get("error")?;
+    if let Some(message) = error.as_str() {
+        return Some(message);
+    }
+    error
+        .get("message")
+        .and_then(Value::as_str)
+        .or_else(|| error.get("data").and_then(Value::as_str))
+}
+
+fn is_thread_not_found_response(value: &Value, thread_id: &str) -> bool {
+    let Some(message) = json_rpc_error_message(value) else {
+        return false;
+    };
+    message.contains("thread not found") && message.contains(thread_id)
+}
+
 pub(crate) async fn send_user_message_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
@@ -507,7 +536,7 @@ pub(crate) async fn send_user_message_core(
     let input = build_turn_input_items(text, images, app_mentions)?;
 
     let mut params = Map::new();
-    params.insert("threadId".to_string(), json!(thread_id));
+    params.insert("threadId".to_string(), json!(thread_id.clone()));
     params.insert("input".to_string(), json!(input));
     params.insert("cwd".to_string(), json!(workspace_path));
     params.insert("approvalPolicy".to_string(), json!(approval_policy));
@@ -520,6 +549,22 @@ pub(crate) async fn send_user_message_core(
             params.insert("collaborationMode".to_string(), mode);
         }
     }
+
+    let response = session
+        .send_request_for_workspace(&workspace_id, "turn/start", Value::Object(params.clone()))
+        .await?;
+    if !is_thread_not_found_response(&response, &thread_id) {
+        return Ok(response);
+    }
+
+    let resume_params = json!({ "threadId": thread_id.clone() });
+    let resume_response = session
+        .send_request_for_workspace(&workspace_id, "thread/resume", resume_params)
+        .await?;
+    if json_rpc_error_message(&resume_response).is_some() {
+        return Ok(resume_response);
+    }
+
     session
         .send_request_for_workspace(&workspace_id, "turn/start", Value::Object(params))
         .await
@@ -939,6 +984,30 @@ mod tests {
     }
 
     #[test]
+    fn thread_not_found_detection_reads_json_rpc_error_object() {
+        let response = json!({
+            "id": 12,
+            "error": {
+                "code": -32602,
+                "message": "thread not found: thread-abc"
+            }
+        });
+
+        assert!(is_thread_not_found_response(&response, "thread-abc"));
+        assert!(!is_thread_not_found_response(&response, "thread-other"));
+    }
+
+    #[test]
+    fn thread_not_found_detection_reads_string_error() {
+        let response = json!({
+            "id": 12,
+            "error": "thread not found: thread-abc"
+        });
+
+        assert!(is_thread_not_found_response(&response, "thread-abc"));
+    }
+
+    #[test]
     fn read_image_data_url_core_rejects_file_uri_that_does_not_exist() {
         let result = read_image_as_data_url_core("file:///nonexistent/photo.png");
         assert!(result.is_err());
@@ -1029,5 +1098,20 @@ mod tests {
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentReview"));
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentCompact"));
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentThreadSpawn"));
+    }
+
+    #[test]
+    fn thread_list_params_include_all_model_providers() {
+        let params = build_thread_list_params(
+            Some("cursor-1".to_string()),
+            Some(50),
+            Some("updatedAt".to_string()),
+        );
+
+        assert_eq!(params.get("cursor"), Some(&json!("cursor-1")));
+        assert_eq!(params.get("limit"), Some(&json!(50)));
+        assert_eq!(params.get("sortKey"), Some(&json!("updatedAt")));
+        assert_eq!(params.get("modelProviders"), Some(&json!([])));
+        assert_eq!(params.get("sourceKinds"), Some(&json!(THREAD_LIST_SOURCE_KINDS)));
     }
 }

@@ -10,6 +10,9 @@ use crate::state::AppState;
 use crate::types::{AppSettings, BackendMode, RuntimeApiKeyStatus};
 use crate::window;
 
+const DEVELOPER_MODE_ENV_VARS: [&str; 2] =
+    ["AGENTDESK_DEVELOPER_MODE", "CODEXMONITOR_DEVELOPER_MODE"];
+
 #[tauri::command]
 pub(crate) async fn get_app_settings(
     state: State<'_, AppState>,
@@ -94,6 +97,25 @@ pub(crate) async fn get_codex_config_path() -> Result<String, String> {
     get_codex_config_path_core()
 }
 
+#[tauri::command]
+pub(crate) fn is_developer_mode_enabled() -> bool {
+    is_developer_mode_enabled_from_env()
+}
+
+fn is_developer_mode_enabled_from_env() -> bool {
+    DEVELOPER_MODE_ENV_VARS
+        .iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .any(|value| is_truthy_developer_mode_value(&value))
+}
+
+fn is_truthy_developer_mode_value(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
 fn should_reset_remote_backend(previous: &AppSettings, updated: &AppSettings) -> bool {
     let backend_mode_changed = !matches!(
         (&previous.backend_mode, &updated.backend_mode),
@@ -124,7 +146,7 @@ async fn ensure_remote_runtime_for_settings(settings: &AppSettings, state: State
 
 #[cfg(test)]
 mod tests {
-    use super::should_reset_remote_backend;
+    use super::{is_truthy_developer_mode_value, should_reset_remote_backend};
     use crate::types::{AppSettings, BackendMode};
 
     #[test]
@@ -151,5 +173,15 @@ mod tests {
         updated.theme = "dark".to_string();
         updated.backend_mode = BackendMode::Local;
         assert!(!should_reset_remote_backend(&previous, &updated));
+    }
+
+    #[test]
+    fn developer_mode_accepts_explicit_truthy_env_values() {
+        for value in ["1", "true", "TRUE", "yes", "on", " On "] {
+            assert!(is_truthy_developer_mode_value(value));
+        }
+        for value in ["", "0", "false", "off", "no", "developer"] {
+            assert!(!is_truthy_developer_mode_value(value));
+        }
     }
 }

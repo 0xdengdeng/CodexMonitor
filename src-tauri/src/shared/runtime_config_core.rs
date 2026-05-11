@@ -68,24 +68,32 @@ pub(crate) fn sync_managed_runtime_config(
     codex_home: &Path,
     config: &ManagedRuntimeConfig,
 ) -> Result<(), String> {
-    let config = normalize_managed_runtime_config(config);
     let (_, mut document) = config_toml_core::load_global_config_document(codex_home)?;
+    apply_managed_runtime_config_to_document(&mut document, config)?;
+    config_toml_core::persist_global_config_document(codex_home, &document)
+}
+
+pub(crate) fn apply_managed_runtime_config_to_document(
+    document: &mut toml_edit::Document,
+    config: &ManagedRuntimeConfig,
+) -> Result<(), String> {
+    let config = normalize_managed_runtime_config(config);
 
     if !managed_runtime_config_is_complete(&config) {
-        remove_managed_runtime_provider(&mut document)?;
-        return config_toml_core::persist_global_config_document(codex_home, &document);
+        remove_managed_runtime_provider(document)?;
+        return Ok(());
     }
 
     config_toml_core::set_top_level_string(
-        &mut document,
+        document,
         "model_provider",
         Some(MANAGED_RUNTIME_PROVIDER_ID),
     );
     if config.model.is_some() {
-        config_toml_core::set_top_level_string(&mut document, "model", config.model.as_deref());
+        config_toml_core::set_top_level_string(document, "model", config.model.as_deref());
     }
 
-    let providers = config_toml_core::ensure_table(&mut document, "model_providers")?;
+    let providers = config_toml_core::ensure_table(document, "model_providers")?;
     let mut provider = Table::new();
     provider["name"] = value(MANAGED_RUNTIME_PROVIDER_NAME);
     provider["base_url"] = value(config.base_url.as_deref().unwrap_or_default());
@@ -94,7 +102,7 @@ pub(crate) fn sync_managed_runtime_config(
     provider["requires_openai_auth"] = value(false);
     providers[MANAGED_RUNTIME_PROVIDER_ID] = Item::Table(provider);
 
-    config_toml_core::persist_global_config_document(codex_home, &document)
+    Ok(())
 }
 
 fn remove_managed_runtime_provider(document: &mut toml_edit::Document) -> Result<(), String> {

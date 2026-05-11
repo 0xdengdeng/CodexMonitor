@@ -17,9 +17,11 @@ import {
   getAgentsSettings,
   getConfigModel,
   getExperimentalFeatureList,
+  isDeveloperModeEnabled,
   isMobileRuntime,
   getModelList,
   listWorkspaces,
+  setRuntimeApiKey,
 } from "@services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
@@ -48,6 +50,7 @@ vi.mock("@services/tauri", async () => {
     enterpriseAiValidate: vi.fn().mockResolvedValue({ settings: null, usage: null }),
     enterpriseAiLogout: vi.fn().mockResolvedValue(null),
     enterpriseAiUsage: vi.fn().mockResolvedValue(null),
+    isDeveloperModeEnabled: vi.fn().mockResolvedValue(false),
     isMobileRuntime: vi.fn(),
     listWorkspaces: vi.fn(),
   };
@@ -59,8 +62,10 @@ const getConfigModelMock = vi.mocked(getConfigModel);
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
 const getAgentsSettingsMock = vi.mocked(getAgentsSettings);
+const isDeveloperModeEnabledMock = vi.mocked(isDeveloperModeEnabled);
 const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
+const setRuntimeApiKeyMock = vi.mocked(setRuntimeApiKey);
 connectWorkspaceMock.mockResolvedValue(undefined);
 getAppBuildTypeMock.mockResolvedValue("release");
 getConfigModelMock.mockResolvedValue(null);
@@ -1114,6 +1119,104 @@ describe("SettingsView Environments", () => {
 });
 
 describe("SettingsView Codex section", () => {
+  const renderCodexSection = (options?: {
+    appSettings?: Partial<AppSettings>;
+    onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
+  }) => {
+    const onUpdateAppSettings = options?.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, ...options?.appSettings }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+    return { onUpdateAppSettings };
+  };
+
+  it("hides manual runtime configuration when developer mode is disabled", async () => {
+    cleanup();
+    isDeveloperModeEnabledMock.mockResolvedValueOnce(false);
+
+    renderCodexSection();
+
+    await waitFor(() => {
+      expect(isDeveloperModeEnabledMock).toHaveBeenCalled();
+    });
+    expect(screen.queryByText("Developer mode")).toBeNull();
+    expect(screen.queryByLabelText("Base URL")).toBeNull();
+  });
+
+  it("saves manual runtime base URL and API key when developer mode is enabled", async () => {
+    cleanup();
+    isDeveloperModeEnabledMock.mockResolvedValueOnce(true);
+    setRuntimeApiKeyMock.mockResolvedValueOnce({ hasApiKey: true });
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+
+    renderCodexSection({
+      appSettings: {
+        managedRuntime: {
+          enabled: false,
+          baseUrl: null,
+          model: "gpt-5.5",
+        },
+      },
+      onUpdateAppSettings,
+    });
+
+    const developerModeTitle = await screen.findByText("Developer mode");
+    const developerCard = developerModeTitle.closest(".settings-runtime-card");
+    expect(developerCard).toBeTruthy();
+    const developerControls = within(developerCard as HTMLElement);
+    fireEvent.change(developerControls.getByLabelText("Base URL"), {
+      target: { value: "https://gateway.example.com/v1" },
+    });
+    fireEvent.change(developerControls.getByLabelText("API Key"), {
+      target: { value: "sk-dev" },
+    });
+    fireEvent.click(
+      developerControls.getByRole("button", { name: "Save developer runtime" }),
+    );
+
+    await waitFor(() => {
+      expect(setRuntimeApiKeyMock).toHaveBeenCalledWith("sk-dev");
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          managedRuntime: {
+            enabled: true,
+            baseUrl: "https://gateway.example.com/v1",
+            model: "gpt-5.5",
+          },
+        }),
+      );
+    });
+  });
+
   it("does not expose a custom Codex binary path setting", () => {
     cleanup();
     render(
