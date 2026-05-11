@@ -109,7 +109,7 @@ fn spawn_with_client(
     codex_home: Option<PathBuf>,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> + '_ {
     async move {
-        let codex_runtime = codex_runtime::resolve_codex_runtime_from_current_exe()?;
+        let codex_bin = codex_runtime::resolve_codex_runtime_from_current_exe()?;
         let runtime_env = {
             let settings = app_settings.lock().await;
             shared::runtime_config_core::build_managed_runtime_env_from_store(
@@ -118,7 +118,7 @@ fn spawn_with_client(
         };
         spawn_workspace_session(
             entry,
-            Some(codex_runtime.bin),
+            Some(codex_bin),
             codex_args,
             codex_home,
             runtime_env,
@@ -1307,9 +1307,8 @@ impl DaemonState {
         &self,
         codex_args: Option<String>,
     ) -> Result<Value, String> {
-        let codex_runtime = codex_runtime::resolve_codex_runtime_from_current_exe()?;
-        codex_aux_core::codex_doctor_core(&self.app_settings, Some(codex_runtime.bin), codex_args)
-            .await
+        let codex_bin = codex_runtime::resolve_codex_runtime_from_current_exe()?;
+        codex_aux_core::codex_doctor_core(&self.app_settings, Some(codex_bin), codex_args).await
     }
 
     async fn generate_commit_message(

@@ -25,8 +25,8 @@ use crate::types::WorkspaceEntry;
 async fn resolve_command_codex_runtime(
     _state: &AppState,
     app: &AppHandle,
-) -> Result<runtime::ResolvedCodexRuntime, String> {
-    runtime::resolve_codex_runtime(app, None)
+) -> Result<String, String> {
+    runtime::resolve_codex_runtime(app)
 }
 
 fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, params: Value) {
@@ -50,7 +50,7 @@ pub(crate) async fn spawn_workspace_session(
     codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
-    let codex_bin = runtime::resolve_effective_codex_bin(&app_handle, None)?;
+    let codex_bin = runtime::resolve_codex_runtime(&app_handle)?;
     let runtime_env = {
         let state = app_handle.state::<AppState>();
         let settings = state.app_settings.lock().await;
@@ -75,10 +75,10 @@ pub(crate) async fn codex_doctor(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
-    let codex_runtime = resolve_command_codex_runtime(&state, &app).await?;
+    let codex_bin = resolve_command_codex_runtime(&state, &app).await?;
     crate::shared::codex_aux_core::codex_doctor_core(
         &state.app_settings,
-        Some(codex_runtime.bin),
+        Some(codex_bin),
         codex_args,
     )
     .await
@@ -89,8 +89,8 @@ pub(crate) async fn codex_update(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
-    let codex_runtime = resolve_command_codex_runtime(&state, &app).await?;
-    let version = check_codex_installation(Some(codex_runtime.bin))
+    let codex_bin = resolve_command_codex_runtime(&state, &app).await?;
+    let version = check_codex_installation(Some(codex_bin))
         .await
         .ok()
         .flatten();
