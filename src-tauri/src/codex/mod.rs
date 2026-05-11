@@ -93,29 +93,22 @@ pub(crate) async fn codex_update(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
+    let _ = codex_args;
     let codex_runtime = resolve_command_codex_runtime(&state, &app, codex_bin).await?;
-    if codex_runtime.source == runtime::CodexRuntimeSource::Bundled {
-        let version = check_codex_installation(Some(codex_runtime.bin))
-            .await
-            .ok()
-            .flatten();
-        return Ok(json!({
-            "ok": true,
-            "method": "bundled",
-            "package": null,
-            "beforeVersion": version,
-            "afterVersion": version,
-            "upgraded": false,
-            "output": "Bundled Codex runtime is managed by AgentDesk app updates.",
-            "details": "Bundled Codex runtime is managed by AgentDesk app updates."
-        }));
-    }
-    crate::shared::codex_update_core::codex_update_core(
-        &state.app_settings,
-        Some(codex_runtime.bin),
-        codex_args,
-    )
-    .await
+    let version = check_codex_installation(Some(codex_runtime.bin))
+        .await
+        .ok()
+        .flatten();
+    Ok(json!({
+        "ok": true,
+        "method": "bundled",
+        "package": null,
+        "beforeVersion": version,
+        "afterVersion": version,
+        "upgraded": false,
+        "output": "Bundled Codex runtime is managed by AgentDesk app updates.",
+        "details": "Bundled Codex runtime is managed by AgentDesk app updates."
+    }))
 }
 
 #[tauri::command]
