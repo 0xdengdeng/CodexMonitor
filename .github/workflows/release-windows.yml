@@ -1,0 +1,291 @@
+name: Release (Windows only)
+
+# Temporary workflow for validating OTA pipeline before Apple Developer
+# credentials are wired up. Delete this file once release.yml ships all
+# platforms.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_REPOSITORY: 0xdengdeng/CodexMonitor
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install LLVM (bindgen)
+        run: choco install llvm -y --no-progress
+
+      - name: Configure LLVM (bindgen)
+        run: |
+          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
+          echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Write Tauri signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          raw = base64.b64decode(os.environ["TAURI_SIGNING_PRIVATE_KEY_B64"])
+          home = Path.home()
+          target = home / ".tauri"
+          target.mkdir(parents=True, exist_ok=True)
+          (target / "agentdesk.key").write_bytes(raw)
+          PY
+
+      - name: Build Windows bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          export TAURI_SIGNING_PRIVATE_KEY
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
+          npm run tauri:build:win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe*
+            src-tauri/target/release/bundle/msi/*.msi*
+
+  release:
+    runs-on: ubuntu-latest
+    needs:
+      - build_windows
+    env:
+      TOS_ACCESS_KEY_ID: ${{ secrets.TOS_ACCESS_KEY_ID }}
+      TOS_SECRET_ACCESS_KEY: ${{ secrets.TOS_SECRET_ACCESS_KEY }}
+      TOS_REGION: cn-beijing
+      TOS_ENDPOINT: tos-cn-beijing.volces.com
+      TOS_BUCKET: qihang-ai
+      TOS_PUBLIC_BASE_URL: https://qihang-ai.tos-cn-beijing.volces.com
+      OTA_PREFIX: codexmonitor
+      OTA_ARTIFACTS_DIR: release-artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: release-artifacts
+
+      - name: Normalize release artifact filenames
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' artifact; do
+            dir=$(dirname "$artifact")
+            file=$(basename "$artifact")
+            normalized="${file// /.}"
+            if [ "$file" = "$normalized" ]; then
+              continue
+            fi
+            target="${dir}/${normalized}"
+            if [ -e "$target" ]; then
+              echo "Cannot normalize filename because target already exists: $target"
+              exit 1
+            fi
+            echo "Renaming $artifact -> $target"
+            mv "$artifact" "$target"
+          done < <(find release-artifacts -type f -name '* *' -print0)
+
+      - name: Build latest.json + release notes
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+
+          LAST_TAG=$(git tag --sort=-version:refname \
+            | grep -v "^v${VERSION}$" \
+            | head -n 1 || true)
+          if [ -n "$LAST_TAG" ]; then
+            git log "${LAST_TAG}..${GITHUB_SHA}" --pretty=format:"%s" > release-artifacts/release-commits.txt
+          else
+            git log "${GITHUB_SHA}" --pretty=format:"%s" > release-artifacts/release-commits.txt
+          fi
+
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          lines = Path("release-artifacts/release-commits.txt").read_text().splitlines()
+          pattern = re.compile(r"^(feat|fix|perf)(?:\([^)]*\))?:\s*(.+)$", re.IGNORECASE)
+          groups = {"feat": [], "fix": [], "perf": []}
+          for line in lines:
+              match = pattern.match(line.strip())
+              if not match:
+                  continue
+              kind = match.group(1).lower()
+              message = match.group(2).strip()
+              if message:
+                  groups[kind].append(message)
+
+          sections = [
+              ("## New Features", "feat"),
+              ("## Fixes", "fix"),
+              ("## Performance Improvements", "perf"),
+          ]
+          output = ["## Platforms\n\n- Windows x86_64 only (macOS pending Apple Developer setup)\n"]
+          for title, key in sections:
+              items = groups[key]
+              if not items:
+                  continue
+              output.append(title)
+              output.extend([f"- {item}" for item in items])
+              output.append("")
+
+          notes = "\n".join(output).strip()
+          Path("release-artifacts/release-notes.md").write_text(notes + "\n")
+          PY
+
+          python3 - <<PY
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from urllib.parse import quote
+
+          notes = Path("release-artifacts/release-notes.md").read_text().strip()
+          artifacts_dir = Path("release-artifacts")
+          release_repository = "${RELEASE_REPOSITORY}"
+
+          def release_url(filename):
+            return f"https://github.com/{release_repository}/releases/download/v${VERSION}/{quote(filename)}"
+
+          exe_candidates = sorted(artifacts_dir.rglob("*.exe"), key=lambda p: p.name.lower())
+          preferred = []
+          for candidate in exe_candidates:
+            lowered = candidate.name.lower()
+            if "agentdesk" in lowered and ("setup" in lowered or "installer" in lowered):
+              preferred.append(candidate)
+          if preferred:
+            installer = preferred[0]
+          else:
+            installer = None
+            for candidate in exe_candidates:
+              lowered = candidate.name.lower()
+              if "setup" in lowered or "installer" in lowered:
+                installer = candidate
+                break
+            if installer is None and exe_candidates:
+              installer = exe_candidates[0]
+          if installer is None:
+            raise SystemExit("No Windows installer (.exe) found for latest.json")
+
+          sig_path = installer.with_suffix(installer.suffix + ".sig")
+          if not sig_path.exists():
+            raise SystemExit(f"Missing signature for {installer.name}")
+
+          payload = {
+            "version": "${VERSION}",
+            "notes": notes,
+            "pub_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "platforms": {
+              "windows-x86_64": {
+                "url": release_url(installer.name),
+                "signature": sig_path.read_text().strip(),
+              },
+            },
+          }
+          Path("release-artifacts/latest.json").write_text(json.dumps(payload, indent=2) + "\n")
+          print(f"Selected installer: {installer.name}")
+          PY
+
+      - name: Validate latest.json artifact references
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.parse import unquote, urlparse
+
+          artifacts_dir = Path("release-artifacts")
+          payload = json.loads((artifacts_dir / "latest.json").read_text())
+          available = {p.name for p in artifacts_dir.rglob("*") if p.is_file()}
+          missing = []
+          for platform, metadata in payload.get("platforms", {}).items():
+            filename = Path(unquote(urlparse(metadata.get("url", "")).path)).name
+            if filename not in available:
+              missing.append((platform, filename))
+          if missing:
+            for platform, filename in missing:
+              print(f"- {platform}: {filename}")
+            raise SystemExit(1)
+          print(f"Validated {len(payload.get('platforms', {}))} platform URL(s).")
+          PY
+
+      # TOS publish first: latest.json on TOS is the client-facing OTA source
+      # (Tauri updater endpoint), so it must be the one we're confident about.
+      # GitHub release is created after as a downloadable backup. If TOS fails
+      # the GitHub release step is skipped, leaving no half-published state
+      # that points clients at missing files.
+      - name: Publish to TOS
+        run: npm run ota:publish:tos
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          shopt -s nullglob globstar
+          mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
+          mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
+          if [ ${#windows_exes[@]} -eq 0 ]; then
+            echo "No Windows .exe artifacts found"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          gh release create "v${VERSION}-windows" \
+            --title "v${VERSION} (Windows preview)" \
+            --notes-file release-artifacts/release-notes.md \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            "${windows_exes[@]}" \
+            "${windows_msis[@]}" \
+            release-artifacts/latest.json
