@@ -117,7 +117,7 @@ fn spawn_with_client(
         };
         spawn_workspace_session(
             entry,
-            Some(codex_bin),
+            codex_bin,
             codex_args,
             codex_home,
             runtime_env,
@@ -1299,7 +1299,7 @@ impl DaemonState {
         codex_args: Option<String>,
     ) -> Result<Value, String> {
         let codex_bin = codex_runtime::resolve_codex_runtime_from_current_exe()?;
-        codex_aux_core::codex_doctor_core(&self.app_settings, Some(codex_bin), codex_args).await
+        codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
     }
 
     async fn generate_commit_message(

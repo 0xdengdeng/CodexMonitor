@@ -58,7 +58,7 @@ pub(crate) async fn spawn_workspace_session(
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
-        Some(codex_bin),
+        codex_bin,
         codex_args,
         codex_home,
         runtime_env,
@@ -75,12 +75,8 @@ pub(crate) async fn codex_doctor(
     app: AppHandle,
 ) -> Result<Value, String> {
     let codex_bin = resolve_command_codex_runtime(&state, &app).await?;
-    crate::shared::codex_aux_core::codex_doctor_core(
-        &state.app_settings,
-        Some(codex_bin),
-        codex_args,
-    )
-    .await
+    crate::shared::codex_aux_core::codex_doctor_core(&state.app_settings, codex_bin, codex_args)
+        .await
 }
 
 #[tauri::command]
@@ -89,10 +85,7 @@ pub(crate) async fn codex_update(
     app: AppHandle,
 ) -> Result<Value, String> {
     let codex_bin = resolve_command_codex_runtime(&state, &app).await?;
-    let version = check_codex_installation(Some(codex_bin))
-        .await
-        .ok()
-        .flatten();
+    let version = check_codex_installation(codex_bin).await.ok().flatten();
     Ok(json!({
         "ok": true,
         "method": "bundled",

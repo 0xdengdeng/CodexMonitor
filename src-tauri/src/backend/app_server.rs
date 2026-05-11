@@ -640,15 +640,11 @@ pub(crate) fn build_codex_path_env() -> Option<String> {
 }
 
 pub(crate) fn build_codex_command_with_bin(
-    codex_bin: Option<String>,
+    codex_bin: String,
     codex_args: Option<&str>,
     args: Vec<String>,
 ) -> Result<Command, String> {
-    let bin = codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "codex".into());
-
+    let bin = codex_bin;
     let path_env = build_codex_path_env();
     let mut command_args = parse_codex_args(codex_args)?;
     command_args.extend(args);
@@ -694,7 +690,7 @@ pub(crate) fn build_codex_command_with_bin(
 }
 
 pub(crate) async fn check_codex_installation(
-    codex_bin: Option<String>,
+    codex_bin: String,
 ) -> Result<Option<String>, String> {
     let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
@@ -740,14 +736,13 @@ pub(crate) async fn check_codex_installation(
 
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
-    default_codex_bin: Option<String>,
+    codex_bin: String,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
     runtime_env: Vec<(String, String)>,
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let codex_bin = default_codex_bin;
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
     let mut command = build_codex_command_with_bin(

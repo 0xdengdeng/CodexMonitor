@@ -288,22 +288,21 @@ pub(crate) fn sanitize_run_worktree_name(value: &str) -> String {
 
 pub(crate) async fn codex_doctor_core(
     app_settings: &Mutex<AppSettings>,
-    codex_bin: Option<String>,
+    codex_bin: String,
     codex_args: Option<String>,
 ) -> Result<Value, String> {
     let default_args = {
         let settings = app_settings.lock().await;
         settings.codex_args.clone()
     };
-    let resolved = codex_bin.clone().filter(|value| !value.trim().is_empty());
     let resolved_args = codex_args
         .clone()
         .filter(|value| !value.trim().is_empty())
         .or(default_args);
     let path_env = build_codex_path_env();
-    let version = check_codex_installation(resolved.clone()).await?;
+    let version = check_codex_installation(codex_bin.clone()).await?;
     let mut command = build_codex_command_with_bin(
-        resolved.clone(),
+        codex_bin,
         resolved_args.as_deref(),
         vec!["app-server".to_string(), "--help".to_string()],
     )?;
