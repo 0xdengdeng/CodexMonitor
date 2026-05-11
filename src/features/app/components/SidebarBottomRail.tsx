@@ -1,5 +1,6 @@
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Settings from "lucide-react/dist/esm/icons/settings";
+import { FEATURE_VISIBILITY } from "@/features/app/config/featureVisibility";
 import { useI18n } from "@/features/i18n/i18n";
 
 type SidebarBottomRailProps = {
@@ -116,7 +117,7 @@ export function SidebarBottomRail({
             </span>
             <span>{t("sidebar.settings.label")}</span>
           </button>
-          {showDebugButton && (
+          {FEATURE_VISIBILITY.debugButton && showDebugButton && (
             <button
               className="ghost sidebar-labeled-button sidebar-utility-button"
               type="button"

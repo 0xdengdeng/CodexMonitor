@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { DebugEntry } from "../../../types";
+import { FEATURE_VISIBILITY } from "@/features/app/config/featureVisibility";
 import { useI18n } from "@/features/i18n/i18n";
 
 type DebugPanelProps = {
@@ -35,6 +36,9 @@ export function DebugPanel({
   variant = "dock",
 }: DebugPanelProps) {
   const { t } = useI18n();
+  if (!FEATURE_VISIBILITY.debugPanel) {
+    return null;
+  }
   const isVisible = variant === "full" || isOpen;
 
   type FormattedDebugEntry = DebugEntry & {

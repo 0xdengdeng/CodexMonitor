@@ -3,13 +3,36 @@
 > 为了适应 SMB B2B 客户(5-30 人小公司,老板付费 + 半技术员工使用),
 > 产品进行了大幅简化。本文档**完整记录每一次砍除**,以便后续需要恢复时能快速找回。
 
-## 🔒 核心产品原则(铁律,任何砍除前必须确认)
+## 🔒 核心产品原则(2026-05-11 修订)
 
-1. **前端可删**:UI / props / hook / 集成代码 / 测试 / 前端类型 / 前端 i18n / CSS — 都可以删
-2. **后端必须保留**:`src-tauri/*` 整套 Rust 代码 / Cargo 依赖 / Tauri 命令注册 / shared core / Rust types
-3. **后端不动的好处**:未来要恢复一个功能,**只需重新接前端 props 链 + 调用现有 Tauri 命令**,不用重写后端
+### 默认做法(从 Debug panel 起):**只隐藏 UI,不砍前端代码**
 
-**违反这条原则 = 砍除工作返工**。
+1. **不删任何前端代码** — 组件 / hook / props / hook 调用 / 测试 / 类型 / i18n / CSS 全部保留
+2. **不删任何后端代码** — `src-tauri/*` / Cargo / Tauri 命令注册 / shared core 全部保留
+3. **只控制 UI 可见性** — 通过 `src/features/app/config/featureVisibility.ts` 集中开关:
+
+```ts
+export const FEATURE_VISIBILITY = {
+  debugPanel: false,
+  debugButton: false,
+  // ... 后续追加
+};
+```
+
+调用方:`{FEATURE_VISIBILITY.debugButton && <DebugButton />}`
+
+**恢复 = 把 flag 改成 `true`,零返工**。
+
+### 历史例外:Dictation 已经按"前端砍除"做完(commit 690eb44 + e57dd9d)
+
+按旧原则砍前端代码 + 保留后端。**不回退**,因为已经成事实。
+
+恢复路径:
+- 后端 Rust + Cargo 完整 → 重新调用 Tauri 命令即可
+- i18n keys + CSS 类名完整 → 不需要重写文案 / 样式
+- 前端代码需要重接 props 链(参考砍除前的 git 历史)
+
+**未来不再用"前端砍除"方式,所有新功能砍除都走 visibility flag**。
 
 ## 记录格式
 
