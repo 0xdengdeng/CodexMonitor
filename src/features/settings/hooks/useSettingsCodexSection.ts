@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   AppSettings,
@@ -397,11 +397,16 @@ export const useSettingsCodexSection = ({
     }
   };
 
+  const validateRef = useRef(handleEnterpriseAiValidate);
+  useEffect(() => {
+    validateRef.current = handleEnterpriseAiValidate;
+  });
+
   useEffect(() => {
     if (appSettings.enterpriseAi.tenantDomain) {
-      void handleEnterpriseAiValidate();
+      void validateRef.current();
     }
-  }, [appSettings.enterpriseAi.tenantDomain, handleEnterpriseAiValidate]);
+  }, [appSettings.enterpriseAi.tenantDomain]);
 
   return {
     appSettings,
