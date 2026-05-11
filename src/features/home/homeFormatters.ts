@@ -73,7 +73,10 @@ export function formatDurationCompact(valueMs: number | null | undefined) {
   return `${seconds}s`;
 }
 
-export function formatDayLabel(value: string | null | undefined) {
+export function formatDayLabel(
+  value: string | null | undefined,
+  language?: string | null,
+) {
   if (!value) {
     return "--";
   }
@@ -85,7 +88,8 @@ export function formatDayLabel(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(undefined, {
+  const locale = language === "zh-CN" ? "zh-CN" : "en";
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
   }).format(date);
@@ -97,14 +101,15 @@ export function formatWeekRange(
     noUsageData: "No usage data",
     rangeSeparator: "to",
   },
+  language?: string | null,
 ) {
   if (days.length === 0) {
     return copy.noUsageData;
   }
   const first = days[0];
   const last = days[days.length - 1];
-  const firstLabel = formatDayLabel(first?.day);
-  const lastLabel = formatDayLabel(last?.day);
+  const firstLabel = formatDayLabel(first?.day, language);
+  const lastLabel = formatDayLabel(last?.day, language);
   return first?.day === last?.day
     ? firstLabel
     : `${firstLabel} ${copy.rangeSeparator} ${lastLabel}`;

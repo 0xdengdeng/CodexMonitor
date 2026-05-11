@@ -247,7 +247,8 @@ describe("Sidebar", () => {
 
     expect(screen.queryByRole("button", { name: "Account" })).toBeNull();
     expect(screen.getByRole("button", { name: "Open settings" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Open debug log" })).toBeTruthy();
+    // Debug log button is hidden by FEATURE_VISIBILITY.debugButton in SMB build.
+    expect(screen.queryByRole("button", { name: "Open debug log" })).toBeNull();
   });
 
   it("renders threads-only mode as a global chronological list", () => {

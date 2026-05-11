@@ -5,7 +5,7 @@ function isChinese(language?: string | null) {
 }
 
 function relativeTimeLocale(language?: string | null) {
-  return language === "zh-CN" || language === "en" ? language : undefined;
+  return language === "zh-CN" ? "zh-CN" : "en";
 }
 
 export function formatRelativeTime(timestamp: number, language?: string | null) {
