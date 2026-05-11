@@ -66,9 +66,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0QTgzQUU0QTc2MEVBNDMKUldSRDZtQ241RHFvOURJbm1KeC81aEZaOXlhZHlHd2NEZVpPVWs5NjdjOFNhUFEyZGJpTkV0S2YK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM5QzVDNDNFQ0YxOTMwRkEKUldUNk1CblBQc1RGT1FhWmVXOHdJYWpWN3UyTk8rRUNwQkY5NnNxT0hBeEZ5ZDNQb0JoVHlxMTAK",
       "endpoints": [
-        "https://github.com/0xdengdeng/CodexMonitor/releases/latest/download/latest.json"
+        "https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json"
       ]
     }
   }

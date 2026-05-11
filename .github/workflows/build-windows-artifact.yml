@@ -1,0 +1,103 @@
+name: Build Windows Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      codex_ref:
+        description: Codex runtime branch, tag, or commit to bundle
+        required: true
+        default: product/custom-codex
+
+permissions:
+  contents: read
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+    env:
+      AGENTDESK_CODEX_REPO: ${{ github.workspace }}\Codex
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v4
+        with:
+          path: CodexMonitor
+
+      - name: Checkout Codex runtime
+        uses: actions/checkout@v4
+        with:
+          repository: 0xdengdeng/codex
+          ref: ${{ inputs.codex_ref }}
+          path: Codex
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: CodexMonitor/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: CodexMonitor/src-tauri -> target
+
+      - name: Install Windows build dependencies
+        run: choco install cmake llvm -y --no-progress
+
+      - name: Configure LLVM
+        run: |
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: CodexMonitor
+
+      - name: Write Tauri signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          encoded = os.environ.get("TAURI_SIGNING_PRIVATE_KEY_B64")
+          if not encoded:
+              raise SystemExit("Missing TAURI_SIGNING_PRIVATE_KEY_B64 secret")
+
+          target = Path(os.environ["RUNNER_TEMP"]) / "tauri.key"
+          target.write_bytes(base64.b64decode(encoded))
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as env:
+              env.write(f"TAURI_SIGNING_PRIVATE_KEY_PATH={target}\n")
+          PY
+
+      - name: Build Windows bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          export TAURI_SIGNING_PRIVATE_KEY
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$TAURI_SIGNING_PRIVATE_KEY_PATH")"
+          npm run tauri:build:win
+        working-directory: CodexMonitor
+
+      - name: List Windows bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src-tauri/target/release/bundle -maxdepth 3 -type f | sort
+        working-directory: CodexMonitor
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          if-no-files-found: error
+          path: |
+            CodexMonitor/src-tauri/target/release/bundle/nsis/**
+            CodexMonitor/src-tauri/target/release/bundle/msi/**

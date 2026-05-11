@@ -145,7 +145,7 @@ describe("UpdateToast", () => {
     expect(scoped.getByText("Highlights")).toBeTruthy();
     expect(scoped.getByText("Added release notes toast")).toBeTruthy();
 
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
+    fireEvent.click(scoped.getByRole("button", { name: "View release notes" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
 
     fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
@@ -174,7 +174,7 @@ describe("UpdateToast", () => {
     expect(
       scoped.getByText("Updated to v1.2.3. Release notes could not be loaded."),
     ).toBeTruthy();
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
+    fireEvent.click(scoped.getByRole("button", { name: "View release notes" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
     expect(scoped.queryByText("A new version is available.")).toBeNull();
   });

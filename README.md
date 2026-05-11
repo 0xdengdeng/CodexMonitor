@@ -230,7 +230,7 @@ Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfo
 
 ### Desktop OTA Updates
 
-Installed desktop clients update through the Tauri updater, so users do not need to return to the website and download a new installer manually. The release workflow publishes signed updater artifacts plus `latest.json` to GitHub Releases.
+Installed desktop clients update through the Tauri updater, so users do not need to return to the website and download a new installer manually. Release artifacts and `latest.json` are published to the public-read Volcengine TOS OTA bucket.
 
 See `docs/ota-release.md` for the release secrets, signing setup, and smoke-test checklist.
 
