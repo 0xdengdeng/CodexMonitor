@@ -2,12 +2,21 @@
 
 > 为了适应 SMB B2B 客户(5-30 人小公司,老板付费 + 半技术员工使用),
 > 产品进行了大幅简化。本文档**完整记录每一次砍除**,以便后续需要恢复时能快速找回。
->
-> 每条记录格式:
-> - **砍掉了什么**(UI 入口 / 代码文件 / i18n / 测试)
-> - **底层是否保留**(便于快速恢复)
-> - **对应 commit**(git revert 即可恢复)
-> - **手动恢复路径**(若 commit 跨度太大无法 revert)
+
+## 🔒 核心产品原则(铁律,任何砍除前必须确认)
+
+1. **前端可删**:UI / props / hook / 集成代码 / 测试 / 前端类型 / 前端 i18n / CSS — 都可以删
+2. **后端必须保留**:`src-tauri/*` 整套 Rust 代码 / Cargo 依赖 / Tauri 命令注册 / shared core / Rust types
+3. **后端不动的好处**:未来要恢复一个功能,**只需重新接前端 props 链 + 调用现有 Tauri 命令**,不用重写后端
+
+**违反这条原则 = 砍除工作返工**。
+
+## 记录格式
+
+- **砍掉了什么**(UI 入口 / 代码文件 / i18n / 测试)
+- **底层是否保留**(便于快速恢复 — 必须是 yes)
+- **对应 commit**(git revert 即可恢复)
+- **手动恢复路径**(若 commit 跨度太大无法 revert)
 
 ---
 
@@ -124,6 +133,51 @@
 **底层验证**:用户在产品里再也找不到任何"麦克风按钮"或"听写"入口,但安装包体积尚未变小(后端 + Cargo 没动)。降低安装门槛需等 Rust backend 砍除 commit。
 
 **恢复方法**:从 git 历史拉回 Composer / ComposerInput / WorkspaceHome / MainApp / useMainAppLayoutSurfaces 等文件。复杂度高,**强烈建议用 `git revert <commit>` 整体回退**而非手动恢复。
+
+---
+
+### Cut #4:前端 Dictation dead code 全砍(后端 / Cargo 完整保留)
+
+按用户原则「前端可改,后端保留」,把前端剩余 dictation 实现全部砍除。
+
+**前端删除**:
+- `src/features/dictation/` 整个目录(DictationWaveform + 3 hook)
+- `src/utils/dictation.ts`
+- `src/features/app/hooks/useDictationController.ts`
+- `src/features/composer/hooks/useComposerDictationControls.ts`
+- `src/features/settings/components/sections/SettingsDictationSection.tsx`
+
+**前端集成清理**:
+- `useAppBootstrap`:不再 import useDictationController
+- `useComposerKeyDown`:删 `isDictationBusy` 参数 + 2 处 bail-out
+- `Composer`:不再传 `isDictationBusy: false`
+- `SettingsView`:删 dictationModelStatus / onDownloadDictationModel / onCancelDictationDownload / onRemoveDictationModel props
+- `useSettingsViewOrchestration`:删 dictationSectionProps + localizedDictationModels + selectedDictationModel + dictationReady + metaKeyLabel(只服务听写)+ isWindowsPlatform 顺手清理
+- `MainApp`:删 `dictationEnabled: appSettings.dictationEnabled`
+- `useMainAppLayoutSurfaces`:删 "dictationEnabled" union 成员
+- `useAppSettings`:删 dictation 4 字段默认值
+- `useAppSettings.test`:删测试断言
+- `src/types.ts`:删 AppSettings 4 个 dictation 字段 + `DictationModelState` / `DictationDownloadProgress` / `DictationModelStatus` / `DictationSessionState` / `DictationEvent` / `DictationTranscript` 6 个类型
+- `services/tauri.ts`:删 8 个 dictation Tauri 命令 wrapper(`getDictationModelStatus` / `downloadDictationModel` / `cancelDictationDownload` / `removeDictationModel` / `startDictation` / `requestDictationPermission` / `stopDictation` / `cancelDictation`)+ `withModelId` helper
+- `services/events.ts`:删 `subscribeDictationDownload` / `subscribeDictationEvents` 2 个订阅器 + 2 个 event hub
+
+**后端完整保留**(原则要求):
+- ✅ `src-tauri/src/dictation/` 整个目录(mod.rs + real.rs + stub.rs ≈ 54KB)
+- ✅ `src-tauri/src/lib.rs` 8 个 dictation Tauri 命令注册仍在(只是前端不再调用)
+- ✅ `src-tauri/src/types.rs` AppSettings dictation 4 字段(serde 会把前端发来的 settings 忽略掉这些字段,旧 settings.json 仍兼容)
+- ✅ `src-tauri/src/state.rs` DictationState 字段
+- ✅ `Cargo.toml` `whisper-rs = "0.12"` / `cpal = "0.15"`
+- ✅ CMake / LLVM-Clang 仍是必须安装依赖
+
+**前端死代码剩余**(下一 commit 清):
+- `src/features/i18n/i18n.tsx` settings.dictation.* / composer.dictation.* 等死 keys
+- `src/styles/composer.css` `.composer-dictation-*` 死 CSS 类
+
+**用户可见影响**:零(只是清理 dead code,UI 在 commit #3 690eb44 时就已经看不到 dictation)
+
+**安装门槛 / 包体积影响**:零(后端 Rust 没动,whisper-rs 仍在编译)→ 这是用户原则下的妥协,**包体积优化无法在此次 sprint 完成**
+
+**恢复方法**:`git revert <commit>` 即可,或手动重接 props 链调用现有 Tauri 命令(后端仍在)
 
 ---
 

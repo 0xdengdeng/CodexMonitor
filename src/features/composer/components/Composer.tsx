@@ -534,7 +534,6 @@ export const Composer = memo(function Composer({
     handleHistoryKeyDown,
     handleInputKeyDown,
     handleSend,
-    isDictationBusy: false,
     isMac,
     onReviewPromptKeyDown,
     oppositeSubmitIntent,

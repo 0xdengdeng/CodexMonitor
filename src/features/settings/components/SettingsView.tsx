@@ -4,7 +4,6 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
-  DictationModelStatus,
   WorkspaceSettings,
   WorkspaceGroup,
   WorkspaceInfo,
@@ -54,10 +53,6 @@ export type SettingsViewProps = {
   onTestNotificationSound: () => void;
   onTestSystemNotification: () => void;
   onMobileConnectSuccess?: () => Promise<void> | void;
-  dictationModelStatus?: DictationModelStatus | null;
-  onDownloadDictationModel?: () => void;
-  onCancelDictationDownload?: () => void;
-  onRemoveDictationModel?: () => void;
   initialSection?: CodexSection;
 };
 
@@ -87,10 +82,6 @@ export function SettingsView({
   onTestNotificationSound,
   onTestSystemNotification,
   onMobileConnectSuccess,
-  dictationModelStatus,
-  onDownloadDictationModel,
-  onCancelDictationDownload,
-  onRemoveDictationModel,
   initialSection,
 }: SettingsViewProps) {
   const { t } = useI18n();
@@ -127,10 +118,6 @@ export function SettingsView({
     onDeleteWorkspaceGroup,
     onAssignWorkspaceGroup,
     onMobileConnectSuccess,
-    dictationModelStatus,
-    onDownloadDictationModel,
-    onCancelDictationDownload,
-    onRemoveDictationModel,
   });
 
   useSettingsViewCloseShortcuts(onClose);
