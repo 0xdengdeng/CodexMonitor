@@ -91,6 +91,42 @@
 
 ---
 
+## Sprint 2 — 2026-05-11
+
+### Cut #3:Composer / WorkspaceHome / MainApp 主链砍 Dictation
+
+**砍掉**:
+- `ComposerInput` 麦克风按钮 + DictationWaveform + 错误/提示条
+- `ComposerMobileActionsMenu` 听写按钮
+- `Composer` 顶层 12 个 dictation* props 全部砍
+- `useComposerDraftEffects` 内部听写插入逻辑 + dictationTranscript 参数
+- `WorkspaceHome` 12 个 dictation* props + 内部 dictation useEffect + isDictationBusy 分支
+- `MainApp` 全套 dictation* 接线 + dictationUi / dictationModel 传递
+- `useMainAppLayoutSurfaces` 全套 dictation* 字段 + dictationUi 块
+- `useMainAppModals` dictationModel 配置块 + dictationModelStatus props
+- `ComposerInput.dictation.test.tsx` 整个测试文件删
+
+**残留**(下一 commit 砍):
+- `src/features/dictation/*`(整个目录)
+- `useDictationController` hook
+- `utils/dictation.ts` (`computeDictationInsertion`)
+- `SettingsDictationSection.tsx` + `useSettingsDictationSection` 
+- `SettingsView` 仍接收 dictation props(props 流到 Settings)
+- `useSettingsViewOrchestration` dictationSectionProps
+- `useAppSettings` dictationEnabled / dictationModelId 字段
+- `types.ts` DictationModelStatus / DictationTranscript / DictationSessionState
+- `useAppBootstrap` dictation state
+- `services/events.ts` / `services/tauri.ts` dictation 事件 / 命令
+- **Rust backend**:`src-tauri/src/dictation/*` + Cargo.toml whisper-rs / CMake / Clang
+- i18n 中的 dictation keys (`settings.dictation.*`, `composer.dictation.*`)
+- CSS `composer-dictation-*` 类名
+
+**底层验证**:用户在产品里再也找不到任何"麦克风按钮"或"听写"入口,但安装包体积尚未变小(后端 + Cargo 没动)。降低安装门槛需等 Rust backend 砍除 commit。
+
+**恢复方法**:从 git 历史拉回 Composer / ComposerInput / WorkspaceHome / MainApp / useMainAppLayoutSurfaces 等文件。复杂度高,**强烈建议用 `git revert <commit>` 整体回退**而非手动恢复。
+
+---
+
 ## 待砍未砍清单(进行中)
 
 以下功能在 Sprint 1 仅砍了 Settings nav 入口,**功能本身和数据流仍在工作**。

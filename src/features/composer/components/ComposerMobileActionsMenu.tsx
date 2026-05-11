@@ -2,10 +2,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import ImagePlus from "lucide-react/dist/esm/icons/image-plus";
-import Mic from "lucide-react/dist/esm/icons/mic";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import Square from "lucide-react/dist/esm/icons/square";
-import X from "lucide-react/dist/esm/icons/x";
 import {
   PopoverMenuItem,
   PopoverSurface,
@@ -15,37 +12,25 @@ import { useI18n } from "@/features/i18n/i18n";
 type ComposerMobileActionsMenuProps = {
   disabled: boolean;
   handleMobileAttachClick: () => void;
-  handleMobileDictationClick: () => void;
   handleMobileExpandClick: () => void;
-  isDictating: boolean;
-  isDictationProcessing: boolean;
   isExpanded: boolean;
-  micAriaLabel: string;
-  micDisabled: boolean;
   mobileActionsOpen: boolean;
   mobileActionsRef: RefObject<HTMLDivElement | null>;
   onAddAttachment?: () => void;
   onToggleExpand?: () => void;
   setMobileActionsOpen: Dispatch<SetStateAction<boolean>>;
-  showDictationAction: boolean;
 };
 
 export function ComposerMobileActionsMenu({
   disabled,
   handleMobileAttachClick,
-  handleMobileDictationClick,
   handleMobileExpandClick,
-  isDictating,
-  isDictationProcessing,
   isExpanded,
-  micAriaLabel,
-  micDisabled,
   mobileActionsOpen,
   mobileActionsRef,
   onAddAttachment,
   onToggleExpand,
   setMobileActionsOpen,
-  showDictationAction,
 }: ComposerMobileActionsMenuProps) {
   const { t } = useI18n();
   const moreActionsLabel = t("composer.moreActions");
@@ -85,23 +70,6 @@ export function ComposerMobileActionsMenu({
               }
             >
               {isExpanded ? t("composer.collapseInput") : t("composer.expandInput")}
-            </PopoverMenuItem>
-          )}
-          {showDictationAction && (
-            <PopoverMenuItem
-              onClick={handleMobileDictationClick}
-              disabled={micDisabled}
-              icon={
-                isDictationProcessing ? (
-                  <X size={14} />
-                ) : isDictating ? (
-                  <Square size={14} />
-                ) : (
-                  <Mic size={14} />
-                )
-              }
-            >
-              {micAriaLabel}
             </PopoverMenuItem>
           )}
         </PopoverSurface>

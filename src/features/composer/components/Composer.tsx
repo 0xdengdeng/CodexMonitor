@@ -12,7 +12,6 @@ import type {
   ComposerSendIntent,
   ComposerEditorSettings,
   CustomPromptOption,
-  DictationTranscript,
   FollowUpMessageBehavior,
   QueuedMessage,
   ServiceTier,
@@ -102,18 +101,6 @@ type ComposerProps = {
   editorSettings?: ComposerEditorSettings;
   editorExpanded?: boolean;
   onToggleEditorExpanded?: () => void;
-  dictationEnabled?: boolean;
-  dictationState?: "idle" | "listening" | "processing";
-  dictationLevel?: number;
-  onToggleDictation?: () => void;
-  onCancelDictation?: () => void;
-  onOpenDictationSettings?: () => void;
-  dictationTranscript?: DictationTranscript | null;
-  onDictationTranscriptHandled?: (id: string) => void;
-  dictationError?: string | null;
-  onDismissDictationError?: () => void;
-  dictationHint?: string | null;
-  onDismissDictationHint?: () => void;
   reviewPrompt?: ReviewPromptState;
   onReviewPromptClose?: () => void;
   onReviewPromptShowPreset?: () => void;
@@ -211,18 +198,6 @@ export const Composer = memo(function Composer({
   editorSettings: editorSettingsProp,
   editorExpanded = false,
   onToggleEditorExpanded,
-  dictationEnabled = false,
-  dictationState = "idle",
-  dictationLevel = 0,
-  onToggleDictation,
-  onCancelDictation,
-  onOpenDictationSettings,
-  dictationTranscript = null,
-  onDictationTranscriptHandled,
-  dictationError = null,
-  onDismissDictationError,
-  dictationHint = null,
-  onDismissDictationHint,
   reviewPrompt,
   onReviewPromptClose,
   onReviewPromptShowPreset,
@@ -252,7 +227,6 @@ export const Composer = memo(function Composer({
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
   const editorSettings = editorSettingsProp ?? DEFAULT_EDITOR_SETTINGS;
-  const isDictationBusy = dictationState !== "idle";
   const canSend = text.trim().length > 0 || attachedImages.length > 0;
   const isMac = isMacPlatform();
   const followUpShortcutLabel = isMac ? "Shift+Cmd+Enter" : "Shift+Ctrl+Enter";
@@ -431,17 +405,11 @@ export const Composer = memo(function Composer({
     onPrefillHandled,
     insertText,
     onInsertHandled,
-    dictationTranscript,
-    onDictationTranscriptHandled,
-    textareaRef,
-    selectionStart,
     syncDraftText,
-    text,
     setComposerText,
     setAppMentionBindings,
     bindingsFromMentions,
     resetHistoryNavigation,
-    handleSelectionChange,
   });
 
   const applyTextInsertion = useCallback(
@@ -566,7 +534,7 @@ export const Composer = memo(function Composer({
     handleHistoryKeyDown,
     handleInputKeyDown,
     handleSend,
-    isDictationBusy,
+    isDictationBusy: false,
     isMac,
     onReviewPromptKeyDown,
     oppositeSubmitIntent,
@@ -637,16 +605,6 @@ export const Composer = memo(function Composer({
         isProcessing={isProcessing}
         onStop={onStop}
         onSend={() => handleSend(defaultSubmitIntent)}
-        dictationEnabled={dictationEnabled}
-        dictationState={dictationState}
-        dictationLevel={dictationLevel}
-        onToggleDictation={onToggleDictation}
-        onCancelDictation={onCancelDictation}
-        onOpenDictationSettings={onOpenDictationSettings}
-        dictationError={dictationError}
-        onDismissDictationError={onDismissDictationError}
-        dictationHint={dictationHint}
-        onDismissDictationHint={onDismissDictationHint}
         attachments={attachedImages}
         onAddAttachment={onPickImages}
         onAttachImages={onAttachImages}
