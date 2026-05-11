@@ -175,7 +175,7 @@ export function buildHomeUsageViewModel({
             suffix: copy.tokens,
             caption: latestUsageDay
               ? copy.inOutTokens
-                  .replace("{day}", formatDayLabel(latestUsageDay.day))
+                  .replace("{day}", formatDayLabel(latestUsageDay.day, language))
                   .replace("{input}", formatCount(latestUsageDay.inputTokens))
                   .replace("{output}", formatCount(latestUsageDay.outputTokens))
               : copy.latestAvailableDay,
@@ -231,7 +231,7 @@ export function buildHomeUsageViewModel({
           },
           {
             label: copy.peakDay,
-            value: formatDayLabel(usageTotals?.peakDay),
+            value: formatDayLabel(usageTotals?.peakDay, language),
             caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} ${copy.tokens}`,
           },
         ]
@@ -277,7 +277,7 @@ export function buildHomeUsageViewModel({
           },
           {
             label: copy.peakDay,
-            value: formatDayLabel(peakAgentDay?.day ?? null),
+            value: formatDayLabel(peakAgentDay?.day ?? null, language),
             caption: `${formatDurationCompact(peakAgentDay?.agentTimeMs ?? 0)} ${copy.agentTime}`,
           },
         ];

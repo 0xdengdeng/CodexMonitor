@@ -197,7 +197,7 @@ describe("useComposerAutocompleteState slash commands", () => {
     expect(result.current.autocompleteMatches).toHaveLength(1);
     expect(result.current.autocompleteMatches[0]).toMatchObject({
       label: "compact",
-      description: "压缩当前线程上下文",
+      description: "压缩当前对话上下文",
       insertText: "compact",
     });
   });

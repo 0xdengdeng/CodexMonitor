@@ -154,7 +154,7 @@ export function HomeUsageSection({
   );
   const canShowOlderWeek = chartWeekOffset < maxHistoricalWeekOffset;
   const canShowNewerWeek = chartWeekOffset > 0;
-  const chartRangeLabel = formatWeekRange(chartDays, usageCopy);
+  const chartRangeLabel = formatWeekRange(chartDays, usageCopy, language);
   const chartRangeAriaLabel =
     chartDays.length > 0
       ? t("home.usage.weekRangeAria", {
@@ -348,17 +348,17 @@ export function HomeUsageSection({
                 const tooltip =
                   usageMetric === "tokens"
                     ? t("home.usage.tooltip.tokens", {
-                        day: formatDayLabel(day.day),
+                        day: formatDayLabel(day.day, language),
                         tokens: formatCount(day.totalTokens),
                       })
-                    : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} ${t("home.usage.agentTime")}`;
+                    : `${formatDayLabel(day.day, language)} · ${formatDuration(day.agentTimeMs ?? 0)} ${t("home.usage.agentTime")}`;
                 return (
                   <div className="home-usage-bar" key={day.day} data-value={tooltip}>
                     <span
                       className="home-usage-bar-fill"
                       style={{ height: `${height}%` }}
                     />
-                    <span className="home-usage-bar-label">{formatDayLabel(day.day)}</span>
+                    <span className="home-usage-bar-label">{formatDayLabel(day.day, language)}</span>
                   </div>
                 );
               })}
