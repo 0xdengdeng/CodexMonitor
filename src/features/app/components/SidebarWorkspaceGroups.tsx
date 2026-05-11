@@ -21,6 +21,7 @@ import type {
   ThreadRowsResult,
   WorkspaceGroupSection,
 } from "./sidebarTypes";
+import { FEATURE_VISIBILITY } from "@/features/app/config/featureVisibility";
 import { useI18n } from "@/features/i18n/i18n";
 
 type SidebarWorkspaceGroupsProps = {
@@ -246,28 +247,32 @@ function SidebarWorkspaceEntry({
             >
               {t("sidebar.conversations.newAgent")}
             </PopoverMenuItem>
-            <PopoverMenuItem
-              className="workspace-add-option"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleAddMenu(null);
-                onAddWorktreeAgent(workspace);
-              }}
-              icon={<GitBranch aria-hidden />}
-            >
-              {t("workspace.worktree.title")}
-            </PopoverMenuItem>
-            <PopoverMenuItem
-              className="workspace-add-option"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleAddMenu(null);
-                onAddCloneAgent(workspace);
-              }}
-              icon={<Copy aria-hidden />}
-            >
-              {t("workspace.clone.title")}
-            </PopoverMenuItem>
+            {FEATURE_VISIBILITY.worktreeAgentMenu && (
+              <>
+                <PopoverMenuItem
+                  className="workspace-add-option"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleAddMenu(null);
+                    onAddWorktreeAgent(workspace);
+                  }}
+                  icon={<GitBranch aria-hidden />}
+                >
+                  {t("workspace.worktree.title")}
+                </PopoverMenuItem>
+                <PopoverMenuItem
+                  className="workspace-add-option"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleAddMenu(null);
+                    onAddCloneAgent(workspace);
+                  }}
+                  icon={<Copy aria-hidden />}
+                >
+                  {t("workspace.clone.title")}
+                </PopoverMenuItem>
+              </>
+            )}
           </PopoverSurface>,
           document.body,
         )}

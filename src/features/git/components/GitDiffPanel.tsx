@@ -1,4 +1,5 @@
 import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
+import { FEATURE_VISIBILITY } from "@/features/app/config/featureVisibility";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
@@ -674,8 +675,12 @@ export function GitDiffPanel({
               <option value="diff">{t("git.diff")}</option>
               <option value="perFile">{t("git.agentEdits")}</option>
               <option value="log">{t("git.log")}</option>
-              <option value="issues">{t("git.issues")}</option>
-              <option value="prs">{t("git.prs")}</option>
+              {FEATURE_VISIBILITY.githubIntegration && (
+                <>
+                  <option value="issues">{t("git.issues")}</option>
+                  <option value="prs">{t("git.prs")}</option>
+                </>
+              )}
             </select>
           </div>
         </div>

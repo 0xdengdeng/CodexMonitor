@@ -9,4 +9,8 @@
 export const FEATURE_VISIBILITY = {
   debugPanel: false,
   debugButton: false,
+  /** GitHub Issues / Pull Requests UI(本地 git changes/commit log 不受影响) */
+  githubIntegration: false,
+  /** "新 worktree agent" / "克隆 agent" menu — branch switcher 不受影响 */
+  worktreeAgentMenu: false,
 } as const;
