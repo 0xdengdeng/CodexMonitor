@@ -34,6 +34,19 @@ export const FEATURE_VISIBILITY = {
 
 **未来不再用"前端砍除"方式,所有新功能砍除都走 visibility flag**。
 
+### 当前 featureVisibility 快查表
+
+定义见 `src/features/app/config/featureVisibility.ts`,**全部 false 表示当前隐藏**。
+
+| Flag | 当前 | 含义 | 引入 commit |
+|------|------|------|------------|
+| `debugPanel` | `false` | DebugPanel 组件渲染 | 66298a5 |
+| `debugButton` | `false` | Sidebar 底部 Debug 按钮 | 66298a5 |
+| `githubIntegration` | `false` | Git 面板里 Issues / PRs 两个模式 + Composer "Ask PR" | eee8416 |
+| `worktreeAgentMenu` | `false` | Sidebar "+" 菜单里"新 worktree / 克隆 agent"两个项 + 系统菜单加速键 | eee8416 |
+
+**恢复某项 = 把对应 flag 改 `true`**。
+
 ## 记录格式
 
 - **砍掉了什么**(UI 入口 / 代码文件 / i18n / 测试)
@@ -201,6 +214,51 @@ export const FEATURE_VISIBILITY = {
 **安装门槛 / 包体积影响**:零(后端 Rust 没动,whisper-rs 仍在编译)→ 这是用户原则下的妥协,**包体积优化无法在此次 sprint 完成**
 
 **恢复方法**:`git revert <commit>` 即可,或手动重接 props 链调用现有 Tauri 命令(后端仍在)
+
+---
+
+### Cut #5:引入 featureVisibility flag 体系 + Debug panel UI 隐藏(commit 66298a5)
+
+**新增**:
+- `src/features/app/config/featureVisibility.ts` — 集中开关表
+- 初始 flag:`debugPanel: false` / `debugButton: false`
+
+**Flag 拦截位置**:
+- `DebugPanel` 组件函数体开头 — `flag === false` 时 `return null`
+- `SidebarBottomRail` — `{FEATURE_VISIBILITY.debugButton && showDebugButton && ...}`
+
+**未动**:
+- `useDebugLog` hook + `addDebugEntry` 调用链 — 业务代码 try/catch 仍把 entry 写到内存(MAX 200 条)
+- 所有 debug 相关 props / 快捷键 / 菜单事件 callback 仍然完好
+- i18n / CSS 死字符串完整保留
+
+**恢复**:`featureVisibility.ts` 把 `debugPanel` 和 `debugButton` 改 `true`,零返工。
+
+---
+
+### Cut #6:GitHub PR/Issues + Worktree-agent menu flag 隐藏(commit eee8416)
+
+**新增 flag**:
+- `githubIntegration: false`
+- `worktreeAgentMenu: false`
+
+**`githubIntegration` 拦截位置**:
+- `GitDiffPanel` mode select 下拉 — `flag === true` 才渲染 `<option value="issues">` 和 `<option value="prs">`
+- 因为用户切不到这两个 mode,GitPullRequestsModeContent / GitIssuesModeContent 渲染逻辑、Composer "Ask PR" 路径自然不会触发
+
+**`worktreeAgentMenu` 拦截位置**:
+- `SidebarWorkspaceGroups` 工作区 "+" popover — 两个 PopoverMenuItem(新 worktree agent / 克隆 agent)用 flag 包住
+- `useAppMenuEvents` — 系统菜单触发的 `subscribeMenuNewWorktreeAgent` / `subscribeMenuNewCloneAgent` 在 flag 为 false 时直接 return
+
+**用户可见影响**:
+- Git 面板的 mode 下拉只剩 `Diff / Agent edits / Log`,无 GitHub Issues / PR
+- 项目 "+" 菜单只剩"新对话",无 worktree / 克隆
+- Branch switcher / git status / commit log / 本地 diff 一切如常
+
+**未动**:
+- 所有 GitHub / worktree-agent 相关组件、hook、Tauri 命令、Rust backend、i18n、CSS
+
+**恢复**:flag 改 `true`,零返工。
 
 ---
 

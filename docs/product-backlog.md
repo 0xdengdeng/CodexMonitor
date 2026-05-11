@@ -13,6 +13,16 @@
 ## 工程跟进(已铺路待扩散)
 - **错误信息人话化扩散**:Sprint 1 收尾加了 `src/utils/friendlyError.ts` + `pushFriendlyError(error)`,并把 `PromptPanel.tsx` 的 `window.alert` 替换为 toast 兜底。但项目里仍有 **~148 处** 直接显示 `error.message` 的位置(grep `error\.message|err\.message|e\.message`)。逐步用 `pushFriendlyError` 替换,优先 toast / banner 这类用户能看到的;catch 里只打日志的不动。
 
+## Sprint 2 评估后跳过(后续视真实反馈再决定)
+
+- **Composer 高级选择器重设计**(Reasoning effort / Access mode / Collaboration):2026-05-11 评估时用户判断**现状可接受**,跳过。
+  - 备选方向(已讨论):**A 一个"模式"下拉**(快/平衡/深度) / **B 两个下拉**(快慢 + 权限) / **C 只改文案**
+  - 触发再做的信号:有用户反馈"看不懂这几个下拉" / "不知道选哪个"
+
+- **Plan view 卡片化**(✅⏳⭕ + 折叠技术细节):同上,先跳过。
+  - 备选方向:**A 卡片化** / **B 加风险标注** / **C 双视图**
+  - 触发再做的信号:有用户反馈"Plan 看不懂" / 销售在地推时被员工问
+
 ## 战略层面
 - **员工视角访谈**:目前 5 个访谈都是老板,使用者视角缺失,需要补访谈来纠正产品判断。
 - **多模型抽象 / 国产模型支持**:对冲 GPT 中转业务的不可持续风险。
