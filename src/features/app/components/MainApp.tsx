@@ -1057,7 +1057,7 @@ export default function MainApp() {
 
   const openEnterpriseAiEntry = useCallback(() => {
     if (appSettings.enterpriseAi.status === "connected") {
-      modalActions.openSettings("codex");
+      modalActions.openSettings("ai");
       return;
     }
     setEnterpriseAiLoginOpen(true);
@@ -1614,7 +1614,7 @@ export default function MainApp() {
           dictationLevel,
           onToggleDictation: handleToggleDictation,
           onCancelDictation: cancelDictation,
-          onOpenDictationSettings: () => modalActions.openSettings("dictation"),
+          onOpenDictationSettings: () => modalActions.openSettings("advanced"),
           dictationError,
           onDismissDictationError: clearDictationError,
           dictationHint,
@@ -1747,7 +1747,7 @@ export default function MainApp() {
       handleSelectPullRequest,
     },
     dictationUi: {
-      onOpenDictationSettings: () => modalActions.openSettings('dictation'),
+      onOpenDictationSettings: () => modalActions.openSettings('advanced'),
       dictationTranscript,
       dictationError,
       dictationHint,

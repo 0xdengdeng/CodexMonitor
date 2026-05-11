@@ -1,15 +1,10 @@
 import { useCallback, useState } from "react";
 
 export type SettingsSection =
+  | "ai"
   | "projects"
-  | "display"
   | "about"
-  | "dictation"
-  | "shortcuts"
-  | "open-apps"
-  | "git"
-  | "codex"
-  | "features";
+  | "advanced";
 
 export function useSettingsModalState() {
   const [settingsOpen, setSettingsOpen] = useState(false);

@@ -135,10 +135,7 @@ export function SettingsView({
 
   useSettingsViewCloseShortcuts(onClose);
 
-  const activeSectionLabel =
-    activeSection === "open-apps"
-      ? t("settings.nav.openApps")
-      : t(`settings.nav.${activeSection}`);
+  const activeSectionLabel = t(`settings.nav.${activeSection}`);
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
   }${useMobileMasterDetail && showMobileDetail ? " is-detail-visible" : ""}`;
