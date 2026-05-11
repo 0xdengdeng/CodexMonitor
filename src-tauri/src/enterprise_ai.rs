@@ -14,7 +14,13 @@ use crate::types::{
     EnterpriseAiUsageSnapshot, ManagedRuntimeConfig,
 };
 
-const DEFAULT_SERVICE_BASE_URL: &str = "http://127.0.0.1:1457";
+// debug build (tauri dev) → UAT;release build (tauri build) → prod.
+// 环境变量 CODEXMONITOR_ENTERPRISE_AI_BASE_URL / AI_DEVELOPMENT_GATEWAY_URL 仍可 override。
+const DEFAULT_SERVICE_BASE_URL: &str = if cfg!(debug_assertions) {
+    "https://adg-uat.zhaozhunai.com"
+} else {
+    "https://adg.zhaozhunai.com"
+};
 
 #[derive(Debug)]
 struct EnterpriseSession {
