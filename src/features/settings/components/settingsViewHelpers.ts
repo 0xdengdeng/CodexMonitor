@@ -117,6 +117,14 @@ type EditorContentMetaInput = {
   exists: boolean;
   truncated: boolean;
   isDirty: boolean;
+  copy: {
+    loading: string;
+    saving: string;
+    notFound: string;
+    truncated: string;
+    save: string;
+    create: string;
+  };
 };
 
 export const buildEditorContentMeta = ({
@@ -125,19 +133,20 @@ export const buildEditorContentMeta = ({
   exists,
   truncated,
   isDirty,
+  copy,
 }: EditorContentMetaInput) => {
-  const status = isLoading ? "Loading…" : isSaving ? "Saving…" : exists ? "" : "Not found";
+  const status = isLoading ? copy.loading : isSaving ? copy.saving : exists ? "" : copy.notFound;
   const metaParts: string[] = [];
   if (status) {
     metaParts.push(status);
   }
   if (truncated) {
-    metaParts.push("Truncated");
+    metaParts.push(copy.truncated);
   }
 
   return {
     meta: metaParts.join(" · "),
-    saveLabel: exists ? "Save" : "Create",
+    saveLabel: exists ? copy.save : copy.create,
     saveDisabled: isLoading || isSaving || !isDirty,
     refreshDisabled: isLoading || isSaving,
   };

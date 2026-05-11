@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { AppSettings } from "@/types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
@@ -19,6 +20,10 @@ import { normalizeOpenAppTargets } from "@app/utils/openApp";
 import { getDefaultInterruptShortcut, isMacPlatform } from "@utils/shortcuts";
 import { isMobilePlatform } from "@utils/platformPaths";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  normalizeInterfaceLanguage,
+} from "@/features/i18n/i18n";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
@@ -45,6 +50,41 @@ function normalizeRemoteHost(value: string | null | undefined): string {
 
 function normalizeRemoteName(value: string | null | undefined, fallback: string): string {
   return value?.trim() ? value.trim() : fallback;
+}
+
+function normalizeNullableString(value: string | null | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
+}
+
+function normalizeManagedRuntime(
+  value: AppSettings["managedRuntime"] | null | undefined,
+): AppSettings["managedRuntime"] {
+  return {
+    enabled: value?.enabled === true,
+    baseUrl: normalizeNullableString(value?.baseUrl),
+    model: normalizeNullableString(value?.model),
+  };
+}
+
+function normalizeEnterpriseAi(
+  value: AppSettings["enterpriseAi"] | null | undefined,
+): AppSettings["enterpriseAi"] {
+  const status = value?.status;
+  return {
+    tenantDomain: normalizeNullableString(value?.tenantDomain),
+    status:
+      status === "connected" || status === "invalid" || status === "disconnected"
+        ? status
+        : "disconnected",
+    accountName: normalizeNullableString(value?.accountName),
+    keyLast4: normalizeNullableString(value?.keyLast4),
+    lastValidatedAtMs:
+      typeof value?.lastValidatedAtMs === "number" &&
+      Number.isFinite(value.lastValidatedAtMs)
+        ? value.lastValidatedAtMs
+        : null,
+    lastError: normalizeNullableString(value?.lastError),
+  };
 }
 
 function normalizeRemoteBackends(settings: AppSettings): {
@@ -134,7 +174,6 @@ function buildDefaultSettings(): AppSettings {
     lastConnectedAtMs: null,
   };
   return {
-    codexBin: null,
     codexArgs: null,
     backendMode: isMobile ? "remote" : "local",
     remoteBackendProvider: defaultRemote.provider,
@@ -142,6 +181,19 @@ function buildDefaultSettings(): AppSettings {
     remoteBackendToken: null,
     remoteBackends: [defaultRemote],
     activeRemoteBackendId: defaultRemote.id,
+    managedRuntime: {
+      enabled: false,
+      baseUrl: null,
+      model: null,
+    },
+    enterpriseAi: {
+      tenantDomain: null,
+      status: "disconnected",
+      accountName: null,
+      keyLast4: null,
+      lastValidatedAtMs: null,
+      lastError: null,
+    },
     keepDaemonRunningAfterAppClose: false,
     defaultAccessMode: "current",
     reviewDeliveryMode: "inline",
@@ -167,6 +219,7 @@ function buildDefaultSettings(): AppSettings {
     lastComposerReasoningEffort: null,
     uiScale: UI_SCALE_DEFAULT,
     theme: "system",
+    interfaceLanguage: DEFAULT_INTERFACE_LANGUAGE,
     usageShowRemaining: false,
     showMessageFilePath: true,
     chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
@@ -191,10 +244,6 @@ function buildDefaultSettings(): AppSettings {
     unifiedExecEnabled: true,
     experimentalAppsEnabled: false,
     personality: "friendly",
-    dictationEnabled: false,
-    dictationModelId: "base",
-    dictationPreferredLanguage: null,
-    dictationHoldKey: "alt",
     composerEditorPreset: "default",
     composerFenceExpandOnSpace: false,
     composerFenceExpandOnEnter: false,
@@ -243,10 +292,12 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     ...remoteBackendSettings,
-    codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
+    managedRuntime: normalizeManagedRuntime(settings.managedRuntime),
+    enterpriseAi: normalizeEnterpriseAi(settings.enterpriseAi),
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
+    interfaceLanguage: normalizeInterfaceLanguage(settings.interfaceLanguage),
     uiFontFamily: normalizeFontFamily(
       settings.uiFontFamily,
       DEFAULT_UI_FONT_FAMILY,
@@ -283,6 +334,15 @@ export function useAppSettings() {
   const defaultSettings = useMemo(() => buildDefaultSettings(), []);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
+  const settingsRef = useRef<AppSettings>(defaultSettings);
+  const setSettingsState = useCallback<Dispatch<SetStateAction<AppSettings>>>((next) => {
+    const resolved =
+      typeof next === "function"
+        ? (next as (value: AppSettings) => AppSettings)(settingsRef.current)
+        : next;
+    settingsRef.current = resolved;
+    setSettings(resolved);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -290,7 +350,7 @@ export function useAppSettings() {
       try {
         const response = await getAppSettings();
         if (active) {
-          setSettings(
+          setSettingsState(
             normalizeAppSettings({
               ...defaultSettings,
               ...response,
@@ -308,30 +368,45 @@ export function useAppSettings() {
     return () => {
       active = false;
     };
-  }, [defaultSettings]);
+  }, [defaultSettings, setSettingsState]);
 
   const saveSettings = useCallback(async (next: AppSettings) => {
-    const normalized = normalizeAppSettings(next);
-    const saved = await updateAppSettings(normalized);
-    setSettings(
-      normalizeAppSettings({
-        ...defaultSettings,
-        ...saved,
-      }),
-    );
-    return saved;
-  }, [defaultSettings]);
+    const previous = settingsRef.current;
+    const normalized = normalizeAppSettings({
+      ...defaultSettings,
+      ...next,
+    });
+    setSettingsState(normalized);
+
+    try {
+      const saved = await updateAppSettings(normalized);
+      if (settingsRef.current === normalized) {
+        setSettingsState(
+          normalizeAppSettings({
+            ...defaultSettings,
+            ...saved,
+          }),
+        );
+      }
+      return saved;
+    } catch (error) {
+      if (settingsRef.current === normalized) {
+        setSettingsState(previous);
+      }
+      throw error;
+    }
+  }, [defaultSettings, setSettingsState]);
 
   const doctor = useCallback(
-    async (codexBin: string | null, codexArgs: string | null) => {
-      return runCodexDoctor(codexBin, codexArgs);
+    async (codexArgs: string | null) => {
+      return runCodexDoctor(codexArgs);
     },
     [],
   );
 
   return {
     settings,
-    setSettings,
+    setSettings: setSettingsState,
     saveSettings,
     doctor,
     isLoading,

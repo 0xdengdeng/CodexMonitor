@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import type { BranchInfo, WorkspaceInfo } from "../../../types";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { BranchList } from "./BranchList";
@@ -44,6 +45,7 @@ export function BranchSwitcherPrompt({
   onSelect,
   onCancel,
 }: BranchSwitcherPromptProps) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
@@ -105,7 +107,7 @@ export function BranchSwitcherPrompt({
     <ModalShell
       className="branch-switcher-modal"
       onBackdropClick={onCancel}
-      ariaLabel="Switch branch"
+      ariaLabel={t("git.branchSwitcher.title")}
     >
       <input
         ref={inputRef}
@@ -113,7 +115,7 @@ export function BranchSwitcherPrompt({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Search branches..."
+        placeholder={t("git.branchSwitcher.search")}
       />
       <BranchList
         branches={filteredBranches}
@@ -125,7 +127,7 @@ export function BranchSwitcherPrompt({
         selectedItemClassName="selected"
         itemLabelClassName="branch-switcher-modal-item-name"
         emptyClassName="branch-switcher-modal-empty"
-        emptyText="No branches found"
+        emptyText={t("git.branchSwitcher.noBranches")}
         onSelect={handleSelect}
         onMouseEnter={setSelectedIndex}
         renderMeta={(branch) => {
@@ -138,10 +140,14 @@ export function BranchSwitcherPrompt({
           return (
             <span className="branch-switcher-modal-item-meta">
               {isCurrent && (
-                <span className="branch-switcher-modal-item-current">current</span>
+                <span className="branch-switcher-modal-item-current">
+                  {t("git.branchSwitcher.current")}
+                </span>
               )}
               {worktree && (
-                <span className="branch-switcher-modal-item-worktree">worktree</span>
+                <span className="branch-switcher-modal-item-worktree">
+                  {t("git.branchSwitcher.worktree")}
+                </span>
               )}
             </span>
           );

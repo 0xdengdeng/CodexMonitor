@@ -1,0 +1,76 @@
+.enterprise-ai-login-modal .ds-modal-card {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.enterprise-ai-login-modal-card {
+  padding: 0;
+}
+
+.enterprise-ai-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+}
+
+.enterprise-ai-login-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.enterprise-ai-login-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ds-text-strong);
+  background: var(--ds-surface-muted);
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.enterprise-ai-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.enterprise-ai-login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.enterprise-ai-login-input-wrap svg {
+  position: absolute;
+  left: 14px;
+  color: var(--ds-text-subtle);
+  pointer-events: none;
+}
+
+.enterprise-ai-login-input.ds-modal-input {
+  width: 100%;
+  padding-left: 42px;
+}
+
+.enterprise-ai-login-actions {
+  margin-top: 2px;
+}
+
+@media (max-width: 520px) {
+  .enterprise-ai-login-form {
+    padding: 20px;
+  }
+
+  .enterprise-ai-login-header {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .enterprise-ai-login-mark {
+    width: 40px;
+    height: 40px;
+  }
+}

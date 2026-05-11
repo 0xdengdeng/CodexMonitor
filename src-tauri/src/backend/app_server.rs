@@ -79,14 +79,12 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         push_thread_id(out, record.get("id"));
         push_thread_id(
             out,
-            record
-                .get("thread")
-                .and_then(|thread| {
-                    thread
-                        .get("id")
-                        .or_else(|| thread.get("threadId"))
-                        .or_else(|| thread.get("thread_id"))
-                }),
+            record.get("thread").and_then(|thread| {
+                thread
+                    .get("id")
+                    .or_else(|| thread.get("threadId"))
+                    .or_else(|| thread.get("thread_id"))
+            }),
         );
     }
 
@@ -94,12 +92,15 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         let Some(container) = container.and_then(|value| value.as_object()) else {
             return;
         };
-        push_thread_id(out, container.get("threadId").or_else(|| container.get("thread_id")));
         push_thread_id(
             out,
             container
-                .get("thread")
-                .and_then(|thread| thread.get("id")),
+                .get("threadId")
+                .or_else(|| container.get("thread_id")),
+        );
+        push_thread_id(
+            out,
+            container.get("thread").and_then(|thread| thread.get("id")),
         );
         push_thread_id(
             out,
@@ -149,7 +150,10 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
                 .or_else(|| container.get("agent_statuses")),
             out,
         );
-        if let Some(status_map) = container.get("statuses").and_then(|value| value.as_object()) {
+        if let Some(status_map) = container
+            .get("statuses")
+            .and_then(|value| value.as_object())
+        {
             out.extend(
                 status_map
                     .keys()
@@ -192,10 +196,8 @@ fn normalize_root_path(value: &str) -> String {
     }
 
     let bytes = normalized.as_bytes();
-    let is_drive_path = bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/';
+    let is_drive_path =
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
     if is_drive_path || normalized.starts_with("//") {
         normalized.to_ascii_lowercase()
     } else {
@@ -419,8 +421,8 @@ pub(crate) struct RequestContext {
 fn build_initialize_params(client_version: &str) -> Value {
     json!({
         "clientInfo": {
-            "name": "codex_monitor",
-            "title": "Codex Monitor",
+            "name": "agentdesk",
+            "title": "启航AI智慧平台",
             "version": client_version
         },
         "capabilities": {
@@ -560,7 +562,7 @@ impl WorkspaceSession {
     }
 }
 
-pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
+pub(crate) fn build_codex_path_env() -> Option<String> {
     let mut paths: Vec<PathBuf> = env::var_os("PATH")
         .map(|value| env::split_paths(&value).collect())
         .unwrap_or_default();
@@ -622,12 +624,6 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
         }
     }
 
-    if let Some(bin_path) = codex_bin.filter(|value| !value.trim().is_empty()) {
-        if let Some(parent) = Path::new(bin_path).parent() {
-            extras.push(parent.to_path_buf());
-        }
-    }
-
     for extra in extras {
         if !paths.iter().any(|path| path == &extra) {
             paths.push(extra);
@@ -644,16 +640,12 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
 }
 
 pub(crate) fn build_codex_command_with_bin(
-    codex_bin: Option<String>,
+    codex_bin: String,
     codex_args: Option<&str>,
     args: Vec<String>,
 ) -> Result<Command, String> {
-    let bin = codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "codex".into());
-
-    let path_env = build_codex_path_env(codex_bin.as_deref());
+    let bin = codex_bin;
+    let path_env = build_codex_path_env();
     let mut command_args = parse_codex_args(codex_args)?;
     command_args.extend(args);
 
@@ -698,7 +690,7 @@ pub(crate) fn build_codex_command_with_bin(
 }
 
 pub(crate) async fn check_codex_installation(
-    codex_bin: Option<String>,
+    codex_bin: String,
 ) -> Result<Option<String>, String> {
     let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
@@ -707,14 +699,14 @@ pub(crate) async fn check_codex_installation(
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH.".to_string()
+                "Bundled Codex runtime not found. Run `npm run sync:codex-runtime` before starting AgentDesk.".to_string()
             } else {
                 e.to_string()
             }
         })?,
         Err(_) => {
             return Err(
-                "Timed out while checking Codex CLI. Make sure `codex --version` runs in Terminal."
+                "Timed out while checking the bundled Codex runtime."
                     .to_string(),
             );
         }
@@ -729,13 +721,9 @@ pub(crate) async fn check_codex_installation(
             stderr.trim()
         };
         if detail.is_empty() {
-            return Err(
-                "Codex CLI failed to start. Try running `codex --version` in Terminal.".to_string(),
-            );
+            return Err("Bundled Codex runtime failed to start.".to_string());
         }
-        return Err(format!(
-            "Codex CLI failed to start: {detail}. Try running `codex --version` in Terminal."
-        ));
+        return Err(format!("Bundled Codex runtime failed to start: {detail}."));
     }
 
     let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -748,13 +736,13 @@ pub(crate) async fn check_codex_installation(
 
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
-    default_codex_bin: Option<String>,
+    codex_bin: String,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
+    runtime_env: Vec<(String, String)>,
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let codex_bin = default_codex_bin;
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
     let mut command = build_codex_command_with_bin(
@@ -765,6 +753,9 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     command.current_dir(&entry.path);
     if let Some(path) = codex_home.as_ref() {
         command.env("CODEX_HOME", path);
+    }
+    for (key, value) in runtime_env {
+        command.env(key, value);
     }
     command.stdin(std::process::Stdio::piped());
     command.stdout(std::process::Stdio::piped());
@@ -903,12 +894,20 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         .and_then(Value::as_str)
                         .unwrap_or("hide");
                     if action.eq_ignore_ascii_case("hide") {
-                        session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                        session_clone
+                            .hidden_thread_ids
+                            .lock()
+                            .await
+                            .insert(tid.clone());
                     }
                 } else if method_name == Some("thread/started")
                     && thread_started_is_memory_consolidation(&value)
                 {
-                    session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                    session_clone
+                        .hidden_thread_ids
+                        .lock()
+                        .await
+                        .insert(tid.clone());
                     let payload = AppServerEvent {
                         workspace_id: routed_workspace_id.clone(),
                         message: json!({
@@ -1105,13 +1104,13 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_initialize_params, extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
-        extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
-        should_suppress_hidden_thread_event, source_subagent_kind,
+        build_initialize_params, extract_related_thread_ids,
+        extract_thread_entries_from_thread_list_result, extract_thread_id, normalize_root_path,
+        resolve_workspace_for_cwd, should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation,
     };
-    use std::collections::HashMap;
     use serde_json::json;
+    use std::collections::HashMap;
 
     #[test]
     fn extract_thread_id_reads_camel_case() {
@@ -1365,8 +1364,14 @@ mod tests {
 
     #[test]
     fn hidden_thread_suppression_allows_rpc_responses() {
-        assert!(!should_suppress_hidden_thread_event(Some("thread/archived"), true));
-        assert!(!should_suppress_hidden_thread_event(Some("thread/updated"), true));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/archived"),
+            true
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/updated"),
+            true
+        ));
         assert!(!should_suppress_hidden_thread_event(None, true));
     }
 

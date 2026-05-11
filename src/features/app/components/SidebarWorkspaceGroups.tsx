@@ -21,6 +21,8 @@ import type {
   ThreadRowsResult,
   WorkspaceGroupSection,
 } from "./sidebarTypes";
+import { FEATURE_VISIBILITY } from "@/features/app/config/featureVisibility";
+import { useI18n } from "@/features/i18n/i18n";
 
 type SidebarWorkspaceGroupsProps = {
   groups: WorkspaceGroupSection[];
@@ -64,7 +66,6 @@ type SidebarWorkspaceGroupsProps = {
   newAgentDraftWorkspaceId?: string | null;
   startingDraftThreadWorkspaceId?: string | null;
   onSelectWorkspace: (workspaceId: string) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onAddAgent: (workspace: WorkspaceInfo) => void;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => void;
   onAddCloneAgent: (workspace: WorkspaceInfo) => void;
@@ -127,7 +128,6 @@ function SidebarWorkspaceEntry({
   newAgentDraftWorkspaceId,
   startingDraftThreadWorkspaceId,
   onSelectWorkspace,
-  onConnectWorkspace,
   onAddAgent,
   onAddWorktreeAgent,
   onAddCloneAgent,
@@ -141,6 +141,7 @@ function SidebarWorkspaceEntry({
   onLoadOlderThreads,
   onToggleAddMenu,
 }: SidebarWorkspaceEntryProps) {
+  const { t } = useI18n();
   if (cloneChildIds.has(workspace.id)) {
     return null;
   }
@@ -194,18 +195,27 @@ function SidebarWorkspaceEntry({
     !activeThreadId;
   const draftStatusClass =
     startingDraftThreadWorkspaceId === workspace.id ? "processing" : "ready";
+  const workspaceSummary =
+    displayThreadRootCount > 0
+      ? `${t(
+          displayThreadRootCount === 1
+            ? "sidebar.conversations.count"
+            : "sidebar.conversations.countPlural",
+          { count: displayThreadRootCount },
+        )}${
+          threads[0]
+            ? ` · ${t("sidebar.conversations.updated", {
+                time: getThreadTime(threads[0]),
+              })}`
+            : ""
+        }`
+      : t("sidebar.conversations.empty");
 
   return (
     <WorkspaceCard
       workspace={workspace}
       workspaceName={renderHighlightedName(workspace.name)}
-      summary={
-        displayThreadRootCount > 0
-          ? `${displayThreadRootCount} conversation${
-              displayThreadRootCount === 1 ? "" : "s"
-            }${threads[0] ? ` · Updated ${getThreadTime(threads[0])}` : ""}`
-          : "No conversations yet"
-      }
+      summary={workspaceSummary}
       isActive={workspace.id === activeWorkspaceId}
       isCollapsed={isCollapsed}
       addMenuOpen={addMenuOpen}
@@ -213,7 +223,6 @@ function SidebarWorkspaceEntry({
       onSelectWorkspace={onSelectWorkspace}
       onShowWorkspaceMenu={onShowWorkspaceMenu}
       onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
-      onConnectWorkspace={onConnectWorkspace}
       onToggleAddMenu={onToggleAddMenu}
     >
       {addMenuOpen && addMenuAnchor &&
@@ -236,30 +245,34 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Plus aria-hidden />}
             >
-              New agent
+              {t("sidebar.conversations.newAgent")}
             </PopoverMenuItem>
-            <PopoverMenuItem
-              className="workspace-add-option"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleAddMenu(null);
-                onAddWorktreeAgent(workspace);
-              }}
-              icon={<GitBranch aria-hidden />}
-            >
-              New worktree agent
-            </PopoverMenuItem>
-            <PopoverMenuItem
-              className="workspace-add-option"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleAddMenu(null);
-                onAddCloneAgent(workspace);
-              }}
-              icon={<Copy aria-hidden />}
-            >
-              New clone agent
-            </PopoverMenuItem>
+            {FEATURE_VISIBILITY.worktreeAgentMenu && (
+              <>
+                <PopoverMenuItem
+                  className="workspace-add-option"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleAddMenu(null);
+                    onAddWorktreeAgent(workspace);
+                  }}
+                  icon={<GitBranch aria-hidden />}
+                >
+                  {t("workspace.worktree.title")}
+                </PopoverMenuItem>
+                <PopoverMenuItem
+                  className="workspace-add-option"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleAddMenu(null);
+                    onAddCloneAgent(workspace);
+                  }}
+                  icon={<Copy aria-hidden />}
+                >
+                  {t("workspace.clone.title")}
+                </PopoverMenuItem>
+              </>
+            )}
           </PopoverSurface>,
           document.body,
         )}
@@ -279,7 +292,7 @@ function SidebarWorkspaceEntry({
           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
           <div className="thread-content">
             <div className="thread-headline">
-              <span className="thread-name">New Agent</span>
+              <span className="thread-name">{t("sidebar.conversations.newAgent")}</span>
             </div>
           </div>
         </div>
@@ -304,7 +317,6 @@ function SidebarWorkspaceEntry({
           getPinTimestamp={getPinTimestamp}
           pinnedThreadsVersion={pinnedThreadsVersion}
           onSelectWorkspace={onSelectWorkspace}
-          onConnectWorkspace={onConnectWorkspace}
           onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}
@@ -313,7 +325,7 @@ function SidebarWorkspaceEntry({
           onLoadOlderThreads={onLoadOlderThreads}
           searchQuery={normalizedQuery}
           isSearchActive={isSearchActive}
-          sectionLabel="Clone agents"
+          sectionLabel={t("sidebar.conversations.cloneAgents")}
           sectionIcon={<Copy className="worktree-header-icon" aria-hidden />}
           className="clone-section"
         />
@@ -338,7 +350,6 @@ function SidebarWorkspaceEntry({
           getPinTimestamp={getPinTimestamp}
           pinnedThreadsVersion={pinnedThreadsVersion}
           onSelectWorkspace={onSelectWorkspace}
-          onConnectWorkspace={onConnectWorkspace}
           onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}

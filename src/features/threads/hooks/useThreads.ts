@@ -4,6 +4,7 @@ import type {
   CollabAgentRef,
   CustomPromptOption,
   DebugEntry,
+  InterfaceLanguagePreference,
   ServiceTier,
   ThreadListSortKey,
   WorkspaceInfo,
@@ -55,6 +56,7 @@ type UseThreadsOptions = {
   accessMode?: "read-only" | "current" | "full-access";
   onSelectServiceTier?: (tier: ServiceTier | null | undefined) => void;
   reviewDeliveryMode?: "inline" | "detached";
+  interfaceLanguage?: InterfaceLanguagePreference;
   steerEnabled?: boolean;
   threadTitleAutogenerationEnabled?: boolean;
   chatHistoryScrollbackItems?: number | null;
@@ -86,6 +88,7 @@ export function useThreads({
   accessMode,
   onSelectServiceTier,
   reviewDeliveryMode = "inline",
+  interfaceLanguage,
   steerEnabled = false,
   threadTitleAutogenerationEnabled = false,
   chatHistoryScrollbackItems,
@@ -768,6 +771,7 @@ export function useThreads({
     collaborationMode,
     onSelectServiceTier,
     reviewDeliveryMode,
+    interfaceLanguage,
     steerEnabled,
     customPrompts,
     ensureWorkspaceRuntimeCodexArgs,

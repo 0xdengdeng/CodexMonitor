@@ -2,6 +2,7 @@ import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close";
 import PanelLeftOpen from "lucide-react/dist/esm/icons/panel-left-open";
 import PanelRightClose from "lucide-react/dist/esm/icons/panel-right-close";
 import PanelRightOpen from "lucide-react/dist/esm/icons/panel-right-open";
+import { useI18n } from "@/features/i18n/i18n";
 
 export type SidebarToggleProps = {
   isCompact: boolean;
@@ -18,6 +19,9 @@ export function SidebarCollapseButton({
   sidebarCollapsed,
   onCollapseSidebar,
 }: SidebarToggleProps) {
+  const { t } = useI18n();
+  const label = t("layout.hideThreadsSidebar");
+
   if (isCompact || sidebarCollapsed) {
     return null;
   }
@@ -27,9 +31,9 @@ export function SidebarCollapseButton({
       className="ghost main-header-action ds-tooltip-trigger"
       onClick={onCollapseSidebar}
       data-tauri-drag-region="false"
-      aria-label="Hide threads sidebar"
-      title="Hide threads sidebar"
-      data-tooltip="Hide threads sidebar"
+      aria-label={label}
+      title={label}
+      data-tooltip={label}
       data-tooltip-placement="bottom"
     >
       <PanelLeftClose size={14} aria-hidden />
@@ -42,6 +46,9 @@ export function RightPanelCollapseButton({
   rightPanelCollapsed,
   onCollapseRightPanel,
 }: SidebarToggleProps) {
+  const { t } = useI18n();
+  const label = t("layout.hideGitSidebar");
+
   if (isCompact || rightPanelCollapsed) {
     return null;
   }
@@ -51,9 +58,9 @@ export function RightPanelCollapseButton({
       className="ghost main-header-action ds-tooltip-trigger"
       onClick={onCollapseRightPanel}
       data-tauri-drag-region="false"
-      aria-label="Hide git sidebar"
-      title="Hide git sidebar"
-      data-tooltip="Hide git sidebar"
+      aria-label={label}
+      title={label}
+      data-tooltip={label}
       data-tooltip-placement="bottom"
     >
       <PanelRightClose size={14} aria-hidden />
@@ -66,6 +73,9 @@ export function RightPanelExpandButton({
   rightPanelCollapsed,
   onExpandRightPanel,
 }: SidebarToggleProps) {
+  const { t } = useI18n();
+  const label = t("layout.showGitSidebar");
+
   if (isCompact || !rightPanelCollapsed) {
     return null;
   }
@@ -75,9 +85,9 @@ export function RightPanelExpandButton({
       className="ghost main-header-action ds-tooltip-trigger"
       onClick={onExpandRightPanel}
       data-tauri-drag-region="false"
-      aria-label="Show git sidebar"
-      title="Show git sidebar"
-      data-tooltip="Show git sidebar"
+      aria-label={label}
+      title={label}
+      data-tooltip={label}
       data-tooltip-placement="bottom"
     >
       <PanelRightOpen size={14} aria-hidden />
@@ -90,6 +100,9 @@ export function TitlebarExpandControls({
   sidebarCollapsed,
   onExpandSidebar,
 }: SidebarToggleProps) {
+  const { t } = useI18n();
+  const label = t("layout.showThreadsSidebar");
+
   if (isCompact || !sidebarCollapsed) {
     return null;
   }
@@ -102,9 +115,9 @@ export function TitlebarExpandControls({
             className="ghost main-header-action ds-tooltip-trigger"
             onClick={onExpandSidebar}
             data-tauri-drag-region="false"
-            aria-label="Show threads sidebar"
-            title="Show threads sidebar"
-            data-tooltip="Show threads sidebar"
+            aria-label={label}
+            title={label}
+            data-tooltip={label}
             data-tooltip-placement="bottom"
           >
             <PanelLeftOpen size={14} aria-hidden />

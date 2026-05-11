@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import { useCallback } from "react";
 import * as Sentry from "@sentry/react";
+import { useI18n } from "@/features/i18n/i18n";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 
 type Params = {
@@ -40,6 +41,7 @@ export function useWorkspaceActions({
   composerInputRef,
   onDebug,
 }: Params) {
+  const { t } = useI18n();
   const handleWorkspaceAdded = useCallback(
     (workspace: WorkspaceInfo) => {
       setActiveThreadId(null, workspace.id);
@@ -65,9 +67,9 @@ export function useWorkspaceActions({
         label: "workspace/add error",
         payload: message,
       });
-      alert(`Failed to add workspace.\n\n${message}`);
+      alert(t("workspace.dialogs.addWorkspaceFailed", { message }));
     }
-  }, [addWorkspace, handleWorkspaceAdded, onDebug]);
+  }, [addWorkspace, handleWorkspaceAdded, onDebug, t]);
 
   const handleAddWorkspacesFromPaths = useCallback(
     async (paths: string[]) => {
@@ -85,10 +87,10 @@ export function useWorkspaceActions({
           label: "workspace/add error",
           payload: message,
         });
-        alert(`Failed to add workspaces.\n\n${message}`);
+        alert(t("workspace.dialogs.addWorkspacesFailed", { message }));
       }
     },
-    [addWorkspacesFromPaths, handleWorkspaceAdded, onDebug],
+    [addWorkspacesFromPaths, handleWorkspaceAdded, onDebug, t],
   );
 
   const handleAddWorkspaceFromPath = useCallback(
@@ -107,10 +109,10 @@ export function useWorkspaceActions({
           label: "workspace/add error",
           payload: message,
         });
-        alert(`Failed to add workspace.\n\n${message}`);
+        alert(t("workspace.dialogs.addWorkspaceFailed", { message }));
       }
     },
-    [addWorkspaceFromPath, handleWorkspaceAdded, onDebug],
+    [addWorkspaceFromPath, handleWorkspaceAdded, onDebug, t],
   );
 
 
@@ -130,13 +132,11 @@ export function useWorkspaceActions({
           label: "workspace/add-from-url error",
           payload: message,
         });
-        alert(`Failed to import workspace from URL.
-
-${message}`);
+        alert(t("workspace.dialogs.importFromUrlFailed", { message }));
         throw error;
       }
     },
-    [addWorkspaceFromGitUrl, handleWorkspaceAdded, onDebug],
+    [addWorkspaceFromGitUrl, handleWorkspaceAdded, onDebug, t],
   );
 
   const handleAddAgent = useCallback(

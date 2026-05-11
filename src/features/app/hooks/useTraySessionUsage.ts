@@ -2,7 +2,12 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useRef } from "react";
 import { setTraySessionUsage } from "@services/tauri";
 import type { RateLimitSnapshot, TraySessionUsage } from "../../../types";
-import { getUsageLabels } from "../utils/usageLabels";
+import {
+  formatUsagePercentLabel,
+  getUsageLabels,
+  type UsageLabelsCopy,
+} from "../utils/usageLabels";
+import { useI18n } from "@/features/i18n/i18n";
 
 const SYNC_DEBOUNCE_MS = 150;
 
@@ -14,6 +19,8 @@ type UseTraySessionUsageParams = {
 export function buildTraySessionUsage(
   accountRateLimits: RateLimitSnapshot | null,
   showRemaining: boolean,
+  copy?: UsageLabelsCopy,
+  language?: string | null,
 ): TraySessionUsage | null {
   const {
     sessionPercent,
@@ -23,19 +30,17 @@ export function buildTraySessionUsage(
   } = getUsageLabels(
     accountRateLimits,
     showRemaining,
+    copy,
+    language,
   );
   if (sessionPercent === null) {
     return null;
   }
 
-  const usageLabel = showRemaining
-    ? `${sessionPercent}% remaining`
-    : `${sessionPercent}% used`;
+  const usageLabel = formatUsagePercentLabel(sessionPercent, showRemaining, copy);
   const weeklyUsageLabel =
     typeof weeklyPercent === "number"
-      ? showRemaining
-        ? `${weeklyPercent}% remaining`
-        : `${weeklyPercent}% used`
+      ? formatUsagePercentLabel(weeklyPercent, showRemaining, copy)
       : null;
 
   return {
@@ -56,9 +61,20 @@ export function useTraySessionUsage({
   accountRateLimits,
   showRemaining,
 }: UseTraySessionUsageParams) {
+  const { t, language } = useI18n();
+  const copy: UsageLabelsCopy = useMemo(
+    () => ({
+      availableCredits: t("sidebar.usage.availableCredits"),
+      remaining: t("sidebar.usage.remaining"),
+      resets: t("sidebar.usage.resets"),
+      unlimited: t("home.usage.card.unlimited"),
+      used: t("sidebar.usage.used"),
+    }),
+    [t],
+  );
   const usage = useMemo(
-    () => buildTraySessionUsage(accountRateLimits, showRemaining),
-    [accountRateLimits, showRemaining],
+    () => buildTraySessionUsage(accountRateLimits, showRemaining, copy, language),
+    [accountRateLimits, copy, language, showRemaining],
   );
   const lastSyncedUsageRef = useRef<string | null>(null);
 

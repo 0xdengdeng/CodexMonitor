@@ -6,6 +6,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { generateRunMetadata } from "../../../services/tauri";
+import { useI18n } from "@/features/i18n/i18n";
 
 export type WorkspaceRunMode = "local" | "worktree";
 
@@ -88,11 +89,11 @@ const MAX_TITLE_LENGTH = 56;
 const createRunId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const buildRunTitle = (prompt: string) => {
+const buildRunTitle = (prompt: string, emptyTitle: string) => {
   const firstLine = prompt.trim().split("\n")[0] ?? "";
   const normalized = firstLine.replace(/\s+/g, " ").trim();
   if (!normalized) {
-    return "New run";
+    return emptyTitle;
   }
   if (normalized.length > MAX_TITLE_LENGTH) {
     return `${normalized.slice(0, MAX_TITLE_LENGTH)}...`;
@@ -198,6 +199,7 @@ export function useWorkspaceHome({
   sendUserMessageToThread,
   onWorktreeCreated,
 }: UseWorkspaceHomeOptions) {
+  const { t } = useI18n();
   const [state, setState] = useState<WorkspaceHomeState>({
     runsByWorkspace: {},
     draftsByWorkspace: {},
@@ -407,7 +409,7 @@ export function useWorkspaceHome({
       }));
 
     if (runMode === "worktree" && selectedModels.length === 0) {
-      setWorkspaceError("Select at least one model to run in a worktree.");
+      setWorkspaceError(t("workspace.home.selectModelForWorktree"));
       return false;
     }
 
@@ -419,7 +421,7 @@ export function useWorkspaceHome({
     const runSuffix = runIdParts.length
       ? runIdParts[runIdParts.length - 1]
       : runId.slice(-6);
-    const fallbackTitle = buildRunTitle(prompt);
+    const fallbackTitle = buildRunTitle(prompt, t("workspace.home.newRun"));
     const run: WorkspaceHomeRun = {
       id: runId,
       workspaceId: activeWorkspaceId,
@@ -488,7 +490,7 @@ export function useWorkspaceHome({
             activate: false,
           });
           if (!threadId) {
-            throw new Error("Failed to start a local thread.");
+            throw new Error(t("workspace.home.startLocalThreadFailed"));
           }
           seedThreadCodexParams?.(activeWorkspace.id, threadId, {
             modelId: selectedModelId,
@@ -511,7 +513,7 @@ export function useWorkspaceHome({
             workspaceId: activeWorkspace.id,
             threadId,
             modelId: selectedModelId ?? null,
-            modelLabel: resolveModelLabel(model, "Default model"),
+            modelLabel: resolveModelLabel(model, t("workspace.home.defaultModel")),
             sequence: 1,
           });
         } catch (error) {
@@ -541,7 +543,7 @@ export function useWorkspaceHome({
                 { activate: false },
               );
               if (!worktreeWorkspace) {
-                throw new Error("Failed to create worktree.");
+                throw new Error(t("workspace.home.createWorktreeFailed"));
               }
               if (!worktreeWorkspace.connected) {
                 await connectWorkspace(worktreeWorkspace);
@@ -555,7 +557,7 @@ export function useWorkspaceHome({
                 activate: false,
               });
               if (!threadId) {
-                throw new Error("Failed to start a worktree thread.");
+                throw new Error(t("workspace.home.startWorktreeThreadFailed"));
               }
               seedThreadCodexParams?.(worktreeWorkspace.id, threadId, {
                 modelId: selection.modelId,
@@ -591,7 +593,11 @@ export function useWorkspaceHome({
           }
         }
         if (failureCount > 0) {
-          runError = `Started ${instances.length}/${totalInstanceCount} runs. ${failureCount} failed.`;
+          runError = t("workspace.home.partialRunFailure", {
+            started: instances.length,
+            total: totalInstanceCount,
+            failed: failureCount,
+          });
         }
       }
     } catch (error) {
@@ -600,7 +606,7 @@ export function useWorkspaceHome({
     } finally {
       let status: WorkspaceHomeRun["status"] = "ready";
       if (instances.length === 0) {
-        runError ??= "Failed to start any instances.";
+        runError ??= t("workspace.home.startAnyInstanceFailed");
         status = "failed";
       } else if (runError) {
         status = "partial";
@@ -638,6 +644,7 @@ export function useWorkspaceHome({
     setSubmitting,
     setWorkspaceError,
     startThreadForWorkspace,
+    t,
     updateRunTitle,
   ]);
 

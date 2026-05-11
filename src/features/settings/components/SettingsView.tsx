@@ -4,7 +4,6 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
-  DictationModelStatus,
   WorkspaceSettings,
   WorkspaceGroup,
   WorkspaceInfo,
@@ -15,8 +14,8 @@ import { useSettingsViewOrchestration } from "@settings/hooks/useSettingsViewOrc
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import { SettingsNav } from "./SettingsNav";
 import type { CodexSection } from "./settingsTypes";
-import { SETTINGS_SECTION_LABELS } from "./settingsViewConstants";
 import { SettingsSectionContainers } from "./sections/SettingsSectionContainers";
+import { useI18n } from "@/features/i18n/i18n";
 
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
@@ -43,14 +42,8 @@ export type SettingsViewProps = {
   openAppIconById: Record<string, string>;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onToggleAutomaticAppUpdateChecks?: () => void;
-  onRunDoctor: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexDoctorResult>;
-  onRunCodexUpdate?: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexUpdateResult>;
+  onRunDoctor: (codexArgs: string | null) => Promise<CodexDoctorResult>;
+  onRunCodexUpdate?: () => Promise<CodexUpdateResult>;
   onUpdateWorkspaceSettings: (
     id: string,
     settings: Partial<WorkspaceSettings>,
@@ -60,10 +53,6 @@ export type SettingsViewProps = {
   onTestNotificationSound: () => void;
   onTestSystemNotification: () => void;
   onMobileConnectSuccess?: () => Promise<void> | void;
-  dictationModelStatus?: DictationModelStatus | null;
-  onDownloadDictationModel?: () => void;
-  onCancelDictationDownload?: () => void;
-  onRemoveDictationModel?: () => void;
   initialSection?: CodexSection;
 };
 
@@ -93,12 +82,9 @@ export function SettingsView({
   onTestNotificationSound,
   onTestSystemNotification,
   onMobileConnectSuccess,
-  dictationModelStatus,
-  onDownloadDictationModel,
-  onCancelDictationDownload,
-  onRemoveDictationModel,
   initialSection,
 }: SettingsViewProps) {
+  const { t } = useI18n();
   const {
     activeSection,
     showMobileDetail,
@@ -132,15 +118,11 @@ export function SettingsView({
     onDeleteWorkspaceGroup,
     onAssignWorkspaceGroup,
     onMobileConnectSuccess,
-    dictationModelStatus,
-    onDownloadDictationModel,
-    onCancelDictationDownload,
-    onRemoveDictationModel,
   });
 
   useSettingsViewCloseShortcuts(onClose);
 
-  const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
+  const activeSectionLabel = t(`settings.nav.${activeSection}`);
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
   }${useMobileMasterDetail && showMobileDetail ? " is-detail-visible" : ""}`;
@@ -154,13 +136,13 @@ export function SettingsView({
     >
       <div className="settings-titlebar">
         <div className="settings-title" id="settings-modal-title">
-          Settings
+          {t("settings.title")}
         </div>
         <button
           type="button"
           className="ghost icon-button settings-close"
           onClick={onClose}
-          aria-label="Close settings"
+          aria-label={t("settings.close")}
         >
           <X aria-hidden />
         </button>
@@ -183,10 +165,10 @@ export function SettingsView({
                   type="button"
                   className="settings-mobile-back"
                   onClick={() => setShowMobileDetail(false)}
-                  aria-label="Back to settings sections"
+                  aria-label={t("settings.mobile.backToSections")}
                 >
                   <ChevronLeft aria-hidden />
-                  Sections
+                  {t("settings.mobile.sections")}
                 </button>
                 <div className="settings-mobile-detail-title">{activeSectionLabel}</div>
               </div>

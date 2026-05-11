@@ -1,5 +1,19 @@
 import type { AccountSnapshot, LocalUsageDay } from "../../types";
 
+type HomeFormatterCopy = {
+  apiKey: string;
+  chatgptAccount: string;
+  connectedAccount: string;
+  day: string;
+  days: string;
+  dayWindow: string;
+  daysWindow: string;
+  noUsageData: string;
+  rangeSeparator: string;
+  windowHours: string;
+  windowMinutes: string;
+};
+
 export function formatCompactNumber(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "--";
@@ -77,15 +91,23 @@ export function formatDayLabel(value: string | null | undefined) {
   }).format(date);
 }
 
-export function formatWeekRange(days: LocalUsageDay[]) {
+export function formatWeekRange(
+  days: LocalUsageDay[],
+  copy: Pick<HomeFormatterCopy, "noUsageData" | "rangeSeparator"> = {
+    noUsageData: "No usage data",
+    rangeSeparator: "to",
+  },
+) {
   if (days.length === 0) {
-    return "No usage data";
+    return copy.noUsageData;
   }
   const first = days[0];
   const last = days[days.length - 1];
   const firstLabel = formatDayLabel(first?.day);
   const lastLabel = formatDayLabel(last?.day);
-  return first?.day === last?.day ? firstLabel : `${firstLabel} to ${lastLabel}`;
+  return first?.day === last?.day
+    ? firstLabel
+    : `${firstLabel} ${copy.rangeSeparator} ${lastLabel}`;
 }
 
 export function isUsageDayActive(day: LocalUsageDay) {
@@ -106,37 +128,60 @@ export function formatPlanType(value: string | null | undefined) {
 
 export function formatAccountTypeLabel(
   value: AccountSnapshot["type"] | null | undefined,
+  copy: Pick<
+    HomeFormatterCopy,
+    "apiKey" | "chatgptAccount" | "connectedAccount"
+  > = {
+    apiKey: "API key",
+    chatgptAccount: "ChatGPT account",
+    connectedAccount: "Connected account",
+  },
 ) {
   if (value === "chatgpt") {
-    return "ChatGPT account";
+    return copy.chatgptAccount;
   }
   if (value === "apikey") {
-    return "API key";
+    return copy.apiKey;
   }
-  return "Connected account";
+  return copy.connectedAccount;
 }
 
-export function formatWindowDuration(valueMins: number | null | undefined) {
+export function formatWindowDuration(
+  valueMins: number | null | undefined,
+  copy: Pick<
+    HomeFormatterCopy,
+    "dayWindow" | "daysWindow" | "windowHours" | "windowMinutes"
+  > = {
+    dayWindow: "{count} day window",
+    daysWindow: "{count} days window",
+    windowHours: "{count}h window",
+    windowMinutes: "{count}m window",
+  },
+) {
   if (typeof valueMins !== "number" || !Number.isFinite(valueMins) || valueMins <= 0) {
     return null;
   }
   if (valueMins >= 60 * 24) {
     const days = Math.round(valueMins / (60 * 24));
-    return `${days} day${days === 1 ? "" : "s"} window`;
+    return (days === 1 ? copy.dayWindow : copy.daysWindow).replace(
+      "{count}",
+      String(days),
+    );
   }
   if (valueMins >= 60) {
     const hours = Math.round(valueMins / 60);
-    return `${hours}h window`;
+    return copy.windowHours.replace("{count}", String(hours));
   }
-  return `${Math.round(valueMins)}m window`;
+  return copy.windowMinutes.replace("{count}", String(Math.round(valueMins)));
 }
 
 export function buildWindowCaption(
   resetLabel: string | null,
   windowDurationMins: number | null | undefined,
   fallback: string,
+  copy?: Parameters<typeof formatWindowDuration>[1],
 ) {
-  const parts = [resetLabel, formatWindowDuration(windowDurationMins)].filter(Boolean);
+  const parts = [resetLabel, formatWindowDuration(windowDurationMins, copy)].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : fallback;
 }
 
@@ -154,9 +199,15 @@ export function formatCreditsBalance(value: string | null | undefined) {
   }).format(numeric);
 }
 
-export function formatDayCount(value: number | null | undefined) {
+export function formatDayCount(
+  value: number | null | undefined,
+  copy: Pick<HomeFormatterCopy, "day" | "days"> = {
+    day: "{count} day",
+    days: "{count} days",
+  },
+) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return `${value} day${value === 1 ? "" : "s"}`;
+  return (value === 1 ? copy.day : copy.days).replace("{count}", String(value));
 }

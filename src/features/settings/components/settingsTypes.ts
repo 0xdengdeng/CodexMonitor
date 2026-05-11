@@ -1,32 +1,18 @@
 import type { OpenAppTarget } from "@/types";
 
 export const SETTINGS_SECTION_IDS = [
+  "ai",
   "projects",
-  "environments",
-  "display",
   "about",
-  "composer",
-  "dictation",
-  "shortcuts",
-  "open-apps",
-  "git",
-  "server",
-  "agents",
+  "advanced",
 ] as const;
-
-export const SETTINGS_EXTRA_SECTION_IDS = ["codex", "features"] as const;
 
 export const SETTINGS_ROUTE_SECTION_IDS = [
   ...SETTINGS_SECTION_IDS,
-  ...SETTINGS_EXTRA_SECTION_IDS,
   "profile",
 ] as const;
 
-type SettingsSection = (typeof SETTINGS_SECTION_IDS)[number];
-
-export type CodexSection =
-  | SettingsSection
-  | (typeof SETTINGS_EXTRA_SECTION_IDS)[number];
+export type CodexSection = (typeof SETTINGS_SECTION_IDS)[number];
 
 export type ShortcutSettingKey =
   | "composerModelShortcut"

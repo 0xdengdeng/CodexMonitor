@@ -1,6 +1,7 @@
 import type { GitPanelMode } from "../types";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
+import { useI18n } from "@/features/i18n/i18n";
 
 type GitMode = GitPanelMode;
 
@@ -29,6 +30,8 @@ export function GitPanelModeStatus({
   pullRequestsLoading,
   pullRequestsTotal,
 }: GitPanelModeStatusProps) {
+  const { t } = useI18n();
+
   if (mode === "diff") {
     return <div className="diff-status">{diffStatusLabel}</div>;
   }
@@ -58,11 +61,11 @@ export function GitPanelModeStatus({
     return (
       <>
         <div className="diff-status diff-status-issues">
-          <span>GitHub issues</span>
+          <span>{t("git.githubIssues")}</span>
           {issuesLoading && <span className="git-panel-spinner" aria-hidden />}
         </div>
         <div className="git-log-sync">
-          <span>{issuesTotal} open</span>
+          <span>{t("git.openCount", { count: issuesTotal })}</span>
         </div>
       </>
     );
@@ -71,11 +74,11 @@ export function GitPanelModeStatus({
   return (
     <>
       <div className="diff-status diff-status-issues">
-        <span>GitHub pull requests</span>
+        <span>{t("git.githubPullRequests")}</span>
         {pullRequestsLoading && <span className="git-panel-spinner" aria-hidden />}
       </div>
       <div className="git-log-sync">
-        <span>{pullRequestsTotal} open</span>
+        <span>{t("git.openCount", { count: pullRequestsTotal })}</span>
       </div>
     </>
   );
@@ -89,6 +92,8 @@ type GitBranchRowProps = {
 };
 
 export function GitBranchRow({ mode, branchName, onFetch, fetchLoading }: GitBranchRowProps) {
+  const { t } = useI18n();
+
   if (mode !== "diff" && mode !== "perFile" && mode !== "log") {
     return null;
   }
@@ -96,16 +101,16 @@ export function GitBranchRow({ mode, branchName, onFetch, fetchLoading }: GitBra
   return (
     <div className="diff-branch-row">
       <div className="diff-branch-meta">
-        <span className="diff-branch-label">Branch</span>
-        <div className="diff-branch">{branchName || "unknown"}</div>
+        <span className="diff-branch-label">{t("git.branch")}</span>
+        <div className="diff-branch">{branchName || t("common.unknown")}</div>
       </div>
       <button
         type="button"
         className="diff-branch-refresh"
         onClick={() => void onFetch?.()}
         disabled={!onFetch || fetchLoading}
-        title={fetchLoading ? "Fetching remote..." : "Fetch remote"}
-        aria-label={fetchLoading ? "Fetching remote" : "Fetch remote"}
+        title={fetchLoading ? t("git.fetchingRemote") : t("git.fetchRemote")}
+        aria-label={fetchLoading ? t("git.fetchingRemote") : t("git.fetchRemote")}
       >
         {fetchLoading ? (
           <span className="git-panel-spinner" aria-hidden />
@@ -132,6 +137,8 @@ export function GitRootCurrentPath({
   onScanGitRoots,
   gitRootScanLoading,
 }: GitRootCurrentPathProps) {
+  const { t } = useI18n();
+
   if (mode === "issues" || !hasGitRoot) {
     return null;
   }
@@ -139,7 +146,7 @@ export function GitRootCurrentPath({
   return (
     <div className="git-root-current">
       <div className="git-root-current-main">
-        <span className="git-root-label">Repository root</span>
+        <span className="git-root-label">{t("git.repositoryRoot")}</span>
         <span className="git-root-path" title={gitRoot ?? ""}>
           {gitRoot}
         </span>
@@ -152,7 +159,7 @@ export function GitRootCurrentPath({
           disabled={gitRootScanLoading}
         >
           <ArrowLeftRight className="git-root-button-icon" aria-hidden />
-          Change
+          {t("common.change")}
         </button>
       )}
     </div>

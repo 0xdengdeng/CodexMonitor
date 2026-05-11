@@ -6,45 +6,40 @@ import {
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import type { SettingsFeaturesSectionProps } from "@settings/hooks/useSettingsFeaturesSection";
-import { fileManagerName, openInFileManagerLabel } from "@utils/platformPaths";
+import { fileManagerName } from "@utils/platformPaths";
+import { useI18n, type I18nKey } from "@/features/i18n/i18n";
 
-const FEATURE_DESCRIPTION_FALLBACKS: Record<string, string> = {
-  undo: "Create a ghost commit at each turn.",
-  shell_tool: "Enable the default shell tool.",
-  unified_exec: "Use the single unified PTY-backed exec tool.",
-  shell_snapshot: "Enable shell snapshotting.",
-  js_repl: "Enable JavaScript REPL tools backed by a persistent Node kernel.",
-  js_repl_tools_only: "Only expose js_repl tools directly to the model.",
-  web_search_request: "Deprecated. Use top-level web_search instead.",
-  web_search_cached: "Deprecated. Use top-level web_search instead.",
-  search_tool: "Removed legacy search flag kept for backward compatibility.",
-  runtime_metrics: "Enable runtime metrics snapshots via a manual reader.",
-  sqlite: "Persist rollout metadata to a local SQLite database.",
-  memory_tool: "Enable startup memory extraction and memory consolidation.",
-  child_agents_md: "Append additional AGENTS.md guidance to user instructions.",
-  apply_patch_freeform: "Include the freeform apply_patch tool.",
-  use_linux_sandbox_bwrap: "Use the bubblewrap-based Linux sandbox pipeline.",
-  request_rule: "Allow approval requests and exec rule proposals.",
-  experimental_windows_sandbox:
-    "Removed Windows sandbox flag kept for backward compatibility.",
-  elevated_windows_sandbox:
-    "Removed elevated Windows sandbox flag kept for backward compatibility.",
-  remote_models: "Refresh remote models before AppReady.",
-  powershell_utf8: "Enforce UTF-8 output in PowerShell.",
-  enable_request_compression:
-    "Compress streaming request bodies sent to codex-backend.",
-  apps: "Enable ChatGPT Apps integration.",
-  apps_mcp_gateway: "Route Apps MCP calls through the configured gateway.",
-  skill_mcp_dependency_install:
-    "Allow prompting and installing missing MCP dependencies.",
-  skill_env_var_dependency_prompt:
-    "Prompt for missing skill environment variable dependencies.",
-  steer: "Enable turn steering capability when supported by Codex.",
-  collaboration_modes: "Enable collaboration mode presets.",
-  personality: "Enable personality selection.",
-  responses_websockets:
-    "Use Responses API WebSocket transport for OpenAI by default.",
-  responses_websockets_v2: "Enable Responses API WebSocket v2 mode.",
+const FEATURE_DESCRIPTION_FALLBACK_KEYS: Record<string, I18nKey> = {
+  undo: "settings.features.fallback.undo",
+  shell_tool: "settings.features.fallback.shellTool",
+  unified_exec: "settings.features.fallback.unifiedExec",
+  shell_snapshot: "settings.features.fallback.shellSnapshot",
+  js_repl: "settings.features.fallback.jsRepl",
+  js_repl_tools_only: "settings.features.fallback.jsReplToolsOnly",
+  web_search_request: "settings.features.fallback.webSearchDeprecated",
+  web_search_cached: "settings.features.fallback.webSearchDeprecated",
+  search_tool: "settings.features.fallback.searchTool",
+  runtime_metrics: "settings.features.fallback.runtimeMetrics",
+  sqlite: "settings.features.fallback.sqlite",
+  memory_tool: "settings.features.fallback.memoryTool",
+  child_agents_md: "settings.features.fallback.childAgentsMd",
+  apply_patch_freeform: "settings.features.fallback.applyPatchFreeform",
+  use_linux_sandbox_bwrap: "settings.features.fallback.linuxSandbox",
+  request_rule: "settings.features.fallback.requestRule",
+  experimental_windows_sandbox: "settings.features.fallback.windowsSandboxRemoved",
+  elevated_windows_sandbox: "settings.features.fallback.windowsSandboxRemoved",
+  remote_models: "settings.features.fallback.remoteModels",
+  powershell_utf8: "settings.features.fallback.powershellUtf8",
+  enable_request_compression: "settings.features.fallback.requestCompression",
+  apps: "settings.features.fallback.apps",
+  apps_mcp_gateway: "settings.features.fallback.appsMcpGateway",
+  skill_mcp_dependency_install: "settings.features.fallback.skillMcpDependencyInstall",
+  skill_env_var_dependency_prompt: "settings.features.fallback.skillEnvVarDependencyPrompt",
+  steer: "settings.features.fallback.steer",
+  collaboration_modes: "settings.features.fallback.collaborationModes",
+  personality: "settings.features.fallback.personality",
+  responses_websockets: "settings.features.fallback.responsesWebsockets",
+  responses_websockets_v2: "settings.features.fallback.responsesWebsocketsV2",
 };
 
 function formatFeatureLabel(feature: CodexFeature): string {
@@ -59,24 +54,27 @@ function formatFeatureLabel(feature: CodexFeature): string {
     .join(" ");
 }
 
-function featureSubtitle(feature: CodexFeature): string {
+function featureSubtitle(
+  feature: CodexFeature,
+  t: (key: I18nKey, values?: Record<string, string | number | null | undefined>) => string,
+): string {
   if (feature.description?.trim()) {
     return feature.description;
   }
   if (feature.announcement?.trim()) {
     return feature.announcement;
   }
-  const fallbackDescription = FEATURE_DESCRIPTION_FALLBACKS[feature.name];
-  if (fallbackDescription) {
-    return fallbackDescription;
+  const fallbackKey = FEATURE_DESCRIPTION_FALLBACK_KEYS[feature.name];
+  if (fallbackKey) {
+    return t(fallbackKey);
   }
   if (feature.stage === "deprecated") {
-    return "Deprecated feature flag.";
+    return t("settings.features.deprecated");
   }
   if (feature.stage === "removed") {
-    return "Legacy feature flag kept for backward compatibility.";
+    return t("settings.features.removed");
   }
-  return `Feature key: features.${feature.name}`;
+  return t("settings.features.featureKey", { name: feature.name });
 }
 
 export function SettingsFeaturesSection({
@@ -93,32 +91,29 @@ export function SettingsFeaturesSection({
   onToggleCodexFeature,
   onUpdateAppSettings,
 }: SettingsFeaturesSectionProps) {
+  const { t } = useI18n();
+
   return (
     <SettingsSection
-      title="Features"
-      subtitle="Manage stable and experimental Codex features."
+      title={t("settings.features.title")}
+      subtitle={t("settings.features.subtitle")}
     >
       <SettingsToggleRow
-        title="Config file"
-        subtitle={`Open the Codex config in ${fileManagerName()}.`}
+        title={t("settings.features.configFile")}
+        subtitle={t("settings.features.openConfig", { fileManager: fileManagerName() })}
       >
         <button type="button" className="ghost" onClick={onOpenConfig}>
-          {openInFileManagerLabel()}
+          {t("openApp.openIn", { app: fileManagerName() })}
         </button>
       </SettingsToggleRow>
       {openConfigError && <div className="settings-help">{openConfigError}</div>}
       <SettingsSubsection
-        title="Stable Features"
-        subtitle="Production-ready features enabled by default."
+        title={t("settings.features.stable")}
+        subtitle={t("settings.features.stableSubtitle")}
       />
       <SettingsToggleRow
-        title="Personality"
-        subtitle={
-          <>
-            Choose Codex communication style (writes top-level <code>personality</code> in
-            config.toml).
-          </>
-        }
+        title={t("settings.features.personality")}
+        subtitle={t("settings.features.personalitySubtitle")}
       >
         <select
           id="features-personality-select"
@@ -130,15 +125,15 @@ export function SettingsFeaturesSection({
               personality: event.target.value as (typeof appSettings)["personality"],
             })
           }
-          aria-label="Personality"
+          aria-label={t("settings.features.personality")}
         >
-          <option value="friendly">Friendly</option>
-          <option value="pragmatic">Pragmatic</option>
+          <option value="friendly">{t("settings.features.friendly")}</option>
+          <option value="pragmatic">{t("settings.features.pragmatic")}</option>
         </select>
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Pause queued messages when a response is required"
-        subtitle="Keep queued messages paused while Codex is waiting for plan accept/changes or your answers."
+        title={t("settings.features.pauseQueued.title")}
+        subtitle={t("settings.features.pauseQueued.subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.pauseQueuedMessagesWhenResponseRequired}
@@ -155,7 +150,7 @@ export function SettingsFeaturesSection({
         <SettingsToggleRow
           key={feature.name}
           title={formatFeatureLabel(feature)}
-          subtitle={featureSubtitle(feature)}
+          subtitle={featureSubtitle(feature, t)}
         >
           <SettingsToggleSwitch
             pressed={feature.enabled}
@@ -168,17 +163,17 @@ export function SettingsFeaturesSection({
         !featuresLoading &&
         !featureError &&
         stableFeatures.length === 0 && (
-        <div className="settings-help">No stable feature flags returned by Codex.</div>
+        <div className="settings-help">{t("settings.features.noStable")}</div>
       )}
       <SettingsSubsection
-        title="Experimental Features"
-        subtitle="Preview and under-development features."
+        title={t("settings.features.experimental")}
+        subtitle={t("settings.features.experimentalSubtitle")}
       />
       {experimentalFeatures.map((feature) => (
         <SettingsToggleRow
           key={feature.name}
           title={formatFeatureLabel(feature)}
-          subtitle={featureSubtitle(feature)}
+          subtitle={featureSubtitle(feature, t)}
         >
           <SettingsToggleSwitch
             pressed={feature.enabled}
@@ -193,15 +188,15 @@ export function SettingsFeaturesSection({
         hasDynamicFeatureRows &&
         experimentalFeatures.length === 0 && (
           <div className="settings-help">
-            No preview or under-development feature flags returned by Codex.
+            {t("settings.features.noExperimental")}
           </div>
         )}
       {featuresLoading && (
-        <div className="settings-help">Loading Codex feature flags...</div>
+        <div className="settings-help">{t("settings.features.loading")}</div>
       )}
       {!hasFeatureWorkspace && !featuresLoading && (
         <div className="settings-help">
-          Connect a workspace to load Codex feature flags.
+          {t("settings.features.noWorkspace")}
         </div>
       )}
       {featureError && <div className="settings-help">{featureError}</div>}

@@ -34,8 +34,22 @@ describe("useAppSettings", () => {
       ({
         uiScale: UI_SCALE_MAX + 1,
         theme: "nope" as unknown as AppSettings["theme"],
+        interfaceLanguage: "fr-FR",
         backendMode: "remote",
         remoteBackendHost: "example:1234",
+        managedRuntime: {
+          enabled: true,
+          baseUrl: " https://runtime.example/v1 ",
+          model: "  ",
+        },
+        enterpriseAi: {
+          tenantDomain: " acme ",
+          status: "connected",
+          accountName: " Team ",
+          keyLast4: " 1234 ",
+          lastValidatedAtMs: 123,
+          lastError: " ",
+        },
         personality: "unknown",
         uiFontFamily: "",
         codeFontFamily: "  ",
@@ -49,12 +63,26 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_MAX);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.interfaceLanguage).toBe("system");
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
     expect(result.current.settings.personality).toBe("friendly");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
+    expect(result.current.settings.managedRuntime).toEqual({
+      enabled: true,
+      baseUrl: "https://runtime.example/v1",
+      model: null,
+    });
+    expect(result.current.settings.enterpriseAi).toEqual({
+      tenantDomain: "acme",
+      status: "connected",
+      accountName: "Team",
+      keyLast4: "1234",
+      lastValidatedAtMs: 123,
+      lastError: null,
+    });
   });
 
   it("keeps defaults when getAppSettings fails", async () => {
@@ -66,10 +94,10 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_DEFAULT);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.interfaceLanguage).toBe("system");
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.backendMode).toBe("local");
-    expect(result.current.settings.dictationModelId).toBe("base");
     expect(result.current.settings.interruptShortcut).toBeTruthy();
   });
 
@@ -121,6 +149,115 @@ describe("useAppSettings", () => {
     expect(result.current.settings.uiScale).toBe(2.4);
   });
 
+  it("optimistically updates settings while save is pending", async () => {
+    getAppSettingsMock.mockResolvedValue({} as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let resolveSave: ((settings: AppSettings) => void) | undefined;
+    const pendingSave = new Promise<AppSettings>((resolve) => {
+      resolveSave = resolve;
+    });
+    updateAppSettingsMock.mockReturnValue(pendingSave);
+    const next: AppSettings = {
+      ...result.current.settings,
+      theme: "dark",
+    };
+
+    let savePromise: Promise<AppSettings>;
+    await act(async () => {
+      savePromise = result.current.saveSettings(next);
+    });
+
+    expect(result.current.settings.theme).toBe("dark");
+
+    const saved: AppSettings = {
+      ...next,
+      theme: "dim",
+    };
+    await act(async () => {
+      resolveSave?.(saved);
+      await savePromise;
+    });
+
+    expect(result.current.settings.theme).toBe("dim");
+  });
+
+  it("rolls back optimistic settings when save fails", async () => {
+    getAppSettingsMock.mockResolvedValue({ theme: "light" } as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.settings.theme).toBe("light");
+
+    updateAppSettingsMock.mockRejectedValue(new Error("save failed"));
+
+    await expect(
+      act(async () => {
+        await result.current.saveSettings({
+          ...result.current.settings,
+          theme: "dark",
+        });
+      }),
+    ).rejects.toThrow("save failed");
+
+    expect(result.current.settings.theme).toBe("light");
+  });
+
+  it("does not let an older save overwrite a newer local setting", async () => {
+    getAppSettingsMock.mockResolvedValue({ theme: "system" } as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let resolveFirst: ((settings: AppSettings) => void) | undefined;
+    let resolveSecond: ((settings: AppSettings) => void) | undefined;
+    updateAppSettingsMock
+      .mockReturnValueOnce(new Promise<AppSettings>((resolve) => {
+        resolveFirst = resolve;
+      }))
+      .mockReturnValueOnce(new Promise<AppSettings>((resolve) => {
+        resolveSecond = resolve;
+      }));
+
+    let firstSave: Promise<AppSettings>;
+    await act(async () => {
+      firstSave = result.current.saveSettings({
+        ...result.current.settings,
+        theme: "light",
+      });
+    });
+    expect(result.current.settings.theme).toBe("light");
+
+    let secondSave: Promise<AppSettings>;
+    await act(async () => {
+      secondSave = result.current.saveSettings({
+        ...result.current.settings,
+        theme: "dark",
+      });
+    });
+    expect(result.current.settings.theme).toBe("dark");
+
+    await act(async () => {
+      resolveFirst?.({
+        ...result.current.settings,
+        theme: "light",
+      });
+      await firstSave;
+    });
+    expect(result.current.settings.theme).toBe("dark");
+
+    await act(async () => {
+      resolveSecond?.({
+        ...result.current.settings,
+        theme: "dark",
+      });
+      await secondSave;
+    });
+    expect(result.current.settings.theme).toBe("dark");
+  });
+
   it("surfaces doctor errors", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
     runCodexDoctorMock.mockRejectedValue(new Error("doctor fail"));
@@ -128,20 +265,16 @@ describe("useAppSettings", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/codex", "--profile test")).rejects.toThrow(
+    await expect(result.current.doctor("--profile test")).rejects.toThrow(
       "doctor fail",
     );
-    expect(runCodexDoctorMock).toHaveBeenCalledWith(
-      "/bin/codex",
-      "--profile test",
-    );
+    expect(runCodexDoctorMock).toHaveBeenCalledWith("--profile test");
   });
 
   it("returns doctor results", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
     const response: CodexDoctorResult = {
       ok: true,
-      codexBin: "/bin/codex",
       version: "1.0.0",
       appServerOk: true,
       details: null,
@@ -155,8 +288,7 @@ describe("useAppSettings", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/codex", null)).resolves.toEqual(
-      response,
-    );
+    await expect(result.current.doctor(null)).resolves.toEqual(response);
+    expect(runCodexDoctorMock).toHaveBeenCalledWith(null);
   });
 });

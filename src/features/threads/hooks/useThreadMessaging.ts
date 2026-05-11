@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import * as Sentry from "@sentry/react";
 import type {
@@ -7,11 +7,17 @@ import type {
   RateLimitSnapshot,
   CustomPromptOption,
   DebugEntry,
+  InterfaceLanguagePreference,
   ReviewTarget,
   SendMessageResult,
   ServiceTier,
   WorkspaceInfo,
 } from "@/types";
+import {
+  resolveInterfaceLanguage,
+  translate,
+  type I18nValues,
+} from "@/features/i18n/i18n";
 import {
   compactThread as compactThreadService,
   sendUserMessage as sendUserMessageService,
@@ -52,6 +58,7 @@ type UseThreadMessagingOptions = {
   collaborationMode?: Record<string, unknown> | null;
   onSelectServiceTier?: (tier: ServiceTier | null | undefined) => void;
   reviewDeliveryMode?: "inline" | "detached";
+  interfaceLanguage?: InterfaceLanguagePreference;
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
   ensureWorkspaceRuntimeCodexArgs?: (
@@ -106,6 +113,7 @@ export function useThreadMessaging({
   collaborationMode,
   onSelectServiceTier,
   reviewDeliveryMode = "inline",
+  interfaceLanguage,
   steerEnabled,
   customPrompts,
   ensureWorkspaceRuntimeCodexArgs,
@@ -131,6 +139,20 @@ export function useThreadMessaging({
   registerDetachedReviewChild,
   renameThread,
 }: UseThreadMessagingOptions) {
+  const language = resolveInterfaceLanguage(interfaceLanguage);
+  const t = useCallback(
+    (key: string, values?: I18nValues) => translate(language, key, values),
+    [language],
+  );
+  const promptExpansionCopy = useMemo(
+    () => ({
+      parseMissingAssignment: t("prompts.parseMissingAssignment"),
+      parseMissingKey: t("prompts.parseMissingKey"),
+      missingArgs: t("prompts.missingArgs"),
+    }),
+    [t],
+  );
+
   const sendMessageToThread = useCallback(
     async (
       workspace: WorkspaceInfo,
@@ -145,7 +167,11 @@ export function useThreadMessaging({
       }
       let finalText = messageText;
       if (!options?.skipPromptExpansion) {
-        const promptExpansion = expandCustomPromptText(messageText, customPrompts);
+        const promptExpansion = expandCustomPromptText(
+          messageText,
+          customPrompts,
+          promptExpansionCopy,
+        );
         if (promptExpansion && "error" in promptExpansion) {
           pushThreadErrorMessage(threadId, promptExpansion.error);
           safeMessageActivity();
@@ -276,7 +302,12 @@ export function useThreadMessaging({
           if (requestMode !== "steer") {
             markProcessing(threadId, false);
             setActiveTurnId(threadId, null);
-            pushThreadErrorMessage(threadId, `Turn failed to start: ${rpcError}`);
+            pushThreadErrorMessage(
+              threadId,
+              t("threadMessaging.turnStartFailedWithReason", {
+                reason: rpcError,
+              }),
+            );
             safeMessageActivity();
             return { status: "blocked" };
           }
@@ -286,7 +317,9 @@ export function useThreadMessaging({
           }
           pushThreadErrorMessage(
             threadId,
-            `Turn steer failed: ${rpcError}`,
+            t("threadMessaging.turnSteerFailedWithReason", {
+              reason: rpcError,
+            }),
           );
           safeMessageActivity();
           return { status: "steer_failed" };
@@ -307,7 +340,7 @@ export function useThreadMessaging({
         if (!turnId) {
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
-          pushThreadErrorMessage(threadId, "Turn failed to start.");
+          pushThreadErrorMessage(threadId, t("threadMessaging.turnStartFailed"));
           safeMessageActivity();
           return { status: "blocked" };
         }
@@ -332,7 +365,9 @@ export function useThreadMessaging({
         pushThreadErrorMessage(
           threadId,
           requestMode === "steer"
-            ? `Turn steer failed: ${errorMessage}`
+            ? t("threadMessaging.turnSteerFailedWithReason", {
+              reason: errorMessage,
+            })
             : errorMessage,
         );
         safeMessageActivity();
@@ -354,10 +389,12 @@ export function useThreadMessaging({
       model,
       onDebug,
       pushThreadErrorMessage,
+      promptExpansionCopy,
       recordThreadActivity,
       safeMessageActivity,
       setActiveTurnId,
       steerEnabled,
+      t,
       threadStatusById,
     ],
   );
@@ -376,7 +413,11 @@ export function useThreadMessaging({
       if (!messageText && images.length === 0) {
         return { status: "blocked" };
       }
-      const promptExpansion = expandCustomPromptText(messageText, customPrompts);
+      const promptExpansion = expandCustomPromptText(
+        messageText,
+        customPrompts,
+        promptExpansionCopy,
+      );
       if (promptExpansion && "error" in promptExpansion) {
         if (activeThreadId) {
           pushThreadErrorMessage(activeThreadId, promptExpansion.error);
@@ -409,6 +450,7 @@ export function useThreadMessaging({
       customPrompts,
       ensureThreadForActiveWorkspace,
       onDebug,
+      promptExpansionCopy,
       pushThreadErrorMessage,
       safeMessageActivity,
       sendMessageToThread,
@@ -439,7 +481,7 @@ export function useThreadMessaging({
     dispatch({
       type: "addAssistantMessage",
       threadId: activeThreadId,
-      text: "Session stopped.",
+      text: t("threadMessaging.sessionStopped"),
     });
     if (!activeTurnId) {
       pendingInterruptsRef.current.add(activeThreadId);
@@ -487,6 +529,7 @@ export function useThreadMessaging({
     onDebug,
     pendingInterruptsRef,
     setActiveTurnId,
+    t,
   ]);
 
   const startReviewTarget = useCallback(
@@ -540,7 +583,12 @@ export function useThreadMessaging({
             markReviewing(threadId, false);
             setActiveTurnId(threadId, null);
           }
-          pushThreadErrorMessage(threadId, `Review failed to start: ${rpcError}`);
+          pushThreadErrorMessage(
+            threadId,
+            t("threadMessaging.reviewStartFailedWithReason", {
+              reason: rpcError,
+            }),
+          );
           safeMessageActivity();
           return false;
         }
@@ -549,7 +597,7 @@ export function useThreadMessaging({
           updateThreadParent(threadId, [reviewThreadId]);
           if (reviewDeliveryMode === "detached") {
             registerDetachedReviewChild?.(workspaceId, threadId, reviewThreadId);
-            const reviewTitle = buildReviewThreadTitle(target);
+            const reviewTitle = buildReviewThreadTitle(target, t);
             if (reviewTitle && !getCustomName(workspaceId, reviewThreadId)) {
               renameThread?.(workspaceId, reviewThreadId, reviewTitle);
             }
@@ -590,6 +638,7 @@ export function useThreadMessaging({
       reviewDeliveryMode,
       registerDetachedReviewChild,
       renameThread,
+      t,
       updateThreadParent,
     ],
   );
@@ -669,6 +718,8 @@ export function useThreadMessaging({
         accessMode,
         collaborationMode,
         rateLimits: rateLimitsByWorkspace[activeWorkspace.id] ?? null,
+        t,
+        language,
       });
       const timestamp = Date.now();
       recordThreadActivity(activeWorkspace.id, threadId, timestamp);
@@ -691,6 +742,8 @@ export function useThreadMessaging({
       rateLimitsByWorkspace,
       recordThreadActivity,
       safeMessageActivity,
+      t,
+      language,
     ],
   );
 
@@ -710,9 +763,13 @@ export function useThreadMessaging({
       let message = "";
 
       if (action === "invalid") {
-        message = "Usage: /fast, /fast on, /fast off, or /fast status.";
+        message = t("threadMessaging.fast.usage");
       } else if (action === "status") {
-        message = `Fast mode is ${isEnabled ? "on" : "off"}.`;
+        message = t("threadMessaging.fast.status", {
+          state: isEnabled
+            ? t("threadMessaging.state.on")
+            : t("threadMessaging.state.off"),
+        });
       } else {
         nextTier =
           action === "on"
@@ -723,7 +780,10 @@ export function useThreadMessaging({
                 ? null
                 : "fast";
         onSelectServiceTier?.(nextTier);
-        message = `Fast mode ${nextTier === "fast" ? "enabled" : "disabled"}.`;
+        message =
+          nextTier === "fast"
+            ? t("threadMessaging.fast.enabled")
+            : t("threadMessaging.fast.disabled");
       }
 
       const timestamp = Date.now();
@@ -743,6 +803,7 @@ export function useThreadMessaging({
       recordThreadActivity,
       safeMessageActivity,
       serviceTier,
+      t,
     ],
   );
 
@@ -768,7 +829,7 @@ export function useThreadMessaging({
         const data = Array.isArray(result?.data)
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
-        const lines = buildMcpStatusLines(data);
+        const lines = buildMcpStatusLines(data, t);
 
         const timestamp = Date.now();
         recordThreadActivity(activeWorkspace.id, threadId, timestamp);
@@ -779,11 +840,11 @@ export function useThreadMessaging({
         });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Failed to load MCP status.";
+          error instanceof Error ? error.message : t("threadMessaging.mcp.loadFailed");
         dispatch({
           type: "addAssistantMessage",
           threadId,
-          text: `MCP tools:\n- ${message}`,
+          text: `${t("threadMessaging.mcp.title")}\n- ${message}`,
         });
       } finally {
         safeMessageActivity();
@@ -795,6 +856,7 @@ export function useThreadMessaging({
       ensureThreadForActiveWorkspace,
       recordThreadActivity,
       safeMessageActivity,
+      t,
     ],
   );
 
@@ -821,7 +883,7 @@ export function useThreadMessaging({
         const data = Array.isArray(result?.data)
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
-        const lines = buildAppsLines(data);
+        const lines = buildAppsLines(data, t);
 
         const timestamp = Date.now();
         recordThreadActivity(activeWorkspace.id, threadId, timestamp);
@@ -832,11 +894,11 @@ export function useThreadMessaging({
         });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Failed to load apps.";
+          error instanceof Error ? error.message : t("threadMessaging.apps.loadFailed");
         dispatch({
           type: "addAssistantMessage",
           threadId,
-          text: `Apps:\n- ${message}`,
+          text: `${t("threadMessaging.apps.title")}\n- ${message}`,
         });
       } finally {
         safeMessageActivity();
@@ -848,6 +910,7 @@ export function useThreadMessaging({
       ensureThreadForActiveWorkspace,
       recordThreadActivity,
       safeMessageActivity,
+      t,
     ],
   );
 
@@ -917,7 +980,7 @@ export function useThreadMessaging({
           threadId,
           error instanceof Error
             ? error.message
-            : "Failed to start context compaction.",
+            : t("threadMessaging.compactStartFailed"),
         );
       } finally {
         safeMessageActivity();
@@ -929,6 +992,7 @@ export function useThreadMessaging({
       ensureThreadForActiveWorkspace,
       pushThreadErrorMessage,
       safeMessageActivity,
+      t,
     ],
   );
 

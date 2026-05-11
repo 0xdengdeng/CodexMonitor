@@ -34,8 +34,7 @@ export function useAppSettingsController() {
     saveSettings,
     queueSaveSettings,
     doctor,
-    codexUpdate: (codexBin: string | null, codexArgs: string | null) =>
-      runCodexUpdate(codexBin, codexArgs),
+    codexUpdate: () => runCodexUpdate(),
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,

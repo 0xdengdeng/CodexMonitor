@@ -1,6 +1,7 @@
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
@@ -132,8 +133,43 @@ pub(crate) fn write_text_file_within(
         candidate
     };
 
-    std::fs::write(&target_path, content)
+    if allow_external_symlink_target {
+        return std::fs::write(&target_path, content)
+            .map_err(|err| format!("Failed to write {file_context}: {err}"));
+    }
+
+    atomic_write_text_file(&target_path, content)
         .map_err(|err| format!("Failed to write {file_context}: {err}"))
+}
+
+fn atomic_write_text_file(target_path: &Path, content: &str) -> std::io::Result<()> {
+    let parent = target_path.parent().unwrap_or_else(|| Path::new("."));
+    let filename = target_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("file");
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_nanos())
+        .unwrap_or_default();
+    let temp_path = parent.join(format!(".{filename}.tmp.{}.{}", std::process::id(), nanos));
+
+    let write_result = (|| {
+        let mut temp_file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path)?;
+        temp_file.write_all(content.as_bytes())?;
+        temp_file.sync_all()?;
+        drop(temp_file);
+        std::fs::rename(&temp_path, target_path)?;
+        Ok(())
+    })();
+
+    if write_result.is_err() {
+        let _ = std::fs::remove_file(&temp_path);
+    }
+    write_result
 }
 
 #[cfg(test)]

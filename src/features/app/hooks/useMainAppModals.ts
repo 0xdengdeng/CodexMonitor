@@ -108,14 +108,8 @@ type UseMainAppModalsArgs = {
     openAppIconById: Record<string, string>;
     queueSaveSettings: (next: AppSettings) => Promise<unknown>;
     handleToggleAutomaticAppUpdateChecks: () => void;
-    doctor: (
-      codexBin: string | null,
-      codexArgs: string | null,
-    ) => Promise<CodexDoctorResult>;
-    codexUpdate?: (
-      codexBin: string | null,
-      codexArgs: string | null,
-    ) => Promise<CodexUpdateResult>;
+    doctor: (codexArgs: string | null) => Promise<CodexDoctorResult>;
+    codexUpdate?: () => Promise<CodexUpdateResult>;
     updateWorkspaceSettings: (
       id: string,
       settings: Partial<WorkspaceSettings>,
@@ -125,12 +119,6 @@ type UseMainAppModalsArgs = {
     handleTestNotificationSound: () => void;
     handleTestSystemNotification: () => void;
     handleMobileConnectSuccess?: () => Promise<void> | void;
-    dictationModel: {
-      status?: SettingsViewProps["dictationModelStatus"];
-      download?: () => void;
-      cancel?: () => void;
-      remove?: () => void;
-    };
   };
 };
 
@@ -194,10 +182,6 @@ function buildSettingsViewProps({
     onTestNotificationSound: settings.handleTestNotificationSound,
     onTestSystemNotification: settings.handleTestSystemNotification,
     onMobileConnectSuccess: settings.handleMobileConnectSuccess,
-    dictationModelStatus: settings.dictationModel.status,
-    onDownloadDictationModel: settings.dictationModel.download,
-    onCancelDictationDownload: settings.dictationModel.cancel,
-    onRemoveDictationModel: settings.dictationModel.remove,
   };
 }
 

@@ -45,3 +45,54 @@ fn macos_private_api_feature_matches_config() {
         );
     }
 }
+
+#[test]
+fn daemon_bins_include_current_and_legacy_bundle_names() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let cargo_path = manifest_dir.join("Cargo.toml");
+    let cargo_contents = fs::read_to_string(&cargo_path)
+        .unwrap_or_else(|error| panic!("Failed to read {cargo_path:?}: {error}"));
+    let bin_names = cargo_bin_names(&cargo_contents);
+
+    for required_bin in [
+        "agentdesk-daemon",
+        "agentdesk-daemonctl",
+        "codex_monitor_daemon",
+        "codex_monitor_daemonctl",
+    ] {
+        assert!(
+            bin_names.iter().any(|name| name == required_bin),
+            "Cargo.toml must declare a `{required_bin}` bin so Tauri can bundle daemon binaries"
+        );
+    }
+}
+
+fn cargo_bin_names(cargo_contents: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut in_bin = false;
+
+    for line in cargo_contents.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("[[") {
+            in_bin = trimmed == "[[bin]]";
+            continue;
+        }
+        if trimmed.starts_with('[') {
+            in_bin = false;
+            continue;
+        }
+        if !in_bin || !trimmed.starts_with("name") {
+            continue;
+        }
+
+        let Some((_, value)) = trimmed.split_once('=') else {
+            continue;
+        };
+        let value = value.trim();
+        if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
+            names.push(value[1..value.len() - 1].to_string());
+        }
+    }
+
+    names
+}

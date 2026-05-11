@@ -31,18 +31,15 @@ pub(crate) async fn set_workspace_runtime_codex_args_core<F, Fut>(
     spawn_session: F,
 ) -> Result<WorkspaceRuntimeCodexArgsResult, String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
 
-    let (default_bin, resolved_args) = {
+    let resolved_args = {
         let settings = app_settings.lock().await;
-        (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
-        )
+        resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings))
     };
 
     let target_args = codex_args_override
@@ -83,8 +80,7 @@ where
     }
 
     let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
-    let new_session =
-        spawn_session(entry.clone(), default_bin, target_args.clone(), codex_home).await?;
+    let new_session = spawn_session(entry.clone(), target_args.clone(), codex_home).await?;
     let workspace_ids = {
         let mut sessions = sessions.lock().await;
         let keys: Vec<String> = sessions.keys().cloned().collect();
@@ -129,8 +125,8 @@ where
 mod tests {
     use super::*;
 
-    use std::process::Stdio;
     use std::collections::HashSet;
+    use std::process::Stdio;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
     use tokio::process::Command;

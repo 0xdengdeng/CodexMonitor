@@ -63,7 +63,7 @@ export type ThreadAction =
     }
   | { type: "markReviewing"; threadId: string; isReviewing: boolean }
   | { type: "markUnread"; threadId: string; hasUnread: boolean }
-  | { type: "addAssistantMessage"; threadId: string; text: string }
+  | { type: "addAssistantMessage"; threadId: string; text: string; timestamp?: number }
   | { type: "setThreadName"; workspaceId: string; threadId: string; name: string }
   | {
       type: "mergeThreadSummary";
@@ -88,6 +88,7 @@ export type ThreadAction =
       threadId: string;
       itemId: string;
       delta: string;
+      timestamp?: number;
       hasCustomName: boolean;
     }
   | {
@@ -96,6 +97,7 @@ export type ThreadAction =
       threadId: string;
       itemId: string;
       text: string;
+      timestamp?: number;
       hasCustomName: boolean;
     }
   | {

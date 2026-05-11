@@ -13,6 +13,7 @@ import type {
   LayoutNodesResult,
   LayoutPrimarySurface,
 } from "./types";
+import { useI18n } from "@/features/i18n/i18n";
 
 export type PrimaryLayoutNodesOptions = LayoutPrimarySurface;
 
@@ -30,6 +31,19 @@ type PrimaryLayoutNodes = Pick<
   | "tabletNavNode"
   | "tabBarNode"
 >;
+
+function BackToChatButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
+  return (
+    <button
+      className="icon-button back-button"
+      onClick={onClick}
+      aria-label={t("layout.backToChat")}
+    >
+      <ArrowLeft aria-hidden />
+    </button>
+  );
+}
 
 export function buildPrimaryNodes(options: PrimaryLayoutNodesOptions): PrimaryLayoutNodes {
   const sidebarNode = <Sidebar {...options.sidebarProps} />;
@@ -53,13 +67,7 @@ export function buildPrimaryNodes(options: PrimaryLayoutNodesOptions): PrimaryLa
   const desktopTopbarLeftNode = (
     <>
       {options.desktopTopbarProps.showBackToChat && (
-        <button
-          className="icon-button back-button"
-          onClick={options.desktopTopbarProps.onExitDiff}
-          aria-label="Back to chat"
-        >
-          <ArrowLeft aria-hidden />
-        </button>
+        <BackToChatButton onClick={options.desktopTopbarProps.onExitDiff} />
       )}
       {mainHeaderNode}
     </>

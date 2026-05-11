@@ -1,7 +1,26 @@
 use std::env;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::types::WorkspaceEntry;
+
+const MANAGED_CODEX_HOME_DIR: &str = "codex-home";
+
+pub(crate) fn managed_codex_home_for_data_dir(data_dir: &Path) -> PathBuf {
+    data_dir.join(MANAGED_CODEX_HOME_DIR)
+}
+
+pub(crate) fn configure_managed_codex_home(data_dir: &Path) -> Result<PathBuf, String> {
+    let codex_home = managed_codex_home_for_data_dir(data_dir);
+    fs::create_dir_all(&codex_home).map_err(|err| {
+        format!(
+            "Failed to create AgentDesk Codex home at {}: {err}",
+            codex_home.display()
+        )
+    })?;
+    env::set_var("CODEX_HOME", &codex_home);
+    Ok(codex_home)
+}
 
 pub(crate) fn resolve_workspace_codex_home(
     _entry: &WorkspaceEntry,
@@ -16,7 +35,7 @@ pub(crate) fn resolve_default_codex_home() -> Option<PathBuf> {
             return Some(path);
         }
     }
-    resolve_home_dir().map(|home| home.join(".codex"))
+    None
 }
 
 fn normalize_codex_home(value: &str) -> Option<PathBuf> {
@@ -206,6 +225,45 @@ mod tests {
 
         let resolved = resolve_workspace_codex_home(&entry, None);
         assert_eq!(resolved, Some(PathBuf::from("/tmp/codex-global")));
+
+        match prev_codex_home {
+            Some(value) => std::env::set_var("CODEX_HOME", value),
+            None => std::env::remove_var("CODEX_HOME"),
+        }
+    }
+
+    #[test]
+    fn managed_codex_home_overrides_external_environment() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let data_dir =
+            std::env::temp_dir().join(format!("agentdesk-data-dir-{}", uuid::Uuid::new_v4()));
+        let expected = data_dir.join("codex-home");
+        let prev_codex_home = std::env::var("CODEX_HOME").ok();
+        std::env::set_var("CODEX_HOME", "/tmp/external-codex-home");
+
+        let configured = configure_managed_codex_home(&data_dir).expect("configure managed home");
+
+        assert_eq!(configured, expected);
+        assert_eq!(
+            std::env::var("CODEX_HOME").ok(),
+            Some(expected.to_string_lossy().to_string())
+        );
+        assert_eq!(resolve_default_codex_home(), Some(expected));
+        let _ = std::fs::remove_dir_all(&data_dir);
+        match prev_codex_home {
+            Some(value) => std::env::set_var("CODEX_HOME", value),
+            None => std::env::remove_var("CODEX_HOME"),
+        }
+    }
+
+    #[test]
+    fn default_codex_home_does_not_fall_back_to_system_home() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+
+        let prev_codex_home = std::env::var("CODEX_HOME").ok();
+        std::env::remove_var("CODEX_HOME");
+
+        assert_eq!(resolve_default_codex_home(), None);
 
         match prev_codex_home {
             Some(value) => std::env::set_var("CODEX_HOME", value),

@@ -13,6 +13,7 @@ import {
   toFileLink,
 } from "../utils/messageFileLinks";
 import type { ParsedFileLocation } from "../../../utils/fileLinks";
+import { useI18n } from "@/features/i18n/i18n";
 
 type MarkdownProps = {
   value: string;
@@ -350,10 +351,11 @@ function FileReferenceLink({
 }
 
 function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
   const languageTag = extractLanguageTag(className);
-  const languageLabel = languageTag ?? "Code";
+  const languageLabel = languageTag ?? t("messages.code");
   const fencedValue = `\`\`\`${languageTag ?? ""}\n${value}\n\`\`\``;
 
   useEffect(() => {
@@ -389,10 +391,10 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
           type="button"
           className={`ghost markdown-codeblock-copy${copied ? " is-copied" : ""}`}
           onClick={handleCopy}
-          aria-label="Copy code block"
-          title={copied ? "Copied" : "Copy"}
+          aria-label={t("messages.copyCodeBlock")}
+          title={copied ? t("common.copied") : t("common.copy")}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("common.copied") : t("common.copy")}
         </button>
       </div>
       <pre>

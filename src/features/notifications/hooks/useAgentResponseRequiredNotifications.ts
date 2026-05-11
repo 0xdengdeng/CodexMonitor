@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import type {
   ApprovalRequest,
   DebugEntry,
@@ -70,6 +71,7 @@ export function useAgentResponseRequiredNotifications({
   getWorkspaceName,
   onDebug,
 }: ResponseRequiredNotificationOptions) {
+  const { t } = useI18n();
   const lastNotifiedAtRef = useRef(0);
   const notifiedApprovalsRef = useRef(new Set<string>());
   const notifiedUserInputsRef = useRef(new Set<string>());
@@ -224,8 +226,8 @@ export function useAgentResponseRequiredNotifications({
 
     const workspaceName = getWorkspaceName?.(latestUnnotifiedApproval.workspace_id);
     const title = workspaceName
-      ? `Approval needed — ${workspaceName}`
-      : "Approval needed";
+      ? t("notifications.approvalNeededWithWorkspace", { workspace: workspaceName })
+      : t("notifications.approvalNeeded");
     const commandInfo = getApprovalCommandInfo(latestUnnotifiedApproval.params ?? {});
     const body = commandInfo?.preview
       ? truncateText(commandInfo.preview, MAX_BODY_LENGTH)
@@ -245,6 +247,7 @@ export function useAgentResponseRequiredNotifications({
     notify,
     retrySignal,
     scheduleRetry,
+    t,
   ]);
 
   const latestUnnotifiedQuestion = (() => {
@@ -283,9 +286,11 @@ export function useAgentResponseRequiredNotifications({
     notifiedUserInputsRef.current.add(questionKey);
 
     const workspaceName = getWorkspaceName?.(latestUnnotifiedQuestion.workspace_id);
-    const title = workspaceName ? `Question — ${workspaceName}` : "Question";
+    const title = workspaceName
+      ? t("notifications.questionWithWorkspace", { workspace: workspaceName })
+      : t("notifications.question");
     const first = latestUnnotifiedQuestion.params.questions[0];
-    const bodyRaw = first?.header?.trim() || first?.question?.trim() || "Your input is needed.";
+    const bodyRaw = first?.header?.trim() || first?.question?.trim() || t("notifications.inputNeeded");
     const body = truncateText(bodyRaw, MAX_BODY_LENGTH);
 
     void notify(title, body, {
@@ -305,6 +310,7 @@ export function useAgentResponseRequiredNotifications({
     notify,
     retrySignal,
     scheduleRetry,
+    t,
   ]);
 
   useEffect(() => {
@@ -355,11 +361,13 @@ export function useAgentResponseRequiredNotifications({
         return;
       }
       const workspaceName = getWorkspaceName?.(workspaceId);
-      const title = workspaceName ? `Plan ready — ${workspaceName}` : "Plan ready";
+      const title = workspaceName
+        ? t("notifications.planReadyWithWorkspace", { workspace: workspaceName })
+        : t("notifications.planReady");
       const text = String(item.text ?? "").trim();
       const body = text
         ? truncateText(text.split("\n")[0] ?? text, MAX_BODY_LENGTH)
-        : "Plan is ready. Open CodexMonitor to respond.";
+        : t("notifications.planReadyBody");
       const extra = {
         kind: "response_required",
         type: "plan",
@@ -377,7 +385,7 @@ export function useAgentResponseRequiredNotifications({
 
       void notify(title, body, extra);
     },
-    [canNotifyNow, getWorkspaceName, notify, scheduleRetry, shouldMuteSubagentThread],
+    [canNotifyNow, getWorkspaceName, notify, scheduleRetry, shouldMuteSubagentThread, t],
   );
 
   useAppServerEvents(

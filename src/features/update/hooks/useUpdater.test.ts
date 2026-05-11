@@ -224,11 +224,7 @@ describe("useUpdater", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
-        tag_name: `v${__APP_VERSION__}`,
-        html_url: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
-        body: "## New\n- Added updater notes",
-      }),
+      text: async () => "## New\n- Added updater notes",
     } as Response);
 
     const { result } = renderHook(() => useUpdater({}));
@@ -240,7 +236,7 @@ describe("useUpdater", () => {
     expect(result.current.postUpdateNotice).toMatchObject({
       stage: "ready",
       version: __APP_VERSION__,
-      htmlUrl: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
+      htmlUrl: `https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/releases/${__APP_VERSION__}/release-notes.md`,
       body: "## New\n- Added updater notes",
     });
 
@@ -269,7 +265,7 @@ describe("useUpdater", () => {
     expect(result.current.postUpdateNotice).toMatchObject({
       stage: "fallback",
       version: __APP_VERSION__,
-      htmlUrl: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
+      htmlUrl: `https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/releases/${__APP_VERSION__}/release-notes.md`,
     });
     expect(onDebug).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -312,11 +308,7 @@ describe("useUpdater", () => {
       resolveFetch?.({
         ok: true,
         status: 200,
-        json: async () => ({
-          tag_name: `v${__APP_VERSION__}`,
-          html_url: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
-          body: "## Notes",
-        }),
+        text: async () => "## Notes",
       } as Response);
       await Promise.resolve();
     });

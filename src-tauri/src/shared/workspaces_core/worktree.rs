@@ -103,7 +103,7 @@ pub(crate) async fn add_worktree_core<
     spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FSanitize: Fn(&str) -> String,
     FUniquePath: Fn(&PathBuf, &str) -> Result<PathBuf, String>,
@@ -225,15 +225,12 @@ where
     let session = if let Some(existing_session) = existing_session {
         existing_session
     } else {
-        let (default_bin, codex_args) = {
+        let codex_args = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
-            )
+            resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings))
         };
         let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
-        spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?
+        spawn_session(entry.clone(), codex_args, codex_home).await?
     };
 
     {
@@ -358,7 +355,7 @@ pub(crate) async fn rename_worktree_core<
     _spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FResolveGitRoot: Fn(&WorkspaceEntry) -> Result<PathBuf, String>,
     FUniqueBranch: Fn(&PathBuf, &str) -> FutUniqueBranch,

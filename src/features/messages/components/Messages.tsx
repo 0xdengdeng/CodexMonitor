@@ -22,6 +22,7 @@ import {
   WorkingIndicator,
 } from "./MessageRows";
 import { useMessagesViewState } from "./useMessagesViewState";
+import { useI18n } from "@/features/i18n/i18n";
 
 type MessagesProps = {
   items: ConversationItem[];
@@ -71,6 +72,7 @@ export const Messages = memo(function Messages({
   onOpenThreadLink,
   onQuoteMessage,
 }: MessagesProps) {
+  const { t } = useI18n();
   const activeUserInputRequestId =
     threadId && userInputRequests.length
       ? (userInputRequests.find(
@@ -243,10 +245,20 @@ export const Messages = memo(function Messages({
             const { group } = entry;
             const isCollapsed = collapsedToolGroups.has(group.id);
             const summaryParts = [
-              formatCount(group.toolCount, "tool call", "tool calls"),
+              formatCount(
+                group.toolCount,
+                t("messages.toolCall"),
+                t("messages.toolCalls"),
+              ),
             ];
             if (group.messageCount > 0) {
-              summaryParts.push(formatCount(group.messageCount, "message", "messages"));
+              summaryParts.push(
+                formatCount(
+                  group.messageCount,
+                  t("messages.message"),
+                  t("messages.messages"),
+                ),
+              );
             }
             const summaryText = summaryParts.join(", ");
             const groupBodyId = `tool-group-${group.id}`;
@@ -263,7 +275,11 @@ export const Messages = memo(function Messages({
                     onClick={() => toggleToolGroup(group.id)}
                     aria-expanded={!isCollapsed}
                     aria-controls={groupBodyId}
-                    aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
+                    aria-label={
+                      isCollapsed
+                        ? t("messages.expandToolCalls")
+                        : t("messages.collapseToolCalls")
+                    }
                   >
                     <span className="tool-group-chevron" aria-hidden>
                       <ChevronIcon size={14} />
@@ -294,14 +310,16 @@ export const Messages = memo(function Messages({
         />
         {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
           <div className="empty messages-empty">
-            {threadId ? "Send a prompt to the agent." : "Send a prompt to start a new agent."}
+            {threadId
+              ? t("messages.emptyThread")
+              : t("messages.emptyNewAgent")}
           </div>
         )}
         {!items.length && !userInputNode && !isThinking && isLoadingMessages && (
           <div className="empty messages-empty">
             <div className="messages-loading-indicator" role="status" aria-live="polite">
               <span className="working-spinner" aria-hidden />
-              <span className="messages-loading-label">Loading…</span>
+              <span className="messages-loading-label">{t("common.loadingEllipsis")}</span>
             </div>
           </div>
         )}

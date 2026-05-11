@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
+import { I18nProvider } from "@/features/i18n/i18n";
 import { expectOpenedFileTarget } from "../test/fileLinkAssertions";
 import { Messages } from "./Messages";
 
@@ -172,6 +173,32 @@ describe("Messages", () => {
 
     expect(container.querySelector(".message-bubble-table-only")).toBeTruthy();
     expect(container.querySelector(".markdown-table-wrap")).toBeTruthy();
+  });
+
+  it("renders message creation time below the bubble", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-time-1",
+        kind: "message",
+        role: "assistant",
+        text: "Timed message",
+        createdAt: new Date(2025, 4, 7, 14, 5).getTime(),
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("14:05")).toBeTruthy();
+    expect(container.querySelector(".message-time")).toBeTruthy();
   });
 
   it("quotes a message into composer using markdown blockquote format", () => {
@@ -1404,6 +1431,7 @@ describe("Messages", () => {
       expect(exportMarkdownFileMock).toHaveBeenCalledWith(
         "## Steps\n- Step 1",
         "plan-7.md",
+        "Export plan as Markdown",
       ),
     );
   });
@@ -1701,5 +1729,42 @@ describe("Messages", () => {
       screen.getByText("command • sync • thread • session-start.sh • Preparing"),
     ).toBeTruthy();
     expect(screen.getByText("[error] Missing config")).toBeTruthy();
+  });
+
+  it("localizes context compaction tool rows", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "compact-1",
+        kind: "tool",
+        toolType: "contextCompaction",
+        title: "Context compaction",
+        detail: "Compacting conversation context to fit token limits.",
+        status: "inProgress",
+        output: "",
+      },
+    ];
+
+    render(
+      <I18nProvider languagePreference="zh-CN">
+        <Messages
+          items={items}
+          threadId="thread-1"
+          workspaceId="ws-1"
+          isThinking={false}
+          openTargets={[]}
+          selectedOpenAppId=""
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("工具:")).toBeTruthy();
+    expect(screen.getByText("上下文压缩")).toBeTruthy();
+    expect(screen.queryByText("Context compaction")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "切换工具详情" }));
+    expect(screen.getByText("正在压缩会话上下文，以适配 token 限制。")).toBeTruthy();
+    expect(
+      screen.queryByText("Compacting conversation context to fit token limits."),
+    ).toBeNull();
   });
 });

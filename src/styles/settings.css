@@ -177,6 +177,22 @@
   margin-right: 4px;
 }
 
+.settings-runtime-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-muted);
+  border-radius: 10px;
+  background: var(--surface-card);
+}
+
+.settings-runtime-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
 .settings-mobile-remotes {
   display: flex;
   flex-direction: column;
@@ -229,7 +245,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--border-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--border-accent) 18%, var(--surface-card));
   border: 1px solid color-mix(in srgb, var(--border-accent) 45%, transparent);
 }
 
@@ -284,11 +300,11 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #141b27;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-popover);
+  border: 1px solid var(--border-strong);
   border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  color: #eef3ff;
+  box-shadow: 0 24px 60px rgba(5, 12, 24, 0.32);
+  color: var(--text-primary);
 }
 
 .settings-add-remote-header {
@@ -301,12 +317,12 @@
 .settings-add-remote-title {
   font-size: 14px;
   font-weight: 700;
-  color: #f5f8ff;
+  color: var(--text-strong);
 }
 
 .settings-add-remote-close {
   padding: 4px;
-  color: #dce6f7;
+  color: var(--text-muted);
 }
 
 .settings-add-remote-close svg {
@@ -327,22 +343,22 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #141b27;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-popover);
+  border: 1px solid var(--border-strong);
   border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  color: #eef3ff;
+  box-shadow: 0 24px 60px rgba(5, 12, 24, 0.32);
+  color: var(--text-primary);
 }
 
 .settings-delete-remote-title {
   font-size: 14px;
   font-weight: 700;
-  color: #f5f8ff;
+  color: var(--text-strong);
 }
 
 .settings-delete-remote-message {
   font-size: 12px;
-  color: rgba(232, 240, 251, 0.86);
+  color: var(--text-subtle);
   line-height: 1.45;
 }
 
@@ -355,33 +371,33 @@
 
 .settings-add-remote-card .settings-field-label,
 .settings-add-remote-card .settings-help {
-  color: rgba(232, 240, 251, 0.86);
+  color: var(--text-subtle);
 }
 
 .settings-add-remote-card .settings-help-error {
-  color: #ffb1b1;
+  color: var(--text-danger);
 }
 
 .settings-add-remote-card .settings-input {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #f5f8ff;
+  background: var(--surface-control);
+  border-color: var(--border-strong);
+  color: var(--text-strong);
 }
 
 .settings-add-remote-card .settings-input::placeholder {
-  color: rgba(232, 240, 251, 0.52);
+  color: var(--text-faint);
 }
 
 .settings-add-remote-card .ghost,
 .settings-delete-remote-card .ghost {
-  color: #dce6f7;
-  border-color: rgba(255, 255, 255, 0.24);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border-color: var(--button-secondary-border, var(--border-strong));
+  background: color-mix(in srgb, var(--surface-control) 42%, transparent);
 }
 
 .settings-add-remote-card .ghost:hover,
 .settings-delete-remote-card .ghost:hover {
-  background: rgba(255, 255, 255, 0.11);
+  background: var(--button-ghost-bg-hover, var(--surface-hover));
 }
 
 .settings-shortcuts-search {
@@ -636,13 +652,32 @@
   flex: 1;
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border-muted);
+  border-radius: var(--cm-control-radius, 10px);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
   background: var(--surface-control);
   color: var(--text-strong);
   font-size: 12px;
+  box-shadow: var(--control-shadow, none);
   transition: border-color var(--ds-dur-normal) var(--ds-ease-out-soft),
-              box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
+    background-color var(--ds-dur-normal) var(--ds-ease-out-soft),
+    box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
+}
+
+.settings-input::placeholder {
+  color: var(--text-faint);
+}
+
+.settings-input:hover:not(:disabled),
+.settings-select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background-color: var(--surface-control-hover);
+}
+
+.settings-input:focus,
+.settings-select:focus {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
 }
 
 .settings-input--compact {
@@ -681,14 +716,31 @@
 }
 
 .settings-select {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border-muted);
-  background: var(--surface-control);
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 38px;
+  padding: 9px 38px 9px 12px;
+  border-radius: var(--cm-control-radius, 10px);
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
+  background-color: var(--surface-control);
+  background-image: linear-gradient(45deg, transparent 50%, var(--select-caret) 50%),
+    linear-gradient(135deg, var(--select-caret) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% + 1px),
+    calc(100% - 13px) calc(50% + 1px);
+  background-repeat: no-repeat;
+  background-size: 5px 5px, 5px 5px;
   color: var(--text-strong);
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: var(--control-shadow, none);
   transition: border-color var(--ds-dur-normal) var(--ds-ease-out-soft),
-              box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
+    background-color var(--ds-dur-normal) var(--ds-ease-out-soft),
+    box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
+}
+
+.settings-select::-ms-expand {
+  display: none;
 }
 
 .settings-select option {
@@ -697,7 +749,10 @@
 }
 
 .settings-select--compact {
-  padding: 6px 8px;
+  min-height: 30px;
+  padding: 6px 30px 6px 9px;
+  background-position: calc(100% - 15px) calc(50% + 1px),
+    calc(100% - 10px) calc(50% + 1px);
   font-size: 11px;
 }
 

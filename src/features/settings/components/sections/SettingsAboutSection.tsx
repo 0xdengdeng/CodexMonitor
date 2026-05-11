@@ -11,9 +11,11 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { useI18n } from "@/features/i18n/i18n";
 
 type SettingsAboutSectionProps = {
   appSettings: AppSettings;
+  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onToggleAutomaticAppUpdateChecks?: () => void;
 };
 
@@ -33,8 +35,10 @@ function formatBytes(value: number) {
 
 export function SettingsAboutSection({
   appSettings,
+  onUpdateAppSettings,
   onToggleAutomaticAppUpdateChecks,
 }: SettingsAboutSectionProps) {
+  const { t } = useI18n();
   const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
   const [updaterEnabled, setUpdaterEnabled] = useState(false);
   const { state: updaterState, checkForUpdates, startUpdate } = useUpdater({
@@ -86,33 +90,78 @@ export function SettingsAboutSection({
   const buildDateValue = __APP_BUILD_DATE__.trim();
   const parsedBuildDate = Date.parse(buildDateValue);
   const buildDateLabel = Number.isNaN(parsedBuildDate)
-    ? buildDateValue || "unknown"
+    ? buildDateValue || t("settings.common.unknown")
     : new Date(parsedBuildDate).toLocaleString();
 
   return (
-    <SettingsSection title="About" subtitle="App version, build metadata, and update controls.">
+    <SettingsSection title={t("settings.about.title")} subtitle={t("settings.about.subtitle")}>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="theme-select">
+          {t("settings.display.theme")}
+        </label>
+        <select
+          id="theme-select"
+          className="settings-select"
+          value={appSettings.theme}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              theme: event.target.value as AppSettings["theme"],
+            })
+          }
+        >
+          <option value="system">{t("settings.display.theme.system")}</option>
+          <option value="light">{t("settings.display.theme.light")}</option>
+          <option value="dark">{t("settings.display.theme.dark")}</option>
+          <option value="dim">{t("settings.display.theme.dim")}</option>
+        </select>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="interface-language-select">
+          {t("settings.display.interfaceLanguage.label")}
+        </label>
+        <select
+          id="interface-language-select"
+          className="settings-select"
+          value={appSettings.interfaceLanguage}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              interfaceLanguage: event.target.value as AppSettings["interfaceLanguage"],
+            })
+          }
+        >
+          <option value="system">{t("settings.display.interfaceLanguage.system")}</option>
+          <option value="zh-Hans">{t("settings.display.interfaceLanguage.chinese")}</option>
+          <option value="en">{t("settings.display.interfaceLanguage.english")}</option>
+        </select>
+      </div>
       <div className="settings-field">
         <div className="settings-help">
-          Version: <code>{__APP_VERSION__}</code>
+          {t("settings.about.version", { value: __APP_VERSION__ })}
         </div>
         <div className="settings-help">
-          Build type: <code>{appBuildType}</code>
+          {t("settings.about.buildType", { value: appBuildType })}
         </div>
         <div className="settings-help">
-          Branch: <code>{__APP_GIT_BRANCH__ || "unknown"}</code>
+          {t("settings.about.branch", {
+            value: __APP_GIT_BRANCH__ || t("settings.common.unknown"),
+          })}
         </div>
         <div className="settings-help">
-          Commit: <code>{__APP_COMMIT_HASH__ || "unknown"}</code>
+          {t("settings.about.commit", {
+            value: __APP_COMMIT_HASH__ || t("settings.common.unknown"),
+          })}
         </div>
         <div className="settings-help">
-          Build date: <code>{buildDateLabel}</code>
+          {t("settings.about.buildDate", { value: buildDateLabel })}
         </div>
       </div>
       <div className="settings-field">
-        <div className="settings-label">App Updates</div>
+        <div className="settings-label">{t("settings.about.updates")}</div>
         <SettingsToggleRow
-          title="Automatically check for app updates"
-          subtitle="When enabled, CodexMonitor checks for new app versions on launch."
+          title={t("settings.about.autoUpdates.title")}
+          subtitle={t("settings.about.autoUpdates.subtitle")}
         >
           <SettingsToggleSwitch
             pressed={appSettings.automaticAppUpdateChecksEnabled}
@@ -122,17 +171,17 @@ export function SettingsAboutSection({
           />
         </SettingsToggleRow>
         <div className="settings-help">
-          Currently running version <code>{__APP_VERSION__}</code>
+          {t("settings.about.currentVersion", { value: __APP_VERSION__ })}
         </div>
         {!updaterEnabled && (
           <div className="settings-help">
-            Updates are unavailable in this runtime.
+            {t("settings.about.runtimeUnavailable")}
           </div>
         )}
 
         {updaterState.stage === "error" && (
           <div className="settings-help ds-text-danger">
-            Update failed: {updaterState.error}
+            {t("settings.about.updateFailed", { error: updaterState.error })}
           </div>
         )}
 
@@ -142,23 +191,24 @@ export function SettingsAboutSection({
           <div className="settings-help">
             {updaterState.stage === "downloading" ? (
               <>
-                Downloading update...{" "}
-                {updaterState.progress?.totalBytes
+                {t("settings.about.downloading", {
+                  progress: updaterState.progress?.totalBytes
                   ? `${Math.round((updaterState.progress.downloadedBytes / updaterState.progress.totalBytes) * 100)}%`
-                  : formatBytes(updaterState.progress?.downloadedBytes ?? 0)}
+                  : formatBytes(updaterState.progress?.downloadedBytes ?? 0),
+                })}
               </>
             ) : updaterState.stage === "installing" ? (
-              "Installing update..."
+              t("settings.about.installing")
             ) : (
-              "Restarting..."
+              t("settings.about.restarting")
             )}
           </div>
         ) : updaterState.stage === "available" ? (
           <div className="settings-help">
-            Version <code>{updaterState.version}</code> is available.
+            {t("settings.about.available", { version: updaterState.version })}
           </div>
         ) : updaterState.stage === "latest" ? (
-          <div className="settings-help">You are on the latest version.</div>
+          <div className="settings-help">{t("settings.about.latest")}</div>
         ) : null}
 
         <div className="settings-controls">
@@ -169,7 +219,7 @@ export function SettingsAboutSection({
               disabled={!updaterEnabled}
               onClick={() => void startUpdate()}
             >
-              Download & Install
+              {t("settings.about.downloadInstall")}
             </button>
           ) : (
             <button
@@ -184,7 +234,9 @@ export function SettingsAboutSection({
               }
               onClick={() => void checkForUpdates({ announceNoUpdate: true })}
             >
-              {updaterState.stage === "checking" ? "Checking..." : "Check for updates"}
+              {updaterState.stage === "checking"
+                ? t("settings.about.checking")
+                : t("settings.about.checkForUpdates")}
             </button>
           )}
         </div>

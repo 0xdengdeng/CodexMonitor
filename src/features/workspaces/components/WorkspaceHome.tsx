@@ -10,8 +10,6 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import type {
   AppOption,
   CustomPromptOption,
-  DictationSessionState,
-  DictationTranscript,
   ModelOption,
   SkillOption,
   WorkspaceInfo,
@@ -25,7 +23,6 @@ import type {
   WorkspaceHomeRunInstance,
   WorkspaceRunMode,
 } from "../hooks/useWorkspaceHome";
-import { computeDictationInsertion } from "../../../utils/dictation";
 import { isComposingEvent } from "../../../utils/keys";
 import { FileEditorCard } from "../../shared/components/FileEditorCard";
 import { WorkspaceHomeRunControls } from "./WorkspaceHomeRunControls";
@@ -34,6 +31,7 @@ import { WorkspaceHomeGitInitBanner } from "./WorkspaceHomeGitInitBanner";
 import { buildIconPath } from "./workspaceHomeHelpers";
 import { useWorkspaceHomeSuggestionsStyle } from "../hooks/useWorkspaceHomeSuggestionsStyle";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
+import { useI18n } from "@/features/i18n/i18n";
 
 type WorkspaceHomeProps = {
   workspace: WorkspaceInfo;
@@ -72,18 +70,6 @@ type WorkspaceHomeProps = {
   apps: AppOption[];
   prompts: CustomPromptOption[];
   files: string[];
-  dictationEnabled: boolean;
-  dictationState: DictationSessionState;
-  dictationLevel: number;
-  onToggleDictation: () => void;
-  onCancelDictation?: () => void;
-  onOpenDictationSettings: () => void;
-  dictationError: string | null;
-  onDismissDictationError: () => void;
-  dictationHint: string | null;
-  onDismissDictationHint: () => void;
-  dictationTranscript: DictationTranscript | null;
-  onDictationTranscriptHandled: (id: string) => void;
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   onFileAutocompleteActiveChange?: (active: boolean) => void;
   agentMdContent: string;
@@ -135,18 +121,6 @@ export function WorkspaceHome({
   apps,
   prompts,
   files,
-  dictationEnabled,
-  dictationState,
-  dictationLevel,
-  onToggleDictation,
-  onCancelDictation,
-  onOpenDictationSettings,
-  dictationError,
-  onDismissDictationError,
-  dictationHint,
-  onDismissDictationHint,
-  dictationTranscript,
-  onDictationTranscriptHandled,
   textareaRef: textareaRefProp,
   onFileAutocompleteActiveChange,
   agentMdContent,
@@ -160,6 +134,7 @@ export function WorkspaceHome({
   onAgentMdRefresh,
   onAgentMdSave,
 }: WorkspaceHomeProps) {
+  const { t } = useI18n();
   const [showIcon, setShowIcon] = useState(true);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
@@ -235,60 +210,12 @@ export function WorkspaceHome({
     handleTextChange(next, cursor);
   };
 
-  const isDictationBusy = dictationState !== "idle";
-
   useEffect(() => {
     setShowIcon(true);
   }, [workspace.id]);
 
-  useEffect(() => {
-    if (!dictationTranscript) {
-      return;
-    }
-    const textToInsert = dictationTranscript.text.trim();
-    if (!textToInsert) {
-      onDictationTranscriptHandled(dictationTranscript.id);
-      return;
-    }
-
-    const textarea = textareaRef.current;
-    const start = textarea?.selectionStart ?? selectionStart ?? prompt.length;
-    const end = textarea?.selectionEnd ?? start;
-    const { nextText, nextCursor } = computeDictationInsertion(
-      prompt,
-      textToInsert,
-      start,
-      end,
-    );
-
-    onPromptChange(nextText);
-    resetHistoryNavigation();
-
-    requestAnimationFrame(() => {
-      if (!textareaRef.current) {
-        return;
-      }
-      textareaRef.current.focus();
-      textareaRef.current.setSelectionRange(nextCursor, nextCursor);
-      setSelectionStart(nextCursor);
-    });
-
-    onDictationTranscriptHandled(dictationTranscript.id);
-  }, [
-    dictationTranscript,
-    onDictationTranscriptHandled,
-    onPromptChange,
-    prompt,
-    resetHistoryNavigation,
-    selectionStart,
-    textareaRef,
-  ]);
-
   const handleRunSubmit = async () => {
     if (!prompt.trim() && activeImages.length === 0) {
-      return;
-    }
-    if (isDictationBusy) {
       return;
     }
 
@@ -319,31 +246,27 @@ export function WorkspaceHome({
     }
 
     if (event.key === "Enter" && !event.shiftKey) {
-      if (isDictationBusy) {
-        event.preventDefault();
-        return;
-      }
       event.preventDefault();
       void handleRunSubmit();
     }
   };
 
   const agentMdStatus = agentMdLoading
-    ? "Loading…"
+    ? t("settings.common.loading")
     : agentMdSaving
-      ? "Saving…"
+      ? t("settings.common.saving")
       : agentMdExists
         ? ""
-        : "Not found";
+        : t("settings.editor.notFound");
   const agentMdMetaParts: string[] = [];
   if (agentMdStatus) {
     agentMdMetaParts.push(agentMdStatus);
   }
   if (agentMdTruncated) {
-    agentMdMetaParts.push("Truncated");
+    agentMdMetaParts.push(t("settings.editor.truncated"));
   }
   const agentMdMeta = agentMdMetaParts.join(" · ");
-  const agentMdSaveLabel = agentMdExists ? "Save" : "Create";
+  const agentMdSaveLabel = agentMdExists ? t("settings.common.save") : t("settings.common.create");
   const agentMdSaveDisabled = agentMdLoading || agentMdSaving || !agentMdDirty;
   const agentMdRefreshDisabled = agentMdLoading || agentMdSaving;
 
@@ -376,7 +299,7 @@ export function WorkspaceHome({
           <ComposerInput
             text={prompt}
             disabled={isSubmitting}
-            sendLabel="Send"
+            sendLabel={t("workspace.home.send")}
             canStop={false}
             canSend={prompt.trim().length > 0 || activeImages.length > 0}
             isProcessing={isSubmitting}
@@ -384,16 +307,6 @@ export function WorkspaceHome({
             onSend={() => {
               void handleRunSubmit();
             }}
-            dictationState={dictationState}
-            dictationLevel={dictationLevel}
-            dictationEnabled={dictationEnabled}
-            onToggleDictation={onToggleDictation}
-            onCancelDictation={onCancelDictation}
-            onOpenDictationSettings={onOpenDictationSettings}
-            dictationError={dictationError}
-            onDismissDictationError={onDismissDictationError}
-            dictationHint={dictationHint}
-            onDismissDictationHint={onDismissDictationHint}
             attachments={activeImages}
             onAddAttachment={() => {
               void pickImages();
@@ -440,7 +353,7 @@ export function WorkspaceHome({
       <div className="workspace-home-agent">
         {agentMdTruncated && (
           <div className="workspace-home-agent-warning">
-            Showing the first part of a large file.
+            {t("workspace.home.largeFileWarning")}
           </div>
         )}
         <FileEditorCard
@@ -448,7 +361,7 @@ export function WorkspaceHome({
           meta={agentMdMeta}
           error={agentMdError}
           value={agentMdContent}
-          placeholder="Add workspace instructions for the agent…"
+          placeholder={t("workspace.home.agentMdPlaceholder")}
           disabled={agentMdLoading}
           refreshDisabled={agentMdRefreshDisabled}
           saveDisabled={agentMdSaveDisabled}

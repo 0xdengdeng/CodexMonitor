@@ -1,4 +1,5 @@
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import Folder from "lucide-react/dist/esm/icons/folder";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
@@ -17,13 +18,18 @@ type PanelTabsProps = {
   tabs?: PanelTab[];
 };
 
-const defaultTabs: PanelTab[] = [
-  { id: "git", label: "Git", icon: <GitBranch aria-hidden /> },
-  { id: "files", label: "Files", icon: <Folder aria-hidden /> },
-  { id: "prompts", label: "Prompts", icon: <ScrollText aria-hidden /> },
-];
-
-export function PanelTabs({ active, onSelect, tabs = defaultTabs }: PanelTabsProps) {
+export function PanelTabs({ active, onSelect, tabs }: PanelTabsProps) {
+  const { t } = useI18n();
+  const localizedTabs = useMemo<PanelTab[]>(
+    () =>
+      tabs ?? [
+        { id: "git", label: t("panelTabs.git"), icon: <GitBranch aria-hidden /> },
+        { id: "files", label: t("panelTabs.files"), icon: <Folder aria-hidden /> },
+        { id: "prompts", label: t("panelTabs.prompts"), icon: <ScrollText aria-hidden /> },
+      ],
+    [tabs, t],
+  );
+  tabs = localizedTabs;
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const activeIndex = tabs.findIndex((tab) => tab.id === active);
   const focusableIndex = activeIndex >= 0 ? activeIndex : 0;
@@ -66,7 +72,7 @@ export function PanelTabs({ active, onSelect, tabs = defaultTabs }: PanelTabsPro
   };
 
   return (
-    <div className="panel-tabs" role="tablist" aria-label="Panel" aria-orientation="horizontal">
+    <div className="panel-tabs" role="tablist" aria-label={t("panelTabs.panel")} aria-orientation="horizontal">
       {tabs.map((tab, index) => {
         const isActive = active === tab.id;
         return (

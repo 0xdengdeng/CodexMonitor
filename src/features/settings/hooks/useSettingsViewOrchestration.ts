@@ -3,11 +3,10 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
-  DictationModelStatus,
   WorkspaceGroup,
   WorkspaceSettings,
 } from "@/types";
-import { isMacPlatform, isWindowsPlatform } from "@utils/platformPaths";
+import { isMacPlatform } from "@utils/platformPaths";
 import { useSettingsOpenAppDrafts } from "./useSettingsOpenAppDrafts";
 import { useSettingsShortcutDrafts } from "./useSettingsShortcutDrafts";
 import { useSettingsCodexSection } from "./useSettingsCodexSection";
@@ -19,11 +18,8 @@ import { useSettingsAgentsSection } from "./useSettingsAgentsSection";
 import { useSettingsProjectsSection } from "./useSettingsProjectsSection";
 import { useSettingsServerSection } from "./useSettingsServerSection";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
-import {
-  COMPOSER_PRESET_CONFIGS,
-  COMPOSER_PRESET_LABELS,
-  DICTATION_MODELS,
-} from "@settings/components/settingsViewConstants";
+import { COMPOSER_PRESET_CONFIGS } from "@settings/components/settingsViewConstants";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseSettingsViewOrchestrationArgs = {
   workspaceGroups: WorkspaceGroup[];
@@ -35,14 +31,8 @@ type UseSettingsViewOrchestrationArgs = {
   openAppIconById: Record<string, string>;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onToggleAutomaticAppUpdateChecks?: () => void;
-  onRunDoctor: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexDoctorResult>;
-  onRunCodexUpdate?: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexUpdateResult>;
+  onRunDoctor: (codexArgs: string | null) => Promise<CodexDoctorResult>;
+  onRunCodexUpdate?: () => Promise<CodexUpdateResult>;
   onUpdateWorkspaceSettings: (
     id: string,
     settings: Partial<WorkspaceSettings>,
@@ -62,10 +52,6 @@ type UseSettingsViewOrchestrationArgs = {
     workspaceId: string,
     groupId: string | null,
   ) => Promise<boolean | null>;
-  dictationModelStatus?: DictationModelStatus | null;
-  onDownloadDictationModel?: () => void;
-  onCancelDictationDownload?: () => void;
-  onRemoveDictationModel?: () => void;
 };
 
 export function useSettingsViewOrchestration({
@@ -93,11 +79,8 @@ export function useSettingsViewOrchestration({
   onMoveWorkspaceGroup,
   onDeleteWorkspaceGroup,
   onAssignWorkspaceGroup,
-  dictationModelStatus,
-  onDownloadDictationModel,
-  onCancelDictationDownload,
-  onRemoveDictationModel,
 }: UseSettingsViewOrchestrationArgs) {
+  const { t } = useI18n();
   const projects = useMemo(
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
     [groupedWorkspaces],
@@ -112,24 +95,18 @@ export function useSettingsViewOrchestration({
   );
 
   const optionKeyLabel = isMacPlatform() ? "Option" : "Alt";
-  const metaKeyLabel = isMacPlatform()
-    ? "Command"
-    : isWindowsPlatform()
-      ? "Windows"
-      : "Meta";
   const followUpShortcutLabel = isMacPlatform()
     ? "Shift+Cmd+Enter"
     : "Shift+Ctrl+Enter";
 
-  const selectedDictationModel = useMemo(() => {
-    return (
-      DICTATION_MODELS.find(
-        (model) => model.id === appSettings.dictationModelId,
-      ) ?? DICTATION_MODELS[1]
-    );
-  }, [appSettings.dictationModelId]);
-
-  const dictationReady = dictationModelStatus?.state === "ready";
+  const composerPresetLabels = useMemo(
+    () => ({
+      default: t("settings.composer.presetDefault"),
+      helpful: t("settings.composer.presetHelpful"),
+      smart: t("settings.composer.presetSmart"),
+    }),
+    [t],
+  );
 
   const {
     openAppDrafts,
@@ -217,6 +194,7 @@ export function useSettingsViewOrchestration({
   return {
     aboutSectionProps: {
       appSettings,
+      onUpdateAppSettings,
       onToggleAutomaticAppUpdateChecks,
     },
     projectsSectionProps,
@@ -226,7 +204,7 @@ export function useSettingsViewOrchestration({
       appSettings,
       optionKeyLabel,
       followUpShortcutLabel,
-      composerPresetLabels: COMPOSER_PRESET_LABELS,
+      composerPresetLabels,
       onComposerPresetChange: (
         preset: AppSettings["composerEditorPreset"],
       ) => {
@@ -238,19 +216,6 @@ export function useSettingsViewOrchestration({
         });
       },
       onUpdateAppSettings,
-    },
-    dictationSectionProps: {
-      appSettings,
-      optionKeyLabel,
-      metaKeyLabel,
-      dictationModels: DICTATION_MODELS,
-      selectedDictationModel,
-      dictationModelStatus,
-      dictationReady,
-      onUpdateAppSettings,
-      onDownloadDictationModel,
-      onCancelDictationDownload,
-      onRemoveDictationModel,
     },
     shortcutsSectionProps: {
       shortcutDrafts,

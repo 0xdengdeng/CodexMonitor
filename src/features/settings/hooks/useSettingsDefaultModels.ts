@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelOption, WorkspaceInfo } from "@/types";
 import { connectWorkspace, getConfigModel, getModelList } from "@services/tauri";
 import { parseModelListResponse } from "@/features/models/utils/modelListResponse";
+import { useI18n } from "@/features/i18n/i18n";
 
 type SettingsDefaultModelsState = {
   models: ModelOption[];
@@ -16,8 +17,6 @@ const EMPTY_STATE: SettingsDefaultModelsState = {
   error: null,
   connectedWorkspaceCount: 0,
 };
-
-const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
 
 const parseGptVersionScore = (slug: string): number | null => {
   const match = /^gpt-(\d+)(?:\.(\d+))?(?:\.(\d+))?/i.exec(slug.trim());
@@ -60,6 +59,7 @@ function compareModelsByLatest(a: ModelOption, b: ModelOption): number {
 }
 
 export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
+  const { t } = useI18n();
   const [state, setState] = useState<SettingsDefaultModelsState>(EMPTY_STATE);
   const requestIdRef = useRef(0);
   const sourceWorkspaceId = projects[0]?.id ?? null;
@@ -139,7 +139,7 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
                 id: configModel,
                 model: configModel,
                 displayName: `${configModel} (config)`,
-                description: CONFIG_MODEL_DESCRIPTION,
+                description: t("settings.codex.configModelDescription"),
                 supportedReasoningEfforts: [],
                 defaultReasoningEffort: null,
                 isDefault: false,
@@ -164,7 +164,7 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
         });
       }
     }
-  }, [sourceWorkspaceConnected, sourceWorkspaceId, sourceWorkspaceName]);
+  }, [sourceWorkspaceConnected, sourceWorkspaceId, sourceWorkspaceName, t]);
 
   useEffect(() => {
     void refresh();

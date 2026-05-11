@@ -22,7 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		022C9B9709B6E33626712962 /* codex-monitor_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "codex-monitor_iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		022C9B9709B6E33626712962 /* 启航AI智慧平台.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "启航AI智慧平台.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		08DA73A3B0441143BDAB249C /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		08E90DC456838C95694EF8D8 /* app_server.rs */ = {isa = PBXFileReference; path = app_server.rs; sourceTree = "<group>"; };
 		0C5D9C058CAABA28654FB273 /* storage.rs */ = {isa = PBXFileReference; path = storage.rs; sourceTree = "<group>"; };
@@ -348,7 +348,7 @@
 		C10744B9FE87EBD6824B6DCA /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				022C9B9709B6E33626712962 /* codex-monitor_iOS.app */,
+				022C9B9709B6E33626712962 /* 启航AI智慧平台.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -373,7 +373,7 @@
 			packageProductDependencies = (
 			);
 			productName = "codex-monitor_iOS";
-			productReference = 022C9B9709B6E33626712962 /* codex-monitor_iOS.app */;
+			productReference = 022C9B9709B6E33626712962 /* 启航AI智慧平台.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -481,8 +481,8 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(DT_TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(DT_TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dimillian.codexmonitor.ios;
-				PRODUCT_NAME = "Codex Monitor";
+				PRODUCT_BUNDLE_IDENTIFIER = com.agentdesk.ios;
+				PRODUCT_NAME = "启航AI智慧平台";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -518,8 +518,8 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(DT_TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(DT_TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dimillian.codexmonitor.ios;
-				PRODUCT_NAME = "Codex Monitor";
+				PRODUCT_BUNDLE_IDENTIFIER = com.agentdesk.ios;
+				PRODUCT_NAME = "启航AI智慧平台";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;

@@ -1,5 +1,6 @@
 import type {
   AccountSnapshot,
+  EnterpriseAiUsageSnapshot,
   LocalUsageSnapshot,
   RateLimitSnapshot,
 } from "../../../types";
@@ -11,6 +12,7 @@ import type {
   UsageMetric,
   UsageWorkspaceOption,
 } from "../homeTypes";
+import { useI18n } from "@/features/i18n/i18n";
 
 type HomeProps = {
   onAddWorkspace: () => void;
@@ -27,6 +29,7 @@ type HomeProps = {
   usageWorkspaceOptions: UsageWorkspaceOption[];
   onUsageWorkspaceChange: (workspaceId: string | null) => void;
   accountRateLimits: RateLimitSnapshot | null;
+  enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
   onSelectThread: (workspaceId: string, threadId: string) => void;
@@ -47,30 +50,31 @@ export function Home({
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
   accountRateLimits,
+  enterpriseAiUsage,
   usageShowRemaining,
   accountInfo,
   onSelectThread,
 }: HomeProps) {
+  const { t } = useI18n();
+
   return (
     <div className="home">
-      <div className="home-hero">
-        <div className="home-title">Codex Monitor</div>
-        <div className="home-subtitle">
-          Orchestrate agents across your local projects.
-        </div>
-      </div>
+      <header className="home-top">
+        <h1 className="home-top-title">{t("home.myProjects")}</h1>
+        <HomeActions
+          onAddWorkspace={onAddWorkspace}
+          onAddWorkspaceFromUrl={onAddWorkspaceFromUrl}
+        />
+      </header>
       <HomeLatestAgentsSection
         latestAgentRuns={latestAgentRuns}
         isLoadingLatestAgents={isLoadingLatestAgents}
         onSelectThread={onSelectThread}
       />
-      <HomeActions
-        onAddWorkspace={onAddWorkspace}
-        onAddWorkspaceFromUrl={onAddWorkspaceFromUrl}
-      />
       <HomeUsageSection
         accountInfo={accountInfo}
         accountRateLimits={accountRateLimits}
+        enterpriseAiUsage={enterpriseAiUsage}
         isLoadingLocalUsage={isLoadingLocalUsage}
         localUsageError={localUsageError}
         localUsageSnapshot={localUsageSnapshot}

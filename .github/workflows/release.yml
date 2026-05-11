@@ -7,6 +7,9 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  RELEASE_REPOSITORY: 0xdengdeng/CodexMonitor
+
 jobs:
   build_macos:
     runs-on: macos-latest
@@ -81,20 +84,20 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.tauri"
-          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/codexmonitor.key"
+          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/agentdesk.key"
 
       - name: Build app bundle
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
           npm run tauri -- build --bundles app
 
       - name: Build daemon binaries
         run: |
           set -euo pipefail
           cd src-tauri
-          cargo build --release --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+          cargo build --release --bin agentdesk-daemon --bin agentdesk-daemonctl
 
       - name: Bundle OpenSSL and re-sign
         run: |
@@ -106,15 +109,15 @@ jobs:
         run: |
           set -euo pipefail
           ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            CodexMonitor.zip
+            "src-tauri/target/release/bundle/macos/启航AI智慧平台.app" \
+            AgentDesk.zip
 
-          xcrun notarytool submit CodexMonitor.zip \
+          xcrun notarytool submit AgentDesk.zip \
             --keychain-profile "$NOTARY_PROFILE_NAME" \
             --wait
 
           xcrun stapler staple \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app"
+            "src-tauri/target/release/bundle/macos/启航AI智慧平台.app"
 
       - name: Package artifacts
         run: |
@@ -129,42 +132,42 @@ jobs:
           )
 
           mkdir -p release-artifacts release-artifacts/dmg-root
-          rm -rf "release-artifacts/dmg-root/Codex Monitor.app"
-          ditto "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            "release-artifacts/dmg-root/Codex Monitor.app"
+          rm -rf "release-artifacts/dmg-root/启航AI智慧平台.app"
+          ditto "src-tauri/target/release/bundle/macos/启航AI智慧平台.app" \
+            "release-artifacts/dmg-root/启航AI智慧平台.app"
 
           ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            release-artifacts/CodexMonitor.zip
+            "src-tauri/target/release/bundle/macos/启航AI智慧平台.app" \
+            release-artifacts/AgentDesk.zip
 
-          hdiutil create -volname "Codex Monitor" \
+          hdiutil create -volname "启航AI智慧平台" \
             -srcfolder release-artifacts/dmg-root \
             -ov -format UDZO \
-            release-artifacts/CodexMonitor_${VERSION}_aarch64.dmg
+            release-artifacts/AgentDesk_${VERSION}_aarch64.dmg
 
           COPYFILE_DISABLE=1 tar -czf \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
-            -C src-tauri/target/release/bundle/macos "Codex Monitor.app"
+            "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz" \
+            -C src-tauri/target/release/bundle/macos "启航AI智慧平台.app"
 
           npm run tauri signer sign -- \
-            -f "$HOME/.tauri/codexmonitor.key" \
+            -f "$HOME/.tauri/agentdesk.key" \
             -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz"
+            "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz"
 
-          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
-            release-artifacts/CodexMonitor.app.tar.gz
-          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz.sig" \
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+          cp "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz" \
+            release-artifacts/AgentDesk.app.tar.gz
+          cp "src-tauri/target/release/bundle/macos/AgentDesk.app.tar.gz.sig" \
+            release-artifacts/AgentDesk.app.tar.gz.sig
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts
           path: |
-            release-artifacts/CodexMonitor.zip
-            release-artifacts/CodexMonitor_*_aarch64.dmg
-            release-artifacts/CodexMonitor.app.tar.gz
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+            release-artifacts/AgentDesk.zip
+            release-artifacts/AgentDesk_*_aarch64.dmg
+            release-artifacts/AgentDesk.app.tar.gz
+            release-artifacts/AgentDesk.app.tar.gz.sig
 
   build_linux:
     name: linux bundles (${{ matrix.arch }})
@@ -210,13 +213,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.tauri"
-          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/codexmonitor.key"
+          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/agentdesk.key"
 
       - name: build AppImage and RPM
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
           npm run tauri -- build --bundles appimage,rpm
 
       - name: Validate Linux bundle outputs
@@ -288,7 +291,7 @@ jobs:
           home = Path.home()
           target = home / ".tauri"
           target.mkdir(parents=True, exist_ok=True)
-          (target / "codexmonitor.key").write_bytes(raw)
+          (target / "agentdesk.key").write_bytes(raw)
           PY
 
       - name: build windows bundles
@@ -296,7 +299,7 @@ jobs:
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
           npm run tauri:build:win
 
       - name: Upload Windows artifacts
@@ -386,7 +389,7 @@ jobs:
           PY
           )
 
-          SIGNATURE=$(cat release-artifacts/CodexMonitor.app.tar.gz.sig)
+          SIGNATURE=$(cat release-artifacts/AgentDesk.app.tar.gz.sig)
           LAST_TAG=$(git tag --sort=-version:refname \
             | grep -v "^v${VERSION}$" \
             | head -n 1 || true)
@@ -443,12 +446,14 @@ jobs:
           notes = Path("release-artifacts/release-notes.md").read_text().strip()
           artifacts_dir = Path("release-artifacts")
 
+          release_repository = "${RELEASE_REPOSITORY}"
+
           def release_url(filename):
-            return f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{quote(filename)}"
+            return f"https://github.com/{release_repository}/releases/download/v${VERSION}/{quote(filename)}"
 
           platforms = {
             "darwin-aarch64": {
-              "url": release_url("CodexMonitor.app.tar.gz"),
+              "url": release_url("AgentDesk.app.tar.gz"),
               "signature": "${SIGNATURE}",
             }
           }
@@ -484,7 +489,7 @@ jobs:
           preferred_installers = []
           for candidate in exe_candidates:
             lowered = candidate.name.lower()
-            if "codexmonitor" in lowered and ("setup" in lowered or "installer" in lowered):
+            if "agentdesk" in lowered and ("setup" in lowered or "installer" in lowered):
               preferred_installers.append(candidate)
           if preferred_installers:
             windows_installer = preferred_installers[0]
@@ -588,10 +593,10 @@ jobs:
             --title "v${VERSION}" \
             --notes-file release-artifacts/release-notes.md \
             --target "$GITHUB_SHA" \
-            release-artifacts/CodexMonitor.zip \
-            release-artifacts/CodexMonitor_*_aarch64.dmg \
-            release-artifacts/CodexMonitor.app.tar.gz \
-            release-artifacts/CodexMonitor.app.tar.gz.sig \
+            release-artifacts/AgentDesk.zip \
+            release-artifacts/AgentDesk_*_aarch64.dmg \
+            release-artifacts/AgentDesk.app.tar.gz \
+            release-artifacts/AgentDesk.app.tar.gz.sig \
             "${appimages[@]}" \
             "${rpms[@]}" \
             "${windows_exes[@]}" \
@@ -664,13 +669,13 @@ jobs:
           path = Path("src-tauri/Cargo.lock")
           content = path.read_text()
           content, count = re.subn(
-            r'(?ms)(\[\[package\]\]\nname = "codex-monitor"\nversion = ")[^"]+(")',
+            r'(?ms)(\[\[package\]\]\nname = "agentdesk"\nversion = ")[^"]+(")',
             r'\g<1>$NEXT_VERSION\2',
             content,
             count=1,
           )
           if count != 1:
-            raise SystemExit("Failed to update codex-monitor version in src-tauri/Cargo.lock")
+            raise SystemExit("Failed to update agentdesk version in src-tauri/Cargo.lock")
           path.write_text(content)
           PY
 

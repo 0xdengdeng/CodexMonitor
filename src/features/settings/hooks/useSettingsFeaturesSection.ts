@@ -6,6 +6,7 @@ import {
   getExperimentalFeatureList,
   setCodexFeatureFlag,
 } from "@services/tauri";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseSettingsFeaturesSectionArgs = {
   appSettings: AppSettings;
@@ -142,6 +143,7 @@ export const useSettingsFeaturesSection = ({
   featureWorkspaceId,
   onUpdateAppSettings,
 }: UseSettingsFeaturesSectionArgs): SettingsFeaturesSectionProps => {
+  const { t } = useI18n();
   const [openConfigError, setOpenConfigError] = useState<string | null>(null);
   const [featureError, setFeatureError] = useState<string | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(false);
@@ -155,10 +157,10 @@ export const useSettingsFeaturesSection = ({
       await revealItemInDir(configPath);
     } catch (error) {
       setOpenConfigError(
-        error instanceof Error ? error.message : "Unable to open config.",
+        error instanceof Error ? error.message : t("settings.features.openConfigFailed"),
       );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
@@ -210,7 +212,7 @@ export const useSettingsFeaturesSection = ({
         setFeatureError(
           error instanceof Error
             ? error.message
-            : "Unable to load Codex feature flags.",
+            : t("settings.features.loadFailed"),
         );
       } finally {
         if (active) {
@@ -222,7 +224,7 @@ export const useSettingsFeaturesSection = ({
     return () => {
       active = false;
     };
-  }, [featureWorkspaceId]);
+  }, [featureWorkspaceId, t]);
 
   const stableFeatures = useMemo(
     () =>
@@ -270,7 +272,7 @@ export const useSettingsFeaturesSection = ({
           setFeatureError(
             error instanceof Error
               ? error.message
-              : `Unable to update feature "${feature.name}".`,
+              : t("settings.features.updateFailed", { feature: feature.name }),
           );
         } finally {
           setFeatureUpdatingKey((current) =>
@@ -279,7 +281,7 @@ export const useSettingsFeaturesSection = ({
         }
       })();
     },
-    [appSettings, onUpdateAppSettings],
+    [appSettings, onUpdateAppSettings, t],
   );
 
   return {

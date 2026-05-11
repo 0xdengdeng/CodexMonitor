@@ -30,18 +30,80 @@ type HomeUsageViewModel = {
   usageInsights: HomeStatCard[];
 };
 
+export type HomeUsageCopy = {
+  activeDays: string;
+  activeDaysInLast7: string;
+  agentTime: string;
+  apiKey: string;
+  availableCredits: string;
+  availableBalance: string;
+  acrossRuns: string;
+  averageActiveDay: string;
+  averagePerRun: string;
+  averageTokensPerDay: string;
+  averageTimePerDay: string;
+  cachedTokens: string;
+  cacheHitRate: string;
+  chatgptAccount: string;
+  connectedAccount: string;
+  credits: string;
+  currentRange: string;
+  currentWindow: string;
+  day: string;
+  days: string;
+  dayWindow: string;
+  daysWindow: string;
+  inCurrentRange: string;
+  inOutTokens: string;
+  latestAvailableDay: string;
+  last7Days: string;
+  last30Days: string;
+  last30Runs: string;
+  longerWindow: string;
+  longestStreak: string;
+  noActiveDays: string;
+  noActiveStreak: string;
+  noActivity: string;
+  noRuns: string;
+  noUsageData: string;
+  peakDay: string;
+  plan: string;
+  promptTokenPercent: string;
+  rangeSeparator: string;
+  remaining: string;
+  resets: string;
+  runs: string;
+  runsInLast7: string;
+  saved: string;
+  sessionLeft: string;
+  sessionUsage: string;
+  tokens: string;
+  total: string;
+  unlimited: string;
+  updated: string;
+  used: string;
+  weeklyLeft: string;
+  weeklyUsage: string;
+  windowHours: string;
+  windowMinutes: string;
+};
+
 export function buildHomeUsageViewModel({
   accountInfo,
   accountRateLimits,
+  copy,
   localUsageSnapshot,
   usageMetric,
   usageShowRemaining,
+  language,
 }: {
   accountInfo: AccountSnapshot | null;
   accountRateLimits: RateLimitSnapshot | null;
+  copy: HomeUsageCopy;
   localUsageSnapshot: LocalUsageSnapshot | null;
   usageMetric: UsageMetric;
   usageShowRemaining: boolean;
+  language?: string | null;
 }): HomeUsageViewModel {
   const usageTotals = localUsageSnapshot?.totals ?? null;
   const usageDays = localUsageSnapshot?.days ?? [];
@@ -108,149 +170,179 @@ export function buildHomeUsageViewModel({
     usageMetric === "tokens"
       ? [
           {
-            label: "Today",
+            label: copy.currentRange,
             value: formatCompactNumber(latestUsageDay?.totalTokens ?? 0),
-            suffix: "tokens",
+            suffix: copy.tokens,
             caption: latestUsageDay
-              ? `${formatDayLabel(latestUsageDay.day)} · ${formatCount(
-                  latestUsageDay.inputTokens,
-                )} in / ${formatCount(latestUsageDay.outputTokens)} out`
-              : "Latest available day",
+              ? copy.inOutTokens
+                  .replace("{day}", formatDayLabel(latestUsageDay.day))
+                  .replace("{input}", formatCount(latestUsageDay.inputTokens))
+                  .replace("{output}", formatCount(latestUsageDay.outputTokens))
+              : copy.latestAvailableDay,
           },
           {
-            label: "Last 7 days",
+            label: copy.last7Days,
             value: formatCompactNumber(usageTotals?.last7DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Avg ${formatCompactNumber(usageTotals?.averageDailyTokens)} / day`,
+            suffix: copy.tokens,
+            caption: copy.averageTokensPerDay.replace(
+              "{value}",
+              formatCompactNumber(usageTotals?.averageDailyTokens),
+            ),
           },
           {
-            label: "Last 30 days",
+            label: copy.last30Days,
             value: formatCompactNumber(usageTotals?.last30DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Total ${formatCount(usageTotals?.last30DaysTokens ?? last7Tokens)}`,
+            suffix: copy.tokens,
+            caption: copy.total.replace(
+              "{value}",
+              formatCount(usageTotals?.last30DaysTokens ?? last7Tokens),
+            ),
           },
           {
-            label: "Cache hit rate",
+            label: copy.cacheHitRate,
             value: usageTotals
               ? `${usageTotals.cacheHitRatePercent.toFixed(1)}%`
               : "--",
-            caption: "Last 7 days",
+            caption: copy.last7Days,
           },
           {
-            label: "Cached tokens",
+            label: copy.cachedTokens,
             value: formatCompactNumber(last7Cached),
-            suffix: "saved",
+            suffix: copy.saved,
             caption:
               last7Input > 0
-                ? `${((last7Cached / last7Input) * 100).toFixed(1)}% of prompt tokens`
-                : "Last 7 days",
+                ? copy.promptTokenPercent.replace(
+                    "{percent}",
+                    ((last7Cached / last7Input) * 100).toFixed(1),
+                  )
+                : copy.last7Days,
           },
           {
-            label: "Avg / run",
+            label: copy.averagePerRun,
             value:
               averageTokensPerRun === null
                 ? "--"
                 : formatCompactNumber(averageTokensPerRun),
-            suffix: "tokens",
+            suffix: copy.tokens,
             caption:
               last7AgentRuns > 0
-                ? `${formatCount(last7AgentRuns)} runs in last 7 days`
-                : "No runs yet",
+                ? copy.runsInLast7.replace("{count}", formatCount(last7AgentRuns))
+                : copy.noRuns,
           },
           {
-            label: "Peak day",
+            label: copy.peakDay,
             value: formatDayLabel(usageTotals?.peakDay),
-            caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} tokens`,
+            caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} ${copy.tokens}`,
           },
         ]
       : [
           {
-            label: "Last 7 days",
+            label: copy.last7Days,
             value: formatDurationCompact(last7AgentMs),
-            suffix: "agent time",
-            caption: `Avg ${formatDurationCompact(averageDailyAgentMs)} / day`,
+            suffix: copy.agentTime,
+            caption: copy.averageTimePerDay.replace(
+              "{value}",
+              formatDurationCompact(averageDailyAgentMs),
+            ),
           },
           {
-            label: "Last 30 days",
+            label: copy.last30Days,
             value: formatDurationCompact(last30AgentMs),
-            suffix: "agent time",
-            caption: `Total ${formatDuration(last30AgentMs)}`,
+            suffix: copy.agentTime,
+            caption: copy.total.replace("{value}", formatDuration(last30AgentMs)),
           },
           {
-            label: "Runs",
+            label: copy.runs,
             value: formatCount(last7AgentRuns),
-            suffix: "runs",
-            caption: `Last 30 days: ${formatCount(last30AgentRuns)} runs`,
+            caption: copy.last30Runs.replace("{count}", formatCount(last30AgentRuns)),
           },
           {
-            label: "Avg / run",
+            label: copy.averagePerRun,
             value: formatDurationCompact(averageRunDurationMs),
             caption:
               last7AgentRuns > 0
-                ? `Across ${formatCount(last7AgentRuns)} runs`
-                : "No runs yet",
+                ? copy.acrossRuns.replace("{count}", formatCount(last7AgentRuns))
+                : copy.noRuns,
           },
           {
-            label: "Avg / active day",
+            label: copy.averageActiveDay,
             value: formatDurationCompact(averageActiveDayAgentMs),
             caption:
               last7ActiveDays > 0
-                ? `${formatCount(last7ActiveDays)} active days in last 7`
-                : "No active days yet",
+                ? copy.activeDaysInLast7.replace(
+                    "{count}",
+                    formatCount(last7ActiveDays),
+                  )
+                : copy.noActiveDays,
           },
           {
-            label: "Peak day",
+            label: copy.peakDay,
             value: formatDayLabel(peakAgentDay?.day ?? null),
-            caption: `${formatDurationCompact(peakAgentDay?.agentTimeMs ?? 0)} agent time`,
+            caption: `${formatDurationCompact(peakAgentDay?.agentTimeMs ?? 0)} ${copy.agentTime}`,
           },
         ];
 
   const usageInsights = [
     {
-      label: "Longest streak",
-      value: longestStreak > 0 ? formatDayCount(longestStreak) : "--",
+      label: copy.longestStreak,
+      value:
+        longestStreak > 0
+          ? formatDayCount(longestStreak, {
+              day: copy.day,
+              days: copy.days,
+            })
+          : "--",
       caption:
         longestStreak > 0
-          ? "Across current usage range"
-          : "No active streak yet",
+          ? copy.currentWindow
+          : copy.noActiveStreak,
       compact: true,
     },
     {
-      label: "Active days",
+      label: copy.activeDays,
       value: last7Days.length > 0 ? `${last7ActiveDays} / ${last7Days.length}` : "--",
       caption:
         usageDays.length > 0
-          ? `${last30ActiveDays} / ${usageDays.length} in current range`
-          : "No activity yet",
+          ? copy.inCurrentRange
+              .replace("{active}", String(last30ActiveDays))
+              .replace("{total}", String(usageDays.length))
+          : copy.noActivity,
       compact: true,
     },
   ] satisfies HomeStatCard[];
 
-  const usagePercentLabels = getUsageLabels(accountRateLimits, usageShowRemaining);
+  const usagePercentLabels = getUsageLabels(
+    accountRateLimits,
+    usageShowRemaining,
+    copy,
+    language,
+  );
   const planLabel = formatPlanType(accountRateLimits?.planType ?? accountInfo?.planType);
   const creditsBalance = formatCreditsBalance(accountRateLimits?.credits?.balance);
   const accountCards: HomeStatCard[] = [];
 
   if (usagePercentLabels.sessionPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Session left" : "Session usage",
+      label: usageShowRemaining ? copy.sessionLeft : copy.sessionUsage,
       value: `${usagePercentLabels.sessionPercent}%`,
       caption: buildWindowCaption(
         usagePercentLabels.sessionResetLabel,
         accountRateLimits?.primary?.windowDurationMins,
-        "Current window",
+        copy.currentWindow,
+        copy,
       ),
     });
   }
 
   if (usagePercentLabels.showWeekly && usagePercentLabels.weeklyPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Weekly left" : "Weekly usage",
+      label: usageShowRemaining ? copy.weeklyLeft : copy.weeklyUsage,
       value: `${usagePercentLabels.weeklyPercent}%`,
       caption: buildWindowCaption(
         usagePercentLabels.weeklyResetLabel,
         accountRateLimits?.secondary?.windowDurationMins,
-        "Longer window",
+        copy.longerWindow,
+        copy,
       ),
     });
   }
@@ -259,24 +351,24 @@ export function buildHomeUsageViewModel({
     accountCards.push(
       accountRateLimits.credits.unlimited
         ? {
-            label: "Credits",
-            value: "Unlimited",
-            caption: "Available balance",
+            label: copy.credits,
+            value: copy.unlimited,
+            caption: copy.availableBalance,
           }
         : {
-            label: "Credits",
+            label: copy.credits,
             value: creditsBalance ?? "--",
-            suffix: creditsBalance ? "credits" : null,
-            caption: "Available balance",
+            suffix: creditsBalance ? copy.credits : null,
+            caption: copy.availableBalance,
           },
     );
   }
 
   if (planLabel) {
     accountCards.push({
-      label: "Plan",
+      label: copy.plan,
       value: planLabel,
-      caption: formatAccountTypeLabel(accountInfo?.type),
+      caption: formatAccountTypeLabel(accountInfo?.type, copy),
     });
   }
 
@@ -284,7 +376,10 @@ export function buildHomeUsageViewModel({
     accountCards,
     accountMeta: accountInfo?.email ?? null,
     updatedLabel: localUsageSnapshot
-      ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
+      ? copy.updated.replace(
+          "{time}",
+          formatRelativeTime(localUsageSnapshot.updatedAt, language),
+        )
       : null,
     usageCards,
     usageDays,

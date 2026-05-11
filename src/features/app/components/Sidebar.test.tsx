@@ -34,16 +34,21 @@ const baseProps = {
   accountRateLimits: null,
   usageShowRemaining: false,
   accountInfo: null,
+  enterpriseAi: {
+    tenantDomain: null,
+    status: "disconnected" as const,
+    accountName: null,
+  },
   onSwitchAccount: vi.fn(),
   onCancelSwitchAccount: vi.fn(),
   accountSwitching: false,
   onOpenSettings: vi.fn(),
+  onOpenEnterpriseAiSettings: vi.fn(),
   onOpenDebug: vi.fn(),
   showDebugButton: false,
   onAddWorkspace: vi.fn(),
   onSelectHome: vi.fn(),
   onSelectWorkspace: vi.fn(),
-  onConnectWorkspace: vi.fn(),
   onAddAgent: vi.fn(),
   onAddWorktreeAgent: vi.fn(),
   onAddCloneAgent: vi.fn(),
@@ -132,6 +137,11 @@ describe("Sidebar", () => {
     render(
       <Sidebar
         {...baseProps}
+        enterpriseAi={{
+          tenantDomain: "free-bai",
+          status: "connected",
+          accountName: "Free-BAI",
+        }}
         accountRateLimits={{
           primary: {
             usedPercent: 62,
@@ -151,13 +161,81 @@ describe("Sidebar", () => {
 
     const creditsLabel = screen.getByText(/^Available credits:/);
     expect(creditsLabel.textContent ?? "").toContain("120");
+    expect(screen.getByRole("button", { name: "Account: Free-BAI" })).toBeTruthy();
   });
 
-  it("opens the account menu from the bottom rail", () => {
+  it("opens enterprise sign in from the usage panel when signed out", () => {
+    const onOpenEnterpriseAiSettings = vi.fn();
     render(
       <Sidebar
         {...baseProps}
         activeWorkspaceId="ws-1"
+        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Sign in" });
+    fireEvent.click(button);
+
+    expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not duplicate the sign in button in the bottom action row", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button", { name: "Sign in" });
+    expect(buttons).toHaveLength(1);
+  });
+
+  it("shows account and credits instead of usage login when signed in", () => {
+    const onOpenEnterpriseAiSettings = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
+        enterpriseAi={{
+          tenantDomain: "free-bai",
+          status: "connected",
+          accountName: "Free-BAI",
+        }}
+        accountRateLimits={{
+          primary: null,
+          secondary: null,
+          credits: {
+            hasCredits: true,
+            unlimited: false,
+            balance: "42",
+          },
+          planType: null,
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    const accountButton = screen.getByRole("button", { name: "Account: Free-BAI" });
+    expect(accountButton).toBeTruthy();
+    fireEvent.click(accountButton);
+    expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/^Available credits:/)).toBeTruthy();
+  });
+
+  it("keeps the bottom action row stable after enterprise sign in", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+        showDebugButton
+        enterpriseAi={{
+          tenantDomain: "free-bai",
+          status: "connected",
+          accountName: "Free-BAI",
+        }}
         accountInfo={{
           email: "dimillian@example.com",
           type: "chatgpt",
@@ -167,10 +245,9 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Account" }));
-
-    expect(screen.getByText("dimillian@example.com")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Switch account" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Account" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open settings" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open debug log" })).toBeTruthy();
   });
 
   it("renders threads-only mode as a global chronological list", () => {
@@ -833,6 +910,47 @@ describe("Sidebar", () => {
     ).map((node) => node.textContent?.trim());
     expect(workspaceNames[0]).toBe("Alpha Project");
     expect(workspaceNames[1]).toBe("Beta Project");
+  });
+
+  it("renders project rows with a dedicated secondary summary line", () => {
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "CodexMonitor",
+            path: "/tmp/codex-monitor",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "CodexMonitor",
+                path: "/tmp/codex-monitor",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [{ id: "thread-1", name: "Main thread", updatedAt: 100 }],
+        }}
+      />,
+    );
+
+    const row = container.querySelector(".workspace-row");
+    const summary = row?.querySelector(".workspace-meta-summary");
+
+    expect(summary?.textContent).toContain("1 conversation");
+    expect(summary?.textContent).toContain("Updated");
   });
 
   it("does not show a workspace activity indicator when a thread is processing", () => {

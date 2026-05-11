@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { BrainCog, SlidersHorizontal, Zap } from "lucide-react";
 import type { AccessMode, ServiceTier, ThreadTokenUsage } from "../../../types";
 import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
+import { useI18n } from "@/features/i18n/i18n";
 
 type ComposerMetaBarProps = {
   disabled: boolean;
@@ -24,6 +25,56 @@ type ComposerMetaBarProps = {
   contextUsage?: ThreadTokenUsage | null;
 };
 
+function normalizeLabelValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function clampPercent(value: number) {
+  return Math.min(Math.max(value, 0), 100);
+}
+
+function hasPositiveValue(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function formatTokenCount(value: number | null | undefined) {
+  const safeValue =
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.max(0, Math.round(value))
+      : 0;
+  if (safeValue >= 1_000_000_000) {
+    return formatTokenUnit(safeValue, 1_000_000_000, "b");
+  }
+  if (safeValue >= 1_000_000) {
+    return formatTokenUnit(safeValue, 1_000_000, "m");
+  }
+  if (safeValue >= 1_000) {
+    return formatTokenUnit(safeValue, 1_000, "k");
+  }
+  return String(safeValue);
+}
+
+function formatTokenUnit(value: number, divisor: number, suffix: string) {
+  const scaled = Math.round((value / divisor) * 10) / 10;
+  return `${Number.isInteger(scaled) ? scaled.toFixed(0) : scaled.toFixed(1)}${suffix}`;
+}
+
+function getContextPressure(usedPercent: number | null) {
+  if (usedPercent === null) {
+    return "unknown";
+  }
+  if (usedPercent >= 95) {
+    return "critical";
+  }
+  if (usedPercent >= 80) {
+    return "high";
+  }
+  if (usedPercent >= 60) {
+    return "medium";
+  }
+  return "low";
+}
+
 export function ComposerMetaBar({
   disabled,
   collaborationModes,
@@ -44,25 +95,48 @@ export function ComposerMetaBar({
   onSelectCodexArgsOverride,
   contextUsage = null,
 }: ComposerMetaBarProps) {
+  const { t } = useI18n();
   const selectedModel =
     models.find((model) => model.id === selectedModelId) ?? null;
   const selectedModelLabel =
-    selectedModel?.displayName || selectedModel?.model || "No models";
+    selectedModel?.displayName || selectedModel?.model || t("composer.noModels");
   const modelSelectStyle = {
     "--composer-model-select-width": `${Math.max(selectedModelLabel.length + 2, 8)}ch`,
   } as CSSProperties;
   const contextWindow = contextUsage?.modelContextWindow ?? null;
-  const lastTokens = contextUsage?.last.totalTokens ?? 0;
-  const totalTokens = contextUsage?.total.totalTokens ?? 0;
-  const usedTokens = lastTokens > 0 ? lastTokens : totalTokens;
-  const contextFreePercent =
-    contextWindow && contextWindow > 0 && usedTokens > 0
-      ? Math.max(
-          0,
-          100 -
-            Math.min(Math.max((usedTokens / contextWindow) * 100, 0), 100),
-        )
-      : null;
+  const contextUsedTokens = contextUsage?.total.totalTokens ?? 0;
+  const contextLastTokens = contextUsage?.last.totalTokens ?? 0;
+  const contextUsedPercent = hasPositiveValue(contextWindow)
+    ? clampPercent((contextUsedTokens / contextWindow) * 100)
+    : null;
+  const contextUsedPercentRounded =
+    contextUsedPercent === null ? null : Math.round(contextUsedPercent);
+  const contextUsedLabel =
+    contextUsedPercentRounded === null
+      ? t("composer.contextUsageUnknown")
+      : t("composer.contextUsage", { percent: contextUsedPercentRounded });
+  const contextTokenLabel = hasPositiveValue(contextWindow)
+    ? `${formatTokenCount(contextUsedTokens)} / ${formatTokenCount(contextWindow)}`
+    : t("composer.contextTokenUnknown");
+  const contextValueText =
+    contextUsedPercentRounded === null
+      ? t("composer.contextUsageUnknown")
+      : t("composer.contextUsageAriaValue", {
+          percent: contextUsedPercentRounded,
+          used: formatTokenCount(contextUsedTokens),
+          window: formatTokenCount(contextWindow),
+        });
+  const contextDetailsLabel = hasPositiveValue(contextWindow)
+    ? t("composer.contextUsageDetails", {
+        used: formatTokenCount(contextUsedTokens),
+        window: formatTokenCount(contextWindow),
+        last: formatTokenCount(contextLastTokens),
+        input: formatTokenCount(contextUsage?.total.inputTokens),
+        cached: formatTokenCount(contextUsage?.total.cachedInputTokens),
+        output: formatTokenCount(contextUsage?.total.outputTokens),
+        reasoning: formatTokenCount(contextUsage?.total.reasoningOutputTokens),
+      })
+    : t("composer.contextUsageUnknownDetail");
   const planMode =
     collaborationModes.find((mode) => mode.id === "plan") ?? null;
   const defaultMode =
@@ -73,14 +147,57 @@ export function ComposerMetaBar({
       (mode) => mode.id === "default" || mode.id === "plan",
     );
   const planSelected = selectedCollaborationModeId === (planMode?.id ?? "");
-
+  const formatCollaborationModeLabel = (
+    mode: { id: string; label: string } | null | undefined,
+  ) => {
+    if (!mode) {
+      return "";
+    }
+    const normalizedId = normalizeLabelValue(mode.id);
+    const normalizedLabel = normalizeLabelValue(mode.label);
+    if (normalizedId === "plan" || normalizedLabel === "plan") {
+      return t("composer.collaboration.plan");
+    }
+    if (
+      normalizedId === "default" ||
+      normalizedId === "code" ||
+      normalizedLabel === "default" ||
+      normalizedLabel === "code"
+    ) {
+      return t("composer.collaboration.default");
+    }
+    if (normalizedId === "review" || normalizedLabel === "review") {
+      return t("composer.collaboration.review");
+    }
+    return mode.label || mode.id;
+  };
+  const formatReasoningEffortLabel = (effort: string) => {
+    const normalizedEffort = normalizeLabelValue(effort).replace(/[\s_-]+/g, "");
+    switch (normalizedEffort) {
+      case "none":
+        return t("composer.reasoning.none");
+      case "minimal":
+        return t("composer.reasoning.minimal");
+      case "low":
+        return t("composer.reasoning.low");
+      case "medium":
+        return t("composer.reasoning.medium");
+      case "high":
+        return t("composer.reasoning.high");
+      case "xhigh":
+      case "extrahigh":
+        return t("composer.reasoning.xhigh");
+      default:
+        return effort;
+    }
+  };
   return (
     <div className="composer-bar">
       <div className="composer-meta">
         {collaborationModes.length > 0 && (
           canUsePlanToggle ? (
             <div className="composer-select-wrap composer-plan-toggle-wrap">
-              <label className="composer-plan-toggle" aria-label="Plan mode">
+              <label className="composer-plan-toggle" aria-label={t("composer.planMode")}>
                 <input
                   className="composer-plan-toggle-input"
                   type="checkbox"
@@ -106,7 +223,7 @@ export function ComposerMetaBar({
                   </svg>
                 </span>
                 <span className="composer-plan-toggle-label">
-                  {planMode?.label || "Plan"}
+                  {formatCollaborationModeLabel(planMode) || t("composer.plan")}
                 </span>
               </label>
             </div>
@@ -125,7 +242,7 @@ export function ComposerMetaBar({
             </span>
               <select
                 className="composer-select composer-select--model composer-select--collab"
-                aria-label="Collaboration mode"
+                aria-label={t("composer.collaborationMode")}
                 value={selectedCollaborationModeId ?? ""}
                 onChange={(event) =>
                   onSelectCollaborationMode(event.target.value || null)
@@ -134,7 +251,7 @@ export function ComposerMetaBar({
               >
                 {collaborationModes.map((mode) => (
                   <option key={mode.id} value={mode.id}>
-                    {mode.label || mode.id}
+                    {formatCollaborationModeLabel(mode)}
                   </option>
                 ))}
               </select>
@@ -174,13 +291,13 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--model"
-            aria-label="Model"
+            aria-label={t("composer.model")}
             value={selectedModelId ?? ""}
             onChange={(event) => onSelectModel(event.target.value)}
             disabled={disabled}
             style={modelSelectStyle}
           >
-            {models.length === 0 && <option value="">No models</option>}
+            {models.length === 0 && <option value="">{t("composer.noModels")}</option>}
             {models.map((model) => (
               <option key={model.id} value={model.id}>
                 {model.displayName || model.model}
@@ -191,8 +308,8 @@ export function ComposerMetaBar({
             <span
               className="composer-fast-indicator"
               role="status"
-              aria-label="Fast mode enabled"
-              title="Fast mode enabled"
+              aria-label={t("composer.fastMode")}
+              title={t("composer.fastMode")}
             >
               <Zap size={12} strokeWidth={1.8} />
             </span>
@@ -204,15 +321,15 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--effort"
-            aria-label="Thinking mode"
+            aria-label={t("composer.thinkingMode")}
             value={selectedEffort ?? ""}
             onChange={(event) => onSelectEffort(event.target.value)}
             disabled={disabled || !reasoningSupported}
           >
-            {reasoningOptions.length === 0 && <option value="">Default</option>}
+            {reasoningOptions.length === 0 && <option value="">{t("composer.default")}</option>}
             {reasoningOptions.map((effort) => (
               <option key={effort} value={effort}>
-                {effort}
+                {formatReasoningEffortLabel(effort)}
               </option>
             ))}
           </select>
@@ -224,7 +341,7 @@ export function ComposerMetaBar({
             </span>
             <select
               className="composer-select composer-select--approval"
-              aria-label="Codex args profile"
+              aria-label={t("composer.codexArgsProfile")}
               disabled={disabled}
               value={selectedCodexArgsOverride ?? ""}
               onChange={(event) =>
@@ -259,39 +376,45 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--approval"
-            aria-label="Agent access"
+            aria-label={t("settings.codex.accessMode")}
             disabled={disabled}
             value={accessMode}
             onChange={(event) =>
               onSelectAccessMode(event.target.value as AccessMode)
             }
           >
-            <option value="read-only">Read only</option>
-            <option value="current">On-Request</option>
-            <option value="full-access">Full access</option>
+            <option value="read-only">{t("settings.codex.accessReadOnly")}</option>
+            <option value="current">{t("settings.codex.accessOnRequest")}</option>
+            <option value="full-access">{t("settings.codex.accessFull")}</option>
           </select>
         </div>
       </div>
       <div className="composer-context">
         <div
-          className="composer-context-ring"
-          data-tooltip={
-            contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
-          }
-          aria-label={
-            contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
-          }
+          className="composer-context-meter"
+          role="meter"
+          aria-label={t("composer.contextUsageAriaLabel")}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={contextUsedPercentRounded ?? undefined}
+          aria-valuetext={contextValueText}
+          data-pressure={getContextPressure(contextUsedPercent)}
+          data-tooltip={contextDetailsLabel}
           style={
             {
-              "--context-free": contextFreePercent ?? 0,
+              "--context-used": contextUsedPercent ?? 0,
             } as CSSProperties
           }
         >
-          <span className="composer-context-value">●</span>
+          <span className="composer-context-ring" aria-hidden>
+            <span className="composer-context-value">
+              {contextUsedPercentRounded ?? "–"}
+            </span>
+          </span>
+          <span className="composer-context-copy">
+            <span className="composer-context-label">{contextUsedLabel}</span>
+            <span className="composer-context-tokens">{contextTokenLabel}</span>
+          </span>
         </div>
       </div>
     </div>

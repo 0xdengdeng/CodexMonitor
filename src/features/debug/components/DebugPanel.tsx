@@ -1,6 +1,8 @@
 import { useMemo, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { DebugEntry } from "../../../types";
+import { FEATURE_VISIBILITY } from "@/features/app/config/featureVisibility";
+import { useI18n } from "@/features/i18n/i18n";
 
 type DebugPanelProps = {
   entries: DebugEntry[];
@@ -33,6 +35,7 @@ export function DebugPanel({
   onResizeStart,
   variant = "dock",
 }: DebugPanelProps) {
+  const { t } = useI18n();
   const isVisible = variant === "full" || isOpen;
 
   type FormattedDebugEntry = DebugEntry & {
@@ -83,7 +86,7 @@ export function DebugPanel({
     return nextFormatted;
   }, [entries, isVisible]);
 
-  if (!isVisible) {
+  if (!FEATURE_VISIBILITY.debugPanel || !isVisible) {
     return null;
   }
 
@@ -96,25 +99,25 @@ export function DebugPanel({
           className="debug-panel-resizer"
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize debug panel"
+          aria-label={t("debug.resize")}
           onMouseDown={onResizeStart}
         />
       ) : null}
       <div className="debug-header">
-        <div className="debug-title">Debug</div>
+        <div className="debug-title">{t("debug.title")}</div>
         <div className="debug-actions">
           <button className="ghost" onClick={onCopy}>
-            Copy
+            {t("common.copy")}
           </button>
           <button className="ghost" onClick={onClear}>
-            Clear
+            {t("common.clear")}
           </button>
         </div>
       </div>
       {isOpen ? (
         <div className="debug-list">
           {formattedEntries.length === 0 ? (
-            <div className="debug-empty">No debug events yet.</div>
+            <div className="debug-empty">{t("debug.empty")}</div>
           ) : null}
           {formattedEntries.map((entry) => (
             <div key={entry.id} className="debug-row">

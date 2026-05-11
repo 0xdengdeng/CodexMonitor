@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 
 export type TerminalTab = {
   id: string;
@@ -21,14 +22,21 @@ function createTerminalId() {
   return `terminal-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function renumberAutoNamedTabs(tabs: TerminalTabRecord[]): TerminalTabRecord[] {
+function defaultTerminalTitle(index: number) {
+  return `Terminal ${index}`;
+}
+
+function renumberAutoNamedTabs(
+  tabs: TerminalTabRecord[],
+  titleForIndex = defaultTerminalTitle,
+): TerminalTabRecord[] {
   let autoNamedIndex = 1;
   let changed = false;
   const nextTabs = tabs.map((tab) => {
     if (!tab.autoNamed) {
       return tab;
     }
-    const nextTitle = `Terminal ${autoNamedIndex}`;
+    const nextTitle = titleForIndex(autoNamedIndex);
     autoNamedIndex += 1;
     if (tab.title === nextTitle) {
       return tab;
@@ -46,6 +54,11 @@ export function useTerminalTabs({
   activeWorkspaceId,
   onCloseTerminal,
 }: UseTerminalTabsOptions) {
+  const { t } = useI18n();
+  const titleForIndex = useCallback(
+    (index: number) => t("terminal.tabTitle", { index }),
+    [t],
+  );
   const [tabsByWorkspace, setTabsByWorkspace] = useState<
     Record<string, TerminalTabRecord[]>
   >({});
@@ -60,7 +73,7 @@ export function useTerminalTabs({
       const nextTabs = renumberAutoNamedTabs([
         ...existing,
         { id, title: "", autoNamed: true },
-      ]);
+      ], titleForIndex);
       return {
         ...prev,
         [workspaceId]: nextTabs,
@@ -68,7 +81,7 @@ export function useTerminalTabs({
     });
     setActiveTerminalIdByWorkspace((prev) => ({ ...prev, [workspaceId]: id }));
     return id;
-  }, []);
+  }, [titleForIndex]);
 
   const ensureTerminalWithTitle = useCallback(
     (workspaceId: string, terminalId: string, title: string) => {
@@ -79,7 +92,7 @@ export function useTerminalTabs({
           const nextTabs = renumberAutoNamedTabs([
             ...existing,
             { id: terminalId, title, autoNamed: false },
-          ]);
+          ], titleForIndex);
           return {
             ...prev,
             [workspaceId]: nextTabs,
@@ -96,13 +109,13 @@ export function useTerminalTabs({
         };
         return {
           ...prev,
-          [workspaceId]: renumberAutoNamedTabs(nextTabs),
+          [workspaceId]: renumberAutoNamedTabs(nextTabs, titleForIndex),
         };
       });
       setActiveTerminalIdByWorkspace((prev) => ({ ...prev, [workspaceId]: terminalId }));
       return terminalId;
     },
-    [],
+    [titleForIndex],
   );
 
   const closeTerminal = useCallback(
@@ -111,6 +124,7 @@ export function useTerminalTabs({
         const existing = prev[workspaceId] ?? [];
         const nextTabs = renumberAutoNamedTabs(
           existing.filter((tab) => tab.id !== terminalId),
+          titleForIndex,
         );
         setActiveTerminalIdByWorkspace((prevActive) => {
           const active = prevActive[workspaceId];
@@ -132,7 +146,7 @@ export function useTerminalTabs({
       });
       onCloseTerminal?.(workspaceId, terminalId);
     },
-    [onCloseTerminal],
+    [onCloseTerminal, titleForIndex],
   );
 
   const setActiveTerminal = useCallback((workspaceId: string, terminalId: string) => {

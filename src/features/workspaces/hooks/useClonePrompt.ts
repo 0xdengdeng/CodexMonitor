@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
 import { pickWorkspacePath } from "../../../services/tauri";
+import { useI18n } from "@/features/i18n/i18n";
 
 type ClonePromptState = {
   workspace: WorkspaceInfo;
@@ -105,6 +106,7 @@ export function useClonePrompt({
   onCompactActivate,
   onError,
 }: UseClonePromptOptions): UseClonePromptResult {
+  const { t } = useI18n();
   const [clonePrompt, setClonePrompt] = useState<ClonePromptState>(null);
 
   const openPrompt = useCallback(
@@ -175,13 +177,13 @@ export function useClonePrompt({
     const copiesFolder = clonePrompt.copiesFolder.trim();
     if (!copyName) {
       setClonePrompt((prev) =>
-        prev ? { ...prev, error: "Copy name is required." } : prev,
+        prev ? { ...prev, error: t("workspace.clone.copyNameRequired") } : prev,
       );
       return;
     }
     if (!copiesFolder) {
       setClonePrompt((prev) =>
-        prev ? { ...prev, error: "Copies folder is required." } : prev,
+        prev ? { ...prev, error: t("workspace.clone.copiesFolderRequired") } : prev,
       );
       return;
     }
@@ -235,6 +237,7 @@ export function useClonePrompt({
     onError,
     onSelectWorkspace,
     persistProjectCopiesFolder,
+    t,
   ]);
 
   return {

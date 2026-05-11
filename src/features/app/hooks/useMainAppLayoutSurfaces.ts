@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import type { AppSettings, ComposerEditorSettings, WorkspaceInfo } from "@/types";
+import { useI18n, type I18nValues } from "@/features/i18n/i18n";
 import type { ThreadState } from "@/features/threads/hooks/useThreadsReducer";
 import type { WorkspaceLaunchScriptsState } from "@app/hooks/useWorkspaceLaunchScripts";
 import { REMOTE_THREAD_POLL_INTERVAL_MS } from "@app/hooks/useRemoteThreadRefreshOnFocus";
@@ -20,6 +21,7 @@ type UseMainAppLayoutSurfacesArgs = {
   appSettings: Pick<
     AppSettings,
     | "usageShowRemaining"
+    | "enterpriseAi"
     | "composerCodeBlockCopyUseModifier"
     | "showMessageFilePath"
     | "openAppTargets"
@@ -27,7 +29,6 @@ type UseMainAppLayoutSurfacesArgs = {
     | "experimentalAppsEnabled"
     | "followUpMessageBehavior"
     | "composerFollowUpHintEnabled"
-    | "dictationEnabled"
     | "splitChatDiffView"
     | "gitDiffIgnoreWhitespaceChanges"
   >;
@@ -60,6 +61,7 @@ type UseMainAppLayoutSurfacesArgs = {
   activeAccount: SidebarProps["accountInfo"];
   homeRateLimits: LayoutNodesOptions["primary"]["homeProps"]["accountRateLimits"];
   homeAccount: LayoutNodesOptions["primary"]["homeProps"]["accountInfo"];
+  enterpriseAiUsage: LayoutNodesOptions["primary"]["homeProps"]["enterpriseAiUsage"];
   accountSwitching: SidebarProps["accountSwitching"];
   onSwitchAccount: SidebarProps["onSwitchAccount"];
   onCancelSwitchAccount: SidebarProps["onCancelSwitchAccount"];
@@ -81,6 +83,7 @@ type UseMainAppLayoutSurfacesArgs = {
   usageWorkspaceId: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceId"];
   usageWorkspaceOptions: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceOptions"];
   onUsageWorkspaceChange: LayoutNodesOptions["primary"]["homeProps"]["onUsageWorkspaceChange"];
+  onOpenEnterpriseAiSettings: () => void;
   gitState: ReturnType<typeof useMainAppGitState>;
   composerWorkspaceState: ReturnType<typeof useMainAppComposerWorkspaceState>;
   promptActions: ReturnType<typeof useMainAppPromptActions>;
@@ -111,12 +114,6 @@ type UseMainAppLayoutSurfacesArgs = {
   pullRequestComposer: {
     composerSendLabel: string | null | undefined;
     handleSelectPullRequest: NonNullable<GitDiffPanelProps["onSelectPullRequest"]>;
-  };
-  dictationUi: {
-    onOpenDictationSettings: ComposerProps["onOpenDictationSettings"];
-    dictationTranscript: ComposerProps["dictationTranscript"];
-    dictationError: ComposerProps["dictationError"];
-    dictationHint: ComposerProps["dictationHint"];
   };
   openAppIconById: MainHeaderProps["openAppIconById"];
   openInitGitRepoPrompt: GitDiffPanelProps["onInitGitRepo"];
@@ -166,14 +163,6 @@ type UseMainAppLayoutSurfacesArgs = {
   composerEditorSettings: ComposerEditorSettings;
   composerEditorExpanded: boolean;
   onToggleComposerEditorExpanded: () => void;
-  dictationReady: boolean;
-  dictationState: ComposerProps["dictationState"];
-  dictationLevel: number;
-  onToggleDictation: () => void;
-  onCancelDictation: (() => void) | undefined;
-  clearDictationTranscript: NonNullable<ComposerProps["onDictationTranscriptHandled"]>;
-  clearDictationError: () => void;
-  clearDictationHint: () => void;
   composerContextActions: ComposerProps["contextActions"];
   reviewPrompt: ComposerProps["reviewPrompt"];
   closeReviewPrompt: () => void;
@@ -230,6 +219,7 @@ type UseMainAppLayoutSurfacesArgs = {
 type MainAppLayoutSurfacesContext = UseMainAppLayoutSurfacesArgs & {
   sidebarRateLimits: SidebarProps["accountRateLimits"];
   sidebarAccount: SidebarProps["accountInfo"];
+  t: (key: string, values?: I18nValues) => string;
 };
 
 function buildPrimarySurface({
@@ -263,6 +253,7 @@ function buildPrimarySurface({
   sidebarAccount,
   homeRateLimits,
   homeAccount,
+  enterpriseAiUsage,
   accountSwitching,
   onSwitchAccount,
   onCancelSwitchAccount,
@@ -283,6 +274,7 @@ function buildPrimarySurface({
   usageWorkspaceId,
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
+  onOpenEnterpriseAiSettings,
   gitState,
   composerWorkspaceState,
   worktreeState,
@@ -292,7 +284,6 @@ function buildPrimarySurface({
   workspaceDrop,
   threadNavigation,
   pullRequestComposer,
-  dictationUi,
   openAppIconById,
   handleAddWorkspace,
   openWorkspaceFromUrlPrompt,
@@ -328,14 +319,6 @@ function buildPrimarySurface({
   composerEditorSettings,
   composerEditorExpanded,
   onToggleComposerEditorExpanded,
-  dictationReady,
-  dictationState,
-  dictationLevel,
-  onToggleDictation,
-  onCancelDictation,
-  clearDictationTranscript,
-  clearDictationError,
-  clearDictationHint,
   composerContextActions,
   reviewPrompt,
   closeReviewPrompt,
@@ -401,16 +384,17 @@ function buildPrimarySurface({
       accountRateLimits: sidebarRateLimits,
       usageShowRemaining: appSettings.usageShowRemaining,
       accountInfo: sidebarAccount,
+      enterpriseAi: appSettings.enterpriseAi,
       onSwitchAccount,
       onCancelSwitchAccount,
       accountSwitching,
       onOpenSettings: sidebarHandlers.onOpenSettings,
+      onOpenEnterpriseAiSettings,
       onOpenDebug: handleDebugClick,
       showDebugButton,
       onAddWorkspace: handleAddWorkspace,
       onSelectHome: sidebarHandlers.onSelectHome,
       onSelectWorkspace: sidebarHandlers.onSelectWorkspace,
-      onConnectWorkspace: sidebarHandlers.onConnectWorkspace,
       onAddAgent: handleAddAgent,
       onAddWorktreeAgent: handleAddWorktreeAgent,
       onAddCloneAgent: handleAddCloneAgent,
@@ -527,20 +511,6 @@ function buildPrimarySurface({
           editorSettings: composerEditorSettings,
           editorExpanded: composerEditorExpanded,
           onToggleEditorExpanded: onToggleComposerEditorExpanded,
-          dictationEnabled: appSettings.dictationEnabled && dictationReady,
-          dictationState,
-          dictationLevel,
-          onToggleDictation,
-          onCancelDictation,
-          onOpenDictationSettings: dictationUi.onOpenDictationSettings,
-          dictationTranscript: dictationUi.dictationTranscript,
-          onDictationTranscriptHandled: (id) => {
-            clearDictationTranscript?.(id);
-          },
-          dictationError: dictationUi.dictationError,
-          onDismissDictationError: clearDictationError,
-          dictationHint: dictationUi.dictationHint,
-          onDismissDictationHint: clearDictationHint,
           contextActions: composerContextActions,
           reviewPrompt,
           onReviewPromptClose: closeReviewPrompt,
@@ -595,6 +565,7 @@ function buildPrimarySurface({
       usageWorkspaceOptions,
       onUsageWorkspaceChange,
       accountRateLimits: homeRateLimits,
+      enterpriseAiUsage,
       usageShowRemaining: appSettings.usageShowRemaining,
       accountInfo: homeAccount,
       onSelectThread: (workspaceId, threadId) => {
@@ -684,6 +655,7 @@ function buildGitSurface({
   handleSelectOpenAppId,
   prompts,
   isPhone,
+  t,
 }: MainAppLayoutSurfacesContext): LayoutNodesOptions["git"] {
   return {
     filePanelMode: gitState.filePanelMode,
@@ -733,8 +705,10 @@ function buildGitSurface({
       onFilePanelModeChange: gitState.setFilePanelMode,
       worktreeApplyLabel: "apply",
       worktreeApplyTitle: worktreeState.activeParentWorkspace?.name
-        ? `Apply changes to ${worktreeState.activeParentWorkspace.name}`
-        : "Apply changes to parent workspace",
+        ? t("git.applyToParentWorkspaceNamed", {
+          workspace: worktreeState.activeParentWorkspace.name,
+        })
+        : t("git.applyToParentWorkspace"),
       worktreeApplyLoading: worktreeState.isWorktreeWorkspace
         ? gitState.worktreeApplyLoading
         : false,
@@ -970,6 +944,7 @@ export function useMainAppLayoutSurfaces({
   activeAccount,
   homeRateLimits,
   homeAccount,
+  enterpriseAiUsage,
   accountSwitching,
   onSwitchAccount,
   onCancelSwitchAccount,
@@ -991,6 +966,7 @@ export function useMainAppLayoutSurfaces({
   usageWorkspaceId,
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
+  onOpenEnterpriseAiSettings,
   gitState,
   composerWorkspaceState,
   promptActions,
@@ -1001,7 +977,6 @@ export function useMainAppLayoutSurfaces({
   workspaceDrop,
   threadNavigation,
   pullRequestComposer,
-  dictationUi,
   openAppIconById,
   openInitGitRepoPrompt,
   startUncommittedReview,
@@ -1039,14 +1014,6 @@ export function useMainAppLayoutSurfaces({
   composerEditorSettings,
   composerEditorExpanded,
   onToggleComposerEditorExpanded,
-  dictationReady,
-  dictationState,
-  dictationLevel,
-  onToggleDictation,
-  onCancelDictation,
-  clearDictationTranscript,
-  clearDictationError,
-  clearDictationHint,
   composerContextActions,
   reviewPrompt,
   closeReviewPrompt,
@@ -1099,9 +1066,11 @@ export function useMainAppLayoutSurfaces({
   showDebugButton,
   handleDebugClick,
 }: UseMainAppLayoutSurfacesArgs): LayoutNodesOptions {
+  const { t } = useI18n();
   const sidebarRateLimits = activeWorkspace ? activeRateLimits : homeRateLimits;
   const sidebarAccount = activeWorkspace ? activeAccount : homeAccount;
   const context: MainAppLayoutSurfacesContext = {
+    t,
     appSettings,
     workspaces,
     groupedWorkspaces,
@@ -1132,9 +1101,11 @@ export function useMainAppLayoutSurfaces({
     activeAccount,
     homeRateLimits,
     homeAccount,
+    enterpriseAiUsage,
     accountSwitching,
     onSwitchAccount,
     onCancelSwitchAccount,
+    onOpenEnterpriseAiSettings,
     onDecision,
     onRemember,
     onUserInputSubmit,
@@ -1163,7 +1134,6 @@ export function useMainAppLayoutSurfaces({
     workspaceDrop,
     threadNavigation,
     pullRequestComposer,
-    dictationUi,
     openAppIconById,
     openInitGitRepoPrompt,
     startUncommittedReview,
@@ -1201,14 +1171,6 @@ export function useMainAppLayoutSurfaces({
     composerEditorSettings,
     composerEditorExpanded,
     onToggleComposerEditorExpanded,
-    dictationReady,
-    dictationState,
-    dictationLevel,
-    onToggleDictation,
-    onCancelDictation,
-    clearDictationTranscript,
-    clearDictationError,
-    clearDictationHint,
     composerContextActions,
     reviewPrompt,
     closeReviewPrompt,

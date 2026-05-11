@@ -241,6 +241,15 @@ pub(super) async fn try_handle(
             };
             Some(serialize_result(state.update_app_settings(settings)).await)
         }
+        "runtime_api_key_status" => Some(serialize_result(state.runtime_api_key_status()).await),
+        "runtime_api_key_set" => {
+            let api_key = match parse_string(params, "apiKey") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(serialize_result(state.runtime_api_key_set(api_key)).await)
+        }
+        "runtime_api_key_clear" => Some(serialize_result(state.runtime_api_key_clear()).await),
         "apply_worktree_changes" => {
             let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
             Some(serialize_ok(state.apply_worktree_changes(request.workspace_id)).await)

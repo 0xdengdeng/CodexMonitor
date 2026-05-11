@@ -1,6 +1,6 @@
-name: codex-monitor
+name: agentdesk
 options:
-  bundleIdPrefix: com.dimillian.codexmonitor
+  bundleIdPrefix: com.agentdesk
   deploymentTarget:
     iOS: 14.0
 fileGroups: [../../src]
@@ -10,8 +10,8 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: Codex Monitor
-      PRODUCT_BUNDLE_IDENTIFIER: com.dimillian.codexmonitor
+      PRODUCT_NAME: 启航AI智慧平台
+      PRODUCT_BUNDLE_IDENTIFIER: com.agentdesk.app
 targetTemplates:
   app:
     type: application

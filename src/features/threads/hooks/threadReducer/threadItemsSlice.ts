@@ -23,6 +23,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         kind: "message",
         role: "assistant",
         text: action.text,
+        createdAt: action.timestamp ?? Date.now(),
       };
       return {
         ...state,
@@ -47,6 +48,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
           kind: "message",
           role: "assistant",
           text: action.delta,
+          createdAt: action.timestamp ?? Date.now(),
         });
       }
       const updatedItems = prepareThreadItems(list, { maxItemsPerThread: state.maxItemsPerThread });
@@ -75,6 +77,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         list[index] = {
           ...existing,
           text: action.text || existing.text,
+          createdAt: existing.createdAt ?? action.timestamp ?? Date.now(),
         };
       } else {
         list.push({
@@ -82,6 +85,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
           kind: "message",
           role: "assistant",
           text: action.text,
+          createdAt: action.timestamp ?? Date.now(),
         });
       }
       const updatedItems = prepareThreadItems(list, { maxItemsPerThread: state.maxItemsPerThread });

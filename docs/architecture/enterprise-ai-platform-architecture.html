@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1328, initial-scale=1">
+<title>企业AI使用平台架构图</title>
+</head>
+<body>
+<style>
+  :root {
+    --ink: #131827;
+    --line: #243041;
+    --bg: #dff8dc;
+    --presentation: #13bdeb;
+    --comm: #50cdc6;
+    --service: #8165ef;
+    --gateway: #21b76a;
+    --data: #f28c00;
+    --card-green: #10ca74;
+    --card-mint: #79e5bf;
+    --card-cream: #fffde2;
+    --card-sand: #f3dfb1;
+    --card-orange: #ffd8a3;
+    --card-white: #fffef2;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  .blueprint-wrap {
+    background: #080808;
+    padding: 22px;
+    margin: 0;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .blueprint-scale {
+    width: 1280px;
+    margin: 0 auto;
+  }
+
+  .blueprint {
+    width: 1280px;
+    min-height: 910px;
+    margin: 0;
+    padding: 16px 22px 18px;
+    background: var(--bg);
+    border: 3px solid #4d5b50;
+    color: var(--ink);
+    font-family: "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .bp-title {
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px 8px;
+  }
+
+  .bp-title h2 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 0;
+  }
+
+  .bp-title p {
+    margin: 0;
+    font-size: 16px;
+    color: #2d3948;
+  }
+
+  .layer {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .layer-label {
+    min-height: 112px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 14px;
+    border: 2px solid var(--line);
+    clip-path: polygon(10% 0, 100% 0, 100% 100%, 10% 100%, 0 50%);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .layer-body {
+    border: 2px solid var(--line);
+    padding: 14px 16px;
+    min-height: 112px;
+    position: relative;
+  }
+
+  .presentation .layer-label,
+  .presentation .layer-body {
+    background: var(--presentation);
+  }
+
+  .communication .layer-label,
+  .communication .layer-body {
+    background: var(--comm);
+  }
+
+  .service .layer-label,
+  .service .layer-body {
+    background: var(--service);
+  }
+
+  .gateway-layer .layer-label,
+  .gateway-layer .layer-body {
+    background: #35c681;
+  }
+
+  .data .layer-label,
+  .data .layer-body {
+    background: var(--data);
+  }
+
+  .blocks {
+    display: grid;
+    gap: 16px;
+    align-items: stretch;
+    height: 100%;
+  }
+
+  .cols-4 {
+    grid-template-columns: 1.1fr 1fr 1fr 1fr;
+  }
+
+  .cols-5 {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .module {
+    border: 2px solid var(--line);
+    border-radius: 9px;
+    min-height: 74px;
+    padding: 11px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    font-size: 20px;
+    line-height: 1.28;
+    background: var(--card-green);
+  }
+
+  .module small {
+    display: block;
+    margin-top: 5px;
+    font-size: 15px;
+    color: #1d2a38;
+  }
+
+  .sand {
+    background: var(--card-sand);
+  }
+
+  .mint {
+    background: var(--card-mint);
+  }
+
+  .cream {
+    background: var(--card-cream);
+  }
+
+  .orange {
+    background: var(--card-orange);
+  }
+
+  .white {
+    background: var(--card-white);
+  }
+
+  .dashed {
+    border: 3px dashed var(--line);
+    background: rgba(255, 255, 238, 0.92);
+    padding: 10px;
+  }
+
+  .service .layer-label {
+    min-height: 430px;
+  }
+
+  .service .layer-body {
+    min-height: 430px;
+    padding: 12px 16px 16px;
+  }
+
+  .service-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1.85fr 1fr;
+    grid-template-rows: 1.75fr 0.9fr 0.72fr;
+    gap: 10px;
+    height: 100%;
+  }
+
+  .panel-title {
+    text-align: center;
+    font-size: 22px;
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+
+  .vertical-stack {
+    display: grid;
+    gap: 10px;
+  }
+
+  .gateway-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .cluster {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+  }
+
+  .cluster-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .micro-group {
+    border: 2px dashed var(--line);
+    padding: 12px;
+    display: grid;
+    gap: 9px;
+  }
+
+  .service-foundation {
+    grid-column: 1 / 4;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .service-caption {
+    grid-column: 1 / 4;
+    border: 2px solid var(--line);
+    background: var(--card-cream);
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+  }
+
+  .capability-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 12px;
+    height: 100%;
+  }
+
+  .capability-domain {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+  }
+
+  .capability-domain .panel-title {
+    margin-bottom: 0;
+  }
+
+  .domain-modules {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .domain-modules .module {
+    min-height: 64px;
+    font-size: 17px;
+    padding: 9px 10px;
+  }
+
+  .domain-modules .module small {
+    font-size: 12px;
+  }
+
+  .gateway-body {
+    min-height: 220px;
+  }
+
+  .gateway-map {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 12px;
+    align-items: stretch;
+    height: 100%;
+  }
+
+  .unified-gateway {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+  }
+
+  .gateway-capabilities {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .gateway-capabilities .module,
+  .gateway-outlets .module {
+    min-height: 58px;
+    font-size: 17px;
+    padding: 9px 10px;
+  }
+
+  .gateway-capabilities .module small,
+  .gateway-outlets .module small {
+    font-size: 12px;
+  }
+
+  .gateway-outlets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .database-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+    align-items: end;
+  }
+
+  .cylinder {
+    height: 94px;
+    border: 2px solid var(--line);
+    border-radius: 50% / 18%;
+    background:
+      radial-gradient(ellipse at top, #fff 0 50%, transparent 51%),
+      linear-gradient(#ffffff 0 18%, #f8f8f8 19% 100%);
+    position: relative;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    padding-bottom: 16px;
+    font-size: 20px;
+    text-align: center;
+  }
+
+  .cylinder:before,
+  .cylinder:after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    height: 18px;
+    border: 2px solid var(--line);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 50%;
+  }
+
+  .cylinder:before {
+    top: 8px;
+  }
+
+  .cylinder:after {
+    top: 16px;
+  }
+
+  .footnote {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #233043;
+    font-size: 14px;
+    padding: 0 4px;
+  }
+
+  @media (max-width: 760px) {
+    .blueprint-wrap {
+      padding: 12px;
+      overflow: hidden;
+      min-height: 650px;
+    }
+
+    .blueprint-scale {
+      width: 1280px;
+      transform: scale(0.435);
+      transform-origin: top left;
+      margin: 0;
+    }
+  }
+</style>
+
+<div class="blueprint-wrap">
+  <div class="blueprint-scale">
+  <div class="blueprint">
+    <div class="bp-title">
+      <h2>企业AI使用平台架构图</h2>
+      <p>CodexMonitor 编排层 -> Codex app-server -> sub2api AI 服务网关 -> 号池/API</p>
+    </div>
+
+    <section class="layer presentation">
+      <div class="layer-label">展现层</div>
+      <div class="layer-body dashed">
+        <div class="blocks cols-5">
+          <div class="module">自研桌面客户端<small>二开 CodexMonitor 主入口</small></div>
+          <div class="module">Codex 客户端<small>Codex CLI / Codex</small></div>
+          <div class="module">Claude Code 客户端<small>用户自带常用入口</small></div>
+          <div class="module">OpenClaw 客户端<small>用户自带常用入口</small></div>
+          <div class="module">其他 AI 编程客户端<small>继续兼容扩展</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer service">
+      <div class="layer-label">服务层</div>
+      <div class="layer-body">
+        <div class="capability-grid">
+          <div class="dashed capability-domain">
+            <h3 class="panel-title">AI 编程工作台</h3>
+            <div class="domain-modules">
+              <div class="module mint">工作区管理<small>项目 / 仓库 / 文件树</small></div>
+              <div class="module mint">多 Agent 会话<small>并行 / 恢复 / 归档</small></div>
+              <div class="module mint">任务编排<small>模型 / 推理 / 队列 / 插话</small></div>
+              <div class="module mint">上下文增强<small>附件 / prompt / 文件引用</small></div>
+            </div>
+          </div>
+
+          <div class="dashed capability-domain">
+            <h3 class="panel-title">工程协作与代码管理</h3>
+            <div class="domain-modules">
+              <div class="module orange">隔离开发环境<small>worktree / clone agent</small></div>
+              <div class="module orange">代码变更管理<small>diff / stage / commit</small></div>
+              <div class="module orange">分支与同步<small>branch / pull / push</small></div>
+              <div class="module orange">GitHub 协作<small>Issue / PR / Review</small></div>
+            </div>
+          </div>
+
+          <div class="dashed capability-domain">
+            <h3 class="panel-title">多模态 AI 能力</h3>
+            <div class="domain-modules">
+              <div class="module mint">代码生成/解释<small>需求到代码 / 修复 / 重构</small></div>
+              <div class="module mint">文本与文档生成<small>说明 / 总结 / PR 文案</small></div>
+              <div class="module mint">AI 生图<small>文生图 / 图生图 / 素材</small></div>
+              <div class="module mint">图像理解<small>截图 / 设计稿 / 附件</small></div>
+            </div>
+          </div>
+
+          <div class="dashed capability-domain">
+            <h3 class="panel-title">交付与运行能力</h3>
+            <div class="domain-modules">
+              <div class="module orange">服务部署<small>发布 / 状态 / 回滚</small></div>
+              <div class="module orange">运行监控<small>日志 / 进度 / 通知</small></div>
+              <div class="module orange">用量与额度<small>账号 / rate limit / 统计</small></div>
+              <div class="module orange">工具与权限<small>终端 / MCP / 审批</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer gateway-layer">
+      <div class="layer-label">网关层</div>
+      <div class="layer-body gateway-body dashed">
+        <div class="gateway-map">
+          <div class="dashed unified-gateway">
+            <h3 class="panel-title">统一服务网关</h3>
+            <div class="gateway-capabilities">
+              <div class="module cream">统一接入<small>自研 / Codex / Claude Code / OpenClaw</small></div>
+              <div class="module cream">统一路由<small>模型 / 用户 / 服务类型 / 任务类型</small></div>
+              <div class="module cream">统一治理<small>鉴权 / 限流 / 配额 / 审计 / 日志</small></div>
+              <div class="module cream">协议适配<small>OpenAI / Anthropic / sub2api / 内部 API</small></div>
+            </div>
+          </div>
+          <div class="dashed unified-gateway">
+            <h3 class="panel-title">下游服务出口</h3>
+            <div class="gateway-outlets">
+              <div class="module orange">LLM 服务<small>代码 / 文本 / Agent</small></div>
+              <div class="module orange">生图服务<small>文生图 / 图生图</small></div>
+              <div class="module orange">部署服务<small>发布 / 状态 / 回滚</small></div>
+              <div class="module orange">工具服务<small>MCP / 文件 / 终端</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer data">
+      <div class="layer-label">资源层</div>
+      <div class="layer-body">
+        <div class="database-row">
+          <div class="cylinder">sub2api<br>号池资源</div>
+          <div class="cylinder">火山云<br>部署资源</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footnote">
+      <span>请求主链路：用户消息 -> Tauri/daemon -> Shared Core -> Codex app-server -> API Gateway -> sub2api -> 号池/API -> 上游模型</span>
+      <span>安全边界：号池账号/token 留在网关域，CodexMonitor 仅持有访问网关所需配置</span>
+    </div>
+  </div>
+  </div>
+</div>
+
+</body>
+</html>

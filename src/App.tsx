@@ -35,12 +35,17 @@ import "./styles/workspace-from-url-modal.css";
 import "./styles/mobile-remote-workspace-modal.css";
 import "./styles/branch-switcher-modal.css";
 import "./styles/git-init-modal.css";
+import "./styles/enterprise-ai-login-modal.css";
 import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
 import { useWindowLabel } from "@/features/layout/hooks/useWindowLabel";
 import MainApp from "@app/components/MainApp";
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  I18nProvider,
+} from "@/features/i18n/i18n";
 
 const AboutView = lazy(() =>
   import("@/features/about/components/AboutView").then((module) => ({
@@ -54,7 +59,9 @@ export default function App() {
   if (windowLabel === "about") {
     return (
       <Suspense fallback={null}>
-        <AboutView />
+        <I18nProvider languagePreference={DEFAULT_INTERFACE_LANGUAGE}>
+          <AboutView />
+        </I18nProvider>
       </Suspense>
     );
   }

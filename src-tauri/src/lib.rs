@@ -10,6 +10,7 @@ mod backend;
 mod codex;
 mod daemon_binary;
 mod dictation;
+mod enterprise_ai;
 mod event_sink;
 mod files;
 mod git;
@@ -182,7 +183,15 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             settings::get_app_settings,
             settings::update_app_settings,
+            settings::runtime_api_key_status,
+            settings::runtime_api_key_set,
+            settings::runtime_api_key_clear,
             settings::get_codex_config_path,
+            settings::is_developer_mode_enabled,
+            enterprise_ai::enterprise_ai_login,
+            enterprise_ai::enterprise_ai_validate,
+            enterprise_ai::enterprise_ai_logout,
+            enterprise_ai::enterprise_ai_usage,
             files::file_read,
             files::file_write,
             files::read_image_as_data_url,

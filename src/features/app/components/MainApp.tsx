@@ -53,6 +53,8 @@ import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThread
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import type {
   ComposerEditorSettings,
+  EnterpriseAiLoginResult,
+  EnterpriseAiUsageSnapshot,
   ServiceTier,
   WorkspaceInfo,
 } from "@/types";
@@ -80,6 +82,12 @@ import {
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { subscribeTrayOpenThread } from "@services/events";
+import { enterpriseAiValidate } from "@services/tauri";
+import {
+  I18nProvider,
+  resolveInterfaceLanguage,
+  translate,
+} from "@/features/i18n/i18n";
 
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
@@ -99,18 +107,6 @@ export default function MainApp() {
     scaleShortcutTitle,
     scaleShortcutText,
     queueSaveSettings,
-    dictationModel,
-    dictationState,
-    dictationLevel,
-    dictationTranscript,
-    dictationError,
-    dictationHint,
-    dictationReady,
-    handleToggleDictation,
-    cancelDictation,
-    clearDictationTranscript,
-    clearDictationError,
-    clearDictationHint,
     debugOpen,
     setDebugOpen,
     debugEntries,
@@ -120,6 +116,11 @@ export default function MainApp() {
     clearDebugEntries,
     shouldReduceTransparency,
   } = useAppBootstrapOrchestration();
+  const [enterpriseAiUsage, setEnterpriseAiUsage] =
+    useState<EnterpriseAiUsageSnapshot | null>(null);
+  const [enterpriseAiLoginOpen, setEnterpriseAiLoginOpen] = useState(false);
+  const enterpriseAiAutoValidatedRef = useRef(false);
+  const resolvedInterfaceLanguage = resolveInterfaceLanguage(appSettings.interfaceLanguage);
   const {
     threadListSortKey,
     setThreadListSortKey,
@@ -506,6 +507,7 @@ export default function MainApp() {
     accessMode,
     ensureWorkspaceRuntimeCodexArgs,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
+    interfaceLanguage: appSettings.interfaceLanguage,
     steerEnabled: appSettings.steerEnabled,
     threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
     chatHistoryScrollbackItems: appSettingsLoading
@@ -857,7 +859,10 @@ export default function MainApp() {
       return ensureTerminalWithTitle(
         workspaceId,
         `launch:${entry.id}`,
-        title || `Launch ${label}`,
+        title ||
+          translate(resolvedInterfaceLanguage, "workspace.launch.title", {
+            label,
+          }),
       );
     },
     restartLaunchSession: restartTerminalSession,
@@ -1021,7 +1026,6 @@ export default function MainApp() {
       handleTestNotificationSound,
       handleTestSystemNotification,
       handleMobileConnectSuccess,
-      dictationModel,
     },
   });
 
@@ -1038,7 +1042,56 @@ export default function MainApp() {
     [modalActions],
   );
 
+  const openEnterpriseAiEntry = useCallback(() => {
+    if (appSettings.enterpriseAi.status === "connected") {
+      modalActions.openSettings("ai");
+      return;
+    }
+    setEnterpriseAiLoginOpen(true);
+  }, [appSettings.enterpriseAi.status, modalActions]);
+
+  const closeEnterpriseAiLogin = useCallback(() => {
+    setEnterpriseAiLoginOpen(false);
+  }, []);
+
+  const handleEnterpriseAiLoginSuccess = useCallback(
+    (result: EnterpriseAiLoginResult) => {
+      setAppSettings(result.settings);
+      setEnterpriseAiUsage(result.usage);
+      setEnterpriseAiLoginOpen(false);
+    },
+    [setAppSettings],
+  );
+
   const showHome = !activeWorkspace;
+  useEffect(() => {
+    if (appSettingsLoading || enterpriseAiAutoValidatedRef.current) {
+      return;
+    }
+    if (!appSettings.enterpriseAi.tenantDomain) {
+      return;
+    }
+    enterpriseAiAutoValidatedRef.current = true;
+    void enterpriseAiValidate()
+      .then((result) => {
+        setAppSettings(result.settings);
+        setEnterpriseAiUsage(result.usage);
+      })
+      .catch((error) => {
+        addDebugEntry({
+          id: `${Date.now()}-enterprise-ai-validate-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "enterprise ai validate error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      });
+  }, [
+    addDebugEntry,
+    appSettings.enterpriseAi.tenantDomain,
+    appSettingsLoading,
+    setAppSettings,
+  ]);
   const {
     latestAgentRuns,
     isLoadingLatestAgents,
@@ -1543,18 +1596,6 @@ export default function MainApp() {
           prompts,
           files,
           onFileAutocompleteActiveChange: setFileAutocompleteActive,
-          dictationEnabled: appSettings.dictationEnabled && dictationReady,
-          dictationState,
-          dictationLevel,
-          onToggleDictation: handleToggleDictation,
-          onCancelDictation: cancelDictation,
-          onOpenDictationSettings: () => modalActions.openSettings("dictation"),
-          dictationError,
-          onDismissDictationError: clearDictationError,
-          dictationHint,
-          onDismissDictationHint: clearDictationHint,
-          dictationTranscript,
-          onDictationTranscriptHandled: clearDictationTranscript,
           textareaRef: workspaceHomeTextareaRef,
           agentMdContent,
           agentMdExists,
@@ -1577,6 +1618,7 @@ export default function MainApp() {
   const layoutSurfaces = useMainAppLayoutSurfaces({
     appSettings: {
       usageShowRemaining: appSettings.usageShowRemaining,
+      enterpriseAi: appSettings.enterpriseAi,
       composerCodeBlockCopyUseModifier:
         appSettings.composerCodeBlockCopyUseModifier,
       showMessageFilePath: appSettings.showMessageFilePath,
@@ -1585,7 +1627,6 @@ export default function MainApp() {
       experimentalAppsEnabled: appSettings.experimentalAppsEnabled,
       followUpMessageBehavior: appSettings.followUpMessageBehavior,
       composerFollowUpHintEnabled: appSettings.composerFollowUpHintEnabled,
-      dictationEnabled: appSettings.dictationEnabled,
       splitChatDiffView: appSettings.splitChatDiffView,
       gitDiffIgnoreWhitespaceChanges:
         appSettings.gitDiffIgnoreWhitespaceChanges,
@@ -1619,6 +1660,7 @@ export default function MainApp() {
     activeAccount,
     homeRateLimits,
     homeAccount,
+    enterpriseAiUsage,
     accountSwitching,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,
@@ -1642,6 +1684,7 @@ export default function MainApp() {
     usageWorkspaceId,
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
+    onOpenEnterpriseAiSettings: openEnterpriseAiEntry,
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,
     composerWorkspaceState,
@@ -1676,12 +1719,6 @@ export default function MainApp() {
     pullRequestComposer: {
       composerSendLabel,
       handleSelectPullRequest,
-    },
-    dictationUi: {
-      onOpenDictationSettings: () => modalActions.openSettings('dictation'),
-      dictationTranscript,
-      dictationError,
-      dictationHint,
     },
     openAppIconById,
     openInitGitRepoPrompt: modalActions.openInitGitRepoPrompt,
@@ -1719,14 +1756,6 @@ export default function MainApp() {
     composerEditorSettings,
     composerEditorExpanded,
     onToggleComposerEditorExpanded: toggleComposerEditorExpanded,
-    dictationReady,
-    dictationState,
-    dictationLevel,
-    onToggleDictation: handleToggleDictation,
-    onCancelDictation: cancelDictation,
-    clearDictationTranscript,
-    clearDictationError,
-    clearDictationHint,
     composerContextActions,
     reviewPrompt,
     closeReviewPrompt,
@@ -1809,6 +1838,22 @@ export default function MainApp() {
     !activeWorkspace?.connected
       ? "disconnected"
       : remoteThreadConnectionState;
+  const composedAppModalsProps = useMemo(
+    () => ({
+      ...appModalsProps,
+      enterpriseAiLoginOpen,
+      enterpriseAiLoginTenantDomain: appSettings.enterpriseAi.tenantDomain,
+      onCloseEnterpriseAiLogin: closeEnterpriseAiLogin,
+      onEnterpriseAiLoginSuccess: handleEnterpriseAiLoginSuccess,
+    }),
+    [
+      appModalsProps,
+      appSettings.enterpriseAi.tenantDomain,
+      closeEnterpriseAiLogin,
+      enterpriseAiLoginOpen,
+      handleEnterpriseAiLoginSuccess,
+    ],
+  );
   const mainAppShellProps = useMainAppShellProps({
     shell: {
       appClassName,
@@ -1817,7 +1862,7 @@ export default function MainApp() {
       appRef,
       sidebarToggleProps,
       shouldLoadGitHubPanelData,
-      appModalsProps,
+      appModalsProps: composedAppModalsProps,
       showMobileSetupWizard,
       mobileSetupWizardProps,
     },
@@ -1877,5 +1922,9 @@ export default function MainApp() {
     },
   });
 
-  return <MainAppShell {...mainAppShellProps} />;
+  return (
+    <I18nProvider languagePreference={appSettings.interfaceLanguage}>
+      <MainAppShell {...mainAppShellProps} />
+    </I18nProvider>
+  );
 }

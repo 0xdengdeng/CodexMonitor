@@ -13,6 +13,7 @@ import {
   normalizePatchName,
   parseRawDiffLines,
 } from "./GitDiffViewer.utils";
+import { useI18n } from "@/features/i18n/i18n";
 
 type PierreDiffBlockProps = {
   diff: string;
@@ -29,6 +30,7 @@ export function PierreDiffBlock({
   newLines,
   diffStyle = "unified",
 }: PierreDiffBlockProps) {
+  const { t } = useI18n();
   const poolOptions = useMemo(() => ({ workerFactory }), []);
   const highlighterOptions = useMemo(
     () => DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
@@ -82,7 +84,11 @@ export function PierreDiffBlock({
   );
 
   if (!diff.trim()) {
-    return <div className="diff-viewer-placeholder">Diff unavailable.</div>;
+    return (
+      <div className="diff-viewer-placeholder">
+        {t("git.viewer.diffUnavailable")}
+      </div>
+    );
   }
 
   return (

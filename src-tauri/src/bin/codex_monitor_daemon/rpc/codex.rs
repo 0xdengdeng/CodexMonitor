@@ -474,9 +474,8 @@ pub(super) async fn try_handle(
             Some(state.remember_approval_rule(workspace_id, command).await)
         }
         "codex_doctor" => {
-            let codex_bin = parse_optional_string(params, "codexBin");
             let codex_args = parse_optional_string(params, "codexArgs");
-            Some(state.codex_doctor(codex_bin, codex_args).await)
+            Some(state.codex_doctor(codex_args).await)
         }
         "generate_run_metadata" => {
             let workspace_id = match parse_string(params, "workspaceId") {

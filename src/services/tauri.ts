@@ -5,9 +5,10 @@ import type {
   AppSettings,
   CodexUpdateResult,
   CodexDoctorResult,
-  DictationModelStatus,
-  DictationSessionState,
+  EnterpriseAiLoginResult,
+  EnterpriseAiUsageSnapshot,
   LocalUsageSnapshot,
+  RuntimeApiKeyStatus,
   TcpDaemonStatus,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
@@ -83,9 +84,10 @@ export async function pickImageFiles(): Promise<string[]> {
 export async function exportMarkdownFile(
   content: string,
   defaultFileName = "plan.md",
+  title = "Export plan as Markdown",
 ): Promise<string | null> {
   const selection = await save({
-    title: "Export plan as Markdown",
+    title,
     defaultPath: defaultFileName,
     filters: [
       {
@@ -869,8 +871,46 @@ export async function isMobileRuntime(): Promise<boolean> {
   return invoke<boolean>("is_mobile_runtime");
 }
 
+export async function isDeveloperModeEnabled(): Promise<boolean> {
+  return invoke<boolean>("is_developer_mode_enabled");
+}
+
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
+}
+
+export async function getRuntimeApiKeyStatus(): Promise<RuntimeApiKeyStatus> {
+  return invoke<RuntimeApiKeyStatus>("runtime_api_key_status");
+}
+
+export async function setRuntimeApiKey(apiKey: string): Promise<RuntimeApiKeyStatus> {
+  return invoke<RuntimeApiKeyStatus>("runtime_api_key_set", { apiKey });
+}
+
+export async function clearRuntimeApiKey(): Promise<RuntimeApiKeyStatus> {
+  return invoke<RuntimeApiKeyStatus>("runtime_api_key_clear");
+}
+
+export async function enterpriseAiLogin(
+  tenantDomain: string,
+  apiKey: string,
+): Promise<EnterpriseAiLoginResult> {
+  return invoke<EnterpriseAiLoginResult>("enterprise_ai_login", {
+    tenantDomain,
+    apiKey,
+  });
+}
+
+export async function enterpriseAiValidate(): Promise<EnterpriseAiLoginResult> {
+  return invoke<EnterpriseAiLoginResult>("enterprise_ai_validate");
+}
+
+export async function enterpriseAiLogout(): Promise<AppSettings> {
+  return invoke<AppSettings>("enterprise_ai_logout");
+}
+
+export async function enterpriseAiUsage(): Promise<EnterpriseAiUsageSnapshot | null> {
+  return invoke<EnterpriseAiUsageSnapshot | null>("enterprise_ai_usage");
 }
 
 export async function tailscaleStatus(): Promise<TailscaleStatus> {
@@ -905,17 +945,13 @@ export async function setMenuAccelerators(
 }
 
 export async function runCodexDoctor(
-  codexBin: string | null,
   codexArgs: string | null,
 ): Promise<CodexDoctorResult> {
-  return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
+  return invoke<CodexDoctorResult>("codex_doctor", { codexArgs });
 }
 
-export async function runCodexUpdate(
-  codexBin: string | null,
-  codexArgs: string | null,
-): Promise<CodexUpdateResult> {
-  return invoke<CodexUpdateResult>("codex_update", { codexBin, codexArgs });
+export async function runCodexUpdate(): Promise<CodexUpdateResult> {
+  return invoke<CodexUpdateResult>("codex_update");
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {
@@ -950,64 +986,6 @@ export async function checkoutGitBranch(workspaceId: string, name: string) {
 
 export async function createGitBranch(workspaceId: string, name: string) {
   return invoke("create_git_branch", { workspaceId, name });
-}
-
-function withModelId(modelId?: string | null) {
-  return modelId ? { modelId } : {};
-}
-
-export async function getDictationModelStatus(
-  modelId?: string | null,
-): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
-    "dictation_model_status",
-    withModelId(modelId),
-  );
-}
-
-export async function downloadDictationModel(
-  modelId?: string | null,
-): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
-    "dictation_download_model",
-    withModelId(modelId),
-  );
-}
-
-export async function cancelDictationDownload(
-  modelId?: string | null,
-): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
-    "dictation_cancel_download",
-    withModelId(modelId),
-  );
-}
-
-export async function removeDictationModel(
-  modelId?: string | null,
-): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
-    "dictation_remove_model",
-    withModelId(modelId),
-  );
-}
-
-export async function startDictation(
-  preferredLanguage: string | null,
-): Promise<DictationSessionState> {
-  return invoke("dictation_start", { preferredLanguage });
-}
-
-export async function requestDictationPermission(): Promise<boolean> {
-  return invoke("dictation_request_permission");
-}
-
-export async function stopDictation(): Promise<DictationSessionState> {
-  return invoke("dictation_stop");
-}
-
-export async function cancelDictation(): Promise<DictationSessionState> {
-  return invoke("dictation_cancel");
 }
 
 export async function openTerminalSession(

@@ -13,6 +13,7 @@ import {
   writeAgentConfigToml,
 } from "@services/tauri";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseSettingsAgentsSectionArgs = {
   projects: WorkspaceInfo[];
@@ -83,6 +84,7 @@ const toErrorMessage = (value: unknown, fallback: string): string => {
 export const useSettingsAgentsSection = ({
   projects,
 }: UseSettingsAgentsSectionArgs): SettingsAgentsSectionProps => {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<AgentsSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingCore, setIsUpdatingCore] = useState(false);
@@ -111,11 +113,11 @@ export const useSettingsAgentsSection = ({
       const response = await getAgentsSettings();
       setSettings(response);
     } catch (refreshError) {
-      setError(toErrorMessage(refreshError, "Unable to load agents settings."));
+      setError(toErrorMessage(refreshError, t("settings.agents.loadFailed")));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void refresh();
@@ -138,13 +140,13 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (updateError) {
-        setError(toErrorMessage(updateError, "Unable to update agents core settings."));
+        setError(toErrorMessage(updateError, t("settings.agents.updateCoreFailed")));
         return false;
       } finally {
         setIsUpdatingCore(false);
       }
     },
-    [],
+    [t],
   );
 
   const onSetMultiAgentEnabled = useCallback(
@@ -193,13 +195,13 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (createError) {
-        setError(toErrorMessage(createError, "Unable to create agent."));
+        setError(toErrorMessage(createError, t("settings.agents.createFailed")));
         return false;
       } finally {
         setCreatingAgent(false);
       }
     },
-    [],
+    [t],
   );
 
   const onUpdateAgent = useCallback(
@@ -217,7 +219,7 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (updateError) {
-        setError(toErrorMessage(updateError, "Unable to update agent."));
+        setError(toErrorMessage(updateError, t("settings.agents.updateFailed")));
         return false;
       } finally {
         setUpdatingAgentName((current) =>
@@ -225,7 +227,7 @@ export const useSettingsAgentsSection = ({
         );
       }
     },
-    [],
+    [t],
   );
 
   const onDeleteAgent = useCallback(
@@ -240,13 +242,13 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (deleteError) {
-        setError(toErrorMessage(deleteError, "Unable to delete agent."));
+        setError(toErrorMessage(deleteError, t("settings.agents.deleteFailed")));
         return false;
       } finally {
         setDeletingAgentName((current) => (current === input.name ? null : current));
       }
     },
-    [],
+    [t],
   );
 
   const onReadAgentConfig = useCallback(async (agentName: string): Promise<string | null> => {
@@ -255,14 +257,14 @@ export const useSettingsAgentsSection = ({
     try {
       return await readAgentConfigToml(agentName);
     } catch (readError) {
-      setError(toErrorMessage(readError, "Unable to read agent config file."));
+      setError(toErrorMessage(readError, t("settings.agents.readConfigFailed")));
       return null;
     } finally {
       setReadingConfigAgentName((current) =>
         current === agentName ? null : current,
       );
     }
-  }, []);
+  }, [t]);
 
   const onWriteAgentConfig = useCallback(
     async (agentName: string, content: string): Promise<boolean> => {
@@ -273,7 +275,7 @@ export const useSettingsAgentsSection = ({
         await refresh();
         return true;
       } catch (writeError) {
-        setError(toErrorMessage(writeError, "Unable to write agent config file."));
+        setError(toErrorMessage(writeError, t("settings.agents.writeConfigFailed")));
         return false;
       } finally {
         setWritingConfigAgentName((current) =>
@@ -293,7 +295,7 @@ export const useSettingsAgentsSection = ({
       const descriptionSeed = seed.description.trim();
       const developerInstructionsSeed = seed.developerInstructions.trim();
       if (!sourceWorkspaceId || !sourceWorkspaceName) {
-        setError("Add a workspace before generating agent configuration.");
+        setError(t("settings.agents.addWorkspaceBeforeGenerate"));
         return null;
       }
 
@@ -310,7 +312,7 @@ export const useSettingsAgentsSection = ({
       const effectivePromptSeed =
         promptSeed.length > 0
           ? promptSeed
-          : "Create a practical custom coding agent configuration.";
+          : t("settings.agents.generatePromptDefault");
 
       setGeneratingDescriptionTarget(target);
       setError(null);
@@ -322,7 +324,7 @@ export const useSettingsAgentsSection = ({
         const nextDescription = generated.description.trim();
         const nextInstructions = generated.developerInstructions.trim();
         if (!nextDescription && !nextInstructions) {
-          setError("Generated agent configuration was empty.");
+          setError(t("settings.agents.generatedEmpty"));
           return null;
         }
         return {
@@ -330,7 +332,7 @@ export const useSettingsAgentsSection = ({
           developerInstructions: nextInstructions,
         };
       } catch (generateError) {
-        setError(toErrorMessage(generateError, "Unable to generate agent configuration."));
+        setError(toErrorMessage(generateError, t("settings.agents.generateFailed")));
         return null;
       } finally {
         setGeneratingDescriptionTarget((current) =>
@@ -338,7 +340,7 @@ export const useSettingsAgentsSection = ({
         );
       }
     },
-    [sourceWorkspaceConnected, sourceWorkspaceId, sourceWorkspaceName],
+    [sourceWorkspaceConnected, sourceWorkspaceId, sourceWorkspaceName, t],
   );
 
   return {

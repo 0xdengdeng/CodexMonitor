@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Save from "lucide-react/dist/esm/icons/save";
+import { useI18n } from "@/features/i18n/i18n";
 
 type FileEditorCardClassNames = {
   container: string;
@@ -47,6 +48,12 @@ export function FileEditorCard({
   onSave,
   classNames,
 }: FileEditorCardProps) {
+  const { t } = useI18n();
+  const saveAriaLabel =
+    saveLabel === t("common.create")
+      ? t("shared.fileEditor.create", { title })
+      : t("shared.fileEditor.save", { title });
+
   return (
     <div className={classNames.container}>
       <div className={classNames.header}>
@@ -58,8 +65,8 @@ export function FileEditorCard({
             className={classNames.iconButton}
             onClick={onRefresh}
             disabled={refreshDisabled}
-            aria-label={`Refresh ${title}`}
-            title="Refresh"
+            aria-label={t("shared.fileEditor.refresh", { title })}
+            title={t("common.refresh")}
           >
             <RefreshCw aria-hidden />
           </button>
@@ -68,7 +75,7 @@ export function FileEditorCard({
             className={classNames.iconButton}
             onClick={onSave}
             disabled={saveDisabled}
-            aria-label={saveLabel === "Create" ? `Create ${title}` : `Save ${title}`}
+            aria-label={saveAriaLabel}
             title={saveLabel}
           >
             <Save aria-hidden />
@@ -88,4 +95,3 @@ export function FileEditorCard({
     </div>
   );
 }
-

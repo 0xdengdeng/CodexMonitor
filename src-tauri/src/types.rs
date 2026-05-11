@@ -376,9 +376,88 @@ pub(crate) struct RemoteBackendTarget {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct ManagedRuntimeConfig {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default, rename = "baseUrl")]
+    pub(crate) base_url: Option<String>,
+    #[serde(default)]
+    pub(crate) model: Option<String>,
+}
+
+impl Default for ManagedRuntimeConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            base_url: None,
+            model: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum EnterpriseAiStatus {
+    Disconnected,
+    Connected,
+    Invalid,
+}
+
+impl Default for EnterpriseAiStatus {
+    fn default() -> Self {
+        Self::Disconnected
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub(crate) struct EnterpriseAiConfig {
+    #[serde(default, rename = "tenantDomain")]
+    pub(crate) tenant_domain: Option<String>,
+    #[serde(default)]
+    pub(crate) status: EnterpriseAiStatus,
+    #[serde(default, rename = "accountName")]
+    pub(crate) account_name: Option<String>,
+    #[serde(default, rename = "keyLast4")]
+    pub(crate) key_last4: Option<String>,
+    #[serde(default, rename = "lastValidatedAtMs")]
+    pub(crate) last_validated_at_ms: Option<i64>,
+    #[serde(default, rename = "lastError")]
+    pub(crate) last_error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct RuntimeApiKeyStatus {
+    #[serde(rename = "hasApiKey")]
+    pub(crate) has_api_key: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct EnterpriseAiUsageSnapshot {
+    #[serde(rename = "tenantDomain")]
+    pub(crate) tenant_domain: Option<String>,
+    #[serde(rename = "accountName")]
+    pub(crate) account_name: Option<String>,
+    #[serde(rename = "updatedAtMs")]
+    pub(crate) updated_at_ms: i64,
+    #[serde(rename = "requests7d")]
+    pub(crate) requests_7d: Option<i64>,
+    #[serde(rename = "tokens7d")]
+    pub(crate) tokens_7d: Option<i64>,
+    pub(crate) balance: Option<f64>,
+    #[serde(rename = "creditedTotal")]
+    pub(crate) credited_total: Option<f64>,
+    #[serde(rename = "usageSpentTotal")]
+    pub(crate) usage_spent_total: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct EnterpriseAiLoginResult {
+    pub(crate) settings: AppSettings,
+    pub(crate) usage: Option<EnterpriseAiUsageSnapshot>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
-    #[serde(default, rename = "codexBin")]
-    pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "backendMode")]
@@ -489,6 +568,8 @@ pub(crate) struct AppSettings {
     pub(crate) ui_scale: f64,
     #[serde(default = "default_theme", rename = "theme")]
     pub(crate) theme: String,
+    #[serde(default = "default_interface_language", rename = "interfaceLanguage")]
+    pub(crate) interface_language: String,
     #[serde(
         default = "default_usage_show_remaining",
         rename = "usageShowRemaining"
@@ -648,6 +729,10 @@ pub(crate) struct AppSettings {
     pub(crate) open_app_targets: Vec<OpenAppTarget>,
     #[serde(default = "default_selected_open_app_id", rename = "selectedOpenAppId")]
     pub(crate) selected_open_app_id: String,
+    #[serde(default, rename = "managedRuntime")]
+    pub(crate) managed_runtime: ManagedRuntimeConfig,
+    #[serde(default, rename = "enterpriseAi")]
+    pub(crate) enterprise_ai: EnterpriseAiConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -704,6 +789,10 @@ fn default_ui_scale() -> f64 {
 }
 
 fn default_theme() -> String {
+    "system".to_string()
+}
+
+fn default_interface_language() -> String {
     "system".to_string()
 }
 
@@ -1123,7 +1212,6 @@ fn default_selected_open_app_id() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            codex_bin: None,
             codex_args: None,
             backend_mode: default_backend_mode(),
             remote_backend_provider: RemoteBackendProvider::Tcp,
@@ -1155,6 +1243,7 @@ impl Default for AppSettings {
             last_composer_reasoning_effort: None,
             ui_scale: 1.0,
             theme: default_theme(),
+            interface_language: default_interface_language(),
             usage_show_remaining: default_usage_show_remaining(),
             show_message_file_path: default_show_message_file_path(),
             chat_history_scrollback_items: default_chat_history_scrollback_items(),
@@ -1199,6 +1288,8 @@ impl Default for AppSettings {
             global_worktrees_folder: None,
             open_app_targets: default_open_app_targets(),
             selected_open_app_id: default_selected_open_app_id(),
+            managed_runtime: ManagedRuntimeConfig::default(),
+            enterprise_ai: EnterpriseAiConfig::default(),
         }
     }
 }
@@ -1213,7 +1304,7 @@ mod tests {
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
-        assert!(settings.codex_bin.is_none());
+        assert!(settings.codex_args.is_none());
         let expected_backend_mode = if cfg!(target_os = "ios") {
             BackendMode::Remote
         } else {
@@ -1321,6 +1412,7 @@ mod tests {
         assert!(settings.last_composer_reasoning_effort.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
+        assert_eq!(settings.interface_language, "system");
         assert!(!settings.usage_show_remaining);
         assert!(settings.show_message_file_path);
         assert_eq!(settings.chat_history_scrollback_items, Some(200));

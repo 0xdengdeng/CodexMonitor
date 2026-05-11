@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 
 import type { WorkspaceInfo } from "../../../types";
+import { useI18n } from "@/features/i18n/i18n";
 
 type WorktreeCardProps = {
   worktree: WorkspaceInfo;
@@ -9,7 +10,6 @@ type WorktreeCardProps = {
   onSelectWorkspace: (id: string) => void;
   onShowWorktreeMenu: (event: MouseEvent, worktree: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   children?: React.ReactNode;
 };
 
@@ -20,9 +20,9 @@ export function WorktreeCard({
   onSelectWorkspace,
   onShowWorktreeMenu,
   onToggleWorkspaceCollapse,
-  onConnectWorkspace,
   children,
 }: WorktreeCardProps) {
+  const { t } = useI18n();
   const worktreeCollapsed = worktree.settings.sidebarCollapsed;
   const worktreeBranch = worktree.worktree?.branch ?? "";
   const worktreeLabel = worktree.name?.trim() || worktreeBranch;
@@ -65,7 +65,7 @@ export function WorktreeCard({
           {isDeleting ? (
             <div className="worktree-deleting" role="status" aria-live="polite">
               <span className="worktree-deleting-spinner" aria-hidden />
-              <span className="worktree-deleting-label">Deleting</span>
+              <span className="worktree-deleting-label">{t("sidebar.workspace.deleting")}</span>
             </div>
           ) : (
             <>
@@ -76,23 +76,15 @@ export function WorktreeCard({
                   onToggleWorkspaceCollapse(worktree.id, !worktreeCollapsed);
                 }}
                 data-tauri-drag-region="false"
-                aria-label={worktreeCollapsed ? "Show agents" : "Hide agents"}
+                aria-label={
+                  worktreeCollapsed
+                    ? t("sidebar.workspace.showAgents")
+                    : t("sidebar.workspace.hideAgents")
+                }
                 aria-expanded={!worktreeCollapsed}
               >
                 <span className="worktree-toggle-icon">›</span>
               </button>
-              {!worktree.connected && (
-                <span
-                  className="connect"
-                  title="Connect workspace context to the shared Codex server"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onConnectWorkspace(worktree);
-                  }}
-                >
-                  connect
-                </span>
-              )}
             </>
           )}
         </div>

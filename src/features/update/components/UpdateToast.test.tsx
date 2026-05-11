@@ -107,7 +107,7 @@ describe("UpdateToast", () => {
         postUpdateNotice={{
           stage: "loading",
           version: "1.2.3",
-          htmlUrl: "https://github.com/Dimillian/CodexMonitor/releases/tag/v1.2.3",
+          htmlUrl: "https://github.com/0xdengdeng/CodexMonitor/releases/tag/v1.2.3",
         }}
         onDismissPostUpdateNotice={onDismissPostUpdateNotice}
       />,
@@ -123,7 +123,7 @@ describe("UpdateToast", () => {
   it("renders post-update release notes and opens GitHub link", () => {
     const onDismissPostUpdateNotice = vi.fn();
     const htmlUrl =
-      "https://github.com/Dimillian/CodexMonitor/releases/tag/v1.2.3";
+      "https://github.com/0xdengdeng/CodexMonitor/releases/tag/v1.2.3";
     const state: UpdateState = { stage: "idle" };
 
     const { container } = render(
@@ -145,7 +145,7 @@ describe("UpdateToast", () => {
     expect(scoped.getByText("Highlights")).toBeTruthy();
     expect(scoped.getByText("Added release notes toast")).toBeTruthy();
 
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
+    fireEvent.click(scoped.getByRole("button", { name: "View release notes" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
 
     fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
@@ -154,7 +154,7 @@ describe("UpdateToast", () => {
 
   it("renders post-update fallback notice", () => {
     const htmlUrl =
-      "https://github.com/Dimillian/CodexMonitor/releases/tag/v1.2.3";
+      "https://github.com/0xdengdeng/CodexMonitor/releases/tag/v1.2.3";
     const state: UpdateState = { stage: "available", version: "9.9.9" };
 
     const { container } = render(
@@ -174,7 +174,7 @@ describe("UpdateToast", () => {
     expect(
       scoped.getByText("Updated to v1.2.3. Release notes could not be loaded."),
     ).toBeTruthy();
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
+    fireEvent.click(scoped.getByRole("button", { name: "View release notes" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
     expect(scoped.queryByText("A new version is available.")).toBeNull();
   });

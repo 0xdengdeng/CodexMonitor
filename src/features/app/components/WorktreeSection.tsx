@@ -7,6 +7,7 @@ import { ThreadList } from "./ThreadList";
 import { ThreadLoading } from "./ThreadLoading";
 import { WorktreeCard } from "./WorktreeCard";
 import { getVisibleThreadListState } from "./threadSearchUtils";
+import { useI18n } from "@/features/i18n/i18n";
 
 type ThreadRowsResult = {
   pinnedRows: Array<{ thread: ThreadSummary; depth: number }>;
@@ -40,7 +41,6 @@ type WorktreeSectionProps = {
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
   pinnedThreadsVersion: number;
   onSelectWorkspace: (id: string) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onShowThreadMenu: (
@@ -78,7 +78,6 @@ export function WorktreeSection({
   getPinTimestamp,
   pinnedThreadsVersion,
   onSelectWorkspace,
-  onConnectWorkspace,
   onToggleWorkspaceCollapse,
   onSelectThread,
   onShowThreadMenu,
@@ -87,10 +86,11 @@ export function WorktreeSection({
   onLoadOlderThreads,
   searchQuery = "",
   isSearchActive = false,
-  sectionLabel = "Worktrees",
+  sectionLabel,
   sectionIcon,
   className,
 }: WorktreeSectionProps) {
+  const { t } = useI18n();
   if (!worktrees.length) {
     return null;
   }
@@ -102,7 +102,7 @@ export function WorktreeSection({
           <span className="worktree-header-icon-wrap">
             {sectionIcon ?? <Layers className="worktree-header-icon" aria-hidden />}
           </span>
-          <span>{sectionLabel}</span>
+          <span>{sectionLabel ?? t("sidebar.conversations.worktrees")}</span>
         </span>
         <span className="worktree-header-count">{worktrees.length}</span>
       </div>
@@ -151,7 +151,6 @@ export function WorktreeSection({
               onSelectWorkspace={onSelectWorkspace}
               onShowWorktreeMenu={onShowWorktreeMenu}
               onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
-              onConnectWorkspace={onConnectWorkspace}
             >
               {showWorktreeThreadList && (
                 <ThreadList

@@ -1,30 +1,33 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
+  EnterpriseAiUsageSnapshot,
   WorkspaceInfo,
 } from "@/types";
+import {
+  enterpriseAiLogin,
+  enterpriseAiLogout,
+  enterpriseAiUsage,
+  enterpriseAiValidate,
+  isDeveloperModeEnabled,
+  setRuntimeApiKey,
+} from "@services/tauri";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
 import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
+import { useI18n } from "@/features/i18n/i18n";
 
 type UseSettingsCodexSectionArgs = {
   appSettings: AppSettings;
   projects: WorkspaceInfo[];
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
-  onRunDoctor: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexDoctorResult>;
-  onRunCodexUpdate?: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexUpdateResult>;
+  onRunDoctor: (codexArgs: string | null) => Promise<CodexDoctorResult>;
+  onRunCodexUpdate?: () => Promise<CodexUpdateResult>;
 };
 
 export type SettingsCodexSectionProps = {
@@ -35,7 +38,6 @@ export type SettingsCodexSectionProps = {
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
-  codexPathDraft: string;
   codexArgsDraft: string;
   codexDirty: boolean;
   isSavingSettings: boolean;
@@ -61,11 +63,29 @@ export type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  onSetCodexPathDraft: Dispatch<SetStateAction<string>>;
+  enterpriseTenantDomainDraft: string;
+  enterpriseApiKeyDraft: string;
+  enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
+  enterpriseAiLoading: boolean;
+  enterpriseAiSaving: boolean;
+  enterpriseAiError: string | null;
+  developerModeEnabled: boolean;
+  developerBaseUrlDraft: string;
+  developerApiKeyDraft: string;
+  developerRuntimeSaving: boolean;
+  developerRuntimeError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
+  onSetEnterpriseTenantDomainDraft: Dispatch<SetStateAction<string>>;
+  onSetEnterpriseApiKeyDraft: Dispatch<SetStateAction<string>>;
+  onSetDeveloperBaseUrlDraft: Dispatch<SetStateAction<string>>;
+  onSetDeveloperApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
-  onBrowseCodex: () => Promise<void>;
+  onEnterpriseAiLogin: () => Promise<void>;
+  onEnterpriseAiValidate: () => Promise<void>;
+  onEnterpriseAiLogout: () => Promise<void>;
+  onRefreshEnterpriseAiUsage: () => Promise<void>;
+  onSaveDeveloperRuntime: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
   onRunCodexUpdate: () => Promise<void>;
@@ -82,8 +102,24 @@ export const useSettingsCodexSection = ({
   onRunDoctor,
   onRunCodexUpdate,
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
-  const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
+  const { t } = useI18n();
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
+  const [enterpriseTenantDomainDraft, setEnterpriseTenantDomainDraft] = useState(
+    appSettings.enterpriseAi.tenantDomain ?? "",
+  );
+  const [enterpriseApiKeyDraft, setEnterpriseApiKeyDraft] = useState("");
+  const [developerModeEnabled, setDeveloperModeEnabled] = useState(false);
+  const [developerBaseUrlDraft, setDeveloperBaseUrlDraft] = useState(
+    appSettings.managedRuntime.baseUrl ?? "",
+  );
+  const [developerApiKeyDraft, setDeveloperApiKeyDraft] = useState("");
+  const [enterpriseAiUsageSnapshot, setEnterpriseAiUsageSnapshot] =
+    useState<EnterpriseAiUsageSnapshot | null>(null);
+  const [enterpriseAiLoading, setEnterpriseAiLoading] = useState(false);
+  const [enterpriseAiSaving, setEnterpriseAiSaving] = useState(false);
+  const [enterpriseAiError, setEnterpriseAiError] = useState<string | null>(null);
+  const [developerRuntimeSaving, setDeveloperRuntimeSaving] = useState(false);
+  const [developerRuntimeError, setDeveloperRuntimeError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
@@ -134,6 +170,14 @@ export const useSettingsCodexSection = ({
     exists: globalAgentsExists,
     truncated: globalAgentsTruncated,
     isDirty: globalAgentsDirty,
+    copy: {
+      loading: t("settings.common.loading"),
+      saving: t("settings.common.saving"),
+      notFound: t("settings.editor.notFound"),
+      truncated: t("settings.editor.truncated"),
+      save: t("settings.common.save"),
+      create: t("settings.common.create"),
+    },
   });
 
   const globalConfigEditorMeta = buildEditorContentMeta({
@@ -142,36 +186,54 @@ export const useSettingsCodexSection = ({
     exists: globalConfigExists,
     truncated: globalConfigTruncated,
     isDirty: globalConfigDirty,
+    copy: {
+      loading: t("settings.common.loading"),
+      saving: t("settings.common.saving"),
+      notFound: t("settings.editor.notFound"),
+      truncated: t("settings.editor.truncated"),
+      save: t("settings.common.save"),
+      create: t("settings.common.create"),
+    },
   });
-
-  useEffect(() => {
-    setCodexPathDraft(appSettings.codexBin ?? "");
-  }, [appSettings.codexBin]);
 
   useEffect(() => {
     setCodexArgsDraft(appSettings.codexArgs ?? "");
   }, [appSettings.codexArgs]);
 
-  const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
-  const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
-  const codexDirty =
-    nextCodexBin !== (appSettings.codexBin ?? null) ||
-    nextCodexArgs !== (appSettings.codexArgs ?? null);
+  useEffect(() => {
+    setEnterpriseTenantDomainDraft(appSettings.enterpriseAi.tenantDomain ?? "");
+  }, [appSettings.enterpriseAi.tenantDomain]);
 
-  const handleBrowseCodex = async () => {
-    const selection = await open({ multiple: false, directory: false });
-    if (!selection || Array.isArray(selection)) {
-      return;
-    }
-    setCodexPathDraft(selection);
-  };
+  useEffect(() => {
+    let cancelled = false;
+    void isDeveloperModeEnabled()
+      .then((enabled) => {
+        if (!cancelled) {
+          setDeveloperModeEnabled(enabled);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDeveloperModeEnabled(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setDeveloperBaseUrlDraft(appSettings.managedRuntime.baseUrl ?? "");
+  }, [appSettings.managedRuntime.baseUrl]);
+
+  const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
+  const codexDirty = nextCodexArgs !== (appSettings.codexArgs ?? null);
 
   const handleSaveCodexSettings = async () => {
     setIsSavingSettings(true);
     try {
       await onUpdateAppSettings({
         ...appSettings,
-        codexBin: nextCodexBin,
         codexArgs: nextCodexArgs,
       });
     } finally {
@@ -182,14 +244,13 @@ export const useSettingsCodexSection = ({
   const handleRunDoctor = async () => {
     setDoctorState({ status: "running", result: null });
     try {
-      const result = await onRunDoctor(nextCodexBin, nextCodexArgs);
+      const result = await onRunDoctor(nextCodexArgs);
       setDoctorState({ status: "done", result });
     } catch (error) {
       setDoctorState({
         status: "done",
         result: {
           ok: false,
-          codexBin: nextCodexBin,
           version: null,
           appServerOk: false,
           details: error instanceof Error ? error.message : String(error),
@@ -216,13 +277,13 @@ export const useSettingsCodexSection = ({
             afterVersion: null,
             upgraded: false,
             output: null,
-            details: "Codex updates are not available in this build.",
+            details: t("settings.codex.updateUnavailable"),
           },
         });
         return;
       }
 
-      const result = await onRunCodexUpdate(nextCodexBin, nextCodexArgs);
+      const result = await onRunCodexUpdate();
       setCodexUpdateState({ status: "done", result });
     } catch (error) {
       setCodexUpdateState({
@@ -241,6 +302,112 @@ export const useSettingsCodexSection = ({
     }
   };
 
+  const handleEnterpriseAiLogin = async () => {
+    const tenantDomain = enterpriseTenantDomainDraft.trim();
+    const apiKey = enterpriseApiKeyDraft.trim();
+    if (!tenantDomain) {
+      setEnterpriseAiError(t("settings.codex.enterpriseTenantRequired"));
+      return;
+    }
+    if (!apiKey) {
+      setEnterpriseAiError(t("settings.codex.apiKeyRequired"));
+      return;
+    }
+    setEnterpriseAiSaving(true);
+    setEnterpriseAiError(null);
+    try {
+      const result = await enterpriseAiLogin(tenantDomain, apiKey);
+      setEnterpriseApiKeyDraft("");
+      setEnterpriseAiUsageSnapshot(result.usage);
+      await onUpdateAppSettings(result.settings);
+    } catch (error) {
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEnterpriseAiSaving(false);
+    }
+  };
+
+  const handleEnterpriseAiValidate = useCallback(async () => {
+    setEnterpriseAiLoading(true);
+    setEnterpriseAiError(null);
+    try {
+      const result = await enterpriseAiValidate();
+      setEnterpriseAiUsageSnapshot(result.usage);
+      await onUpdateAppSettings(result.settings);
+    } catch (error) {
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEnterpriseAiLoading(false);
+    }
+  }, [onUpdateAppSettings]);
+
+  const handleRefreshEnterpriseAiUsage = useCallback(async () => {
+    setEnterpriseAiLoading(true);
+    setEnterpriseAiError(null);
+    try {
+      setEnterpriseAiUsageSnapshot(await enterpriseAiUsage());
+    } catch (error) {
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEnterpriseAiLoading(false);
+    }
+  }, []);
+
+  const handleEnterpriseAiLogout = async () => {
+    setEnterpriseAiSaving(true);
+    setEnterpriseAiError(null);
+    try {
+      const settings = await enterpriseAiLogout();
+      setEnterpriseApiKeyDraft("");
+      setEnterpriseAiUsageSnapshot(null);
+      await onUpdateAppSettings(settings);
+    } catch (error) {
+      setEnterpriseAiError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEnterpriseAiSaving(false);
+    }
+  };
+
+  const handleSaveDeveloperRuntime = async () => {
+    const baseUrl = developerBaseUrlDraft.trim();
+    const apiKey = developerApiKeyDraft.trim();
+    if (!baseUrl) {
+      setDeveloperRuntimeError(t("settings.codex.developerBaseUrlRequired"));
+      return;
+    }
+    setDeveloperRuntimeSaving(true);
+    setDeveloperRuntimeError(null);
+    try {
+      if (apiKey) {
+        await setRuntimeApiKey(apiKey);
+      }
+      await onUpdateAppSettings({
+        ...appSettings,
+        managedRuntime: {
+          ...appSettings.managedRuntime,
+          enabled: true,
+          baseUrl,
+        },
+      });
+      setDeveloperApiKeyDraft("");
+    } catch (error) {
+      setDeveloperRuntimeError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeveloperRuntimeSaving(false);
+    }
+  };
+
+  const validateRef = useRef(handleEnterpriseAiValidate);
+  useEffect(() => {
+    validateRef.current = handleEnterpriseAiValidate;
+  });
+
+  useEffect(() => {
+    if (appSettings.enterpriseAi.tenantDomain) {
+      void validateRef.current();
+    }
+  }, [appSettings.enterpriseAi.tenantDomain]);
+
   return {
     appSettings,
     onUpdateAppSettings,
@@ -251,7 +418,6 @@ export const useSettingsCodexSection = ({
     onRefreshDefaultModels: () => {
       void refreshDefaultModels();
     },
-    codexPathDraft,
     codexArgsDraft,
     codexDirty,
     isSavingSettings,
@@ -271,11 +437,29 @@ export const useSettingsCodexSection = ({
     globalConfigRefreshDisabled: globalConfigEditorMeta.refreshDisabled,
     globalConfigSaveDisabled: globalConfigEditorMeta.saveDisabled,
     globalConfigSaveLabel: globalConfigEditorMeta.saveLabel,
-    onSetCodexPathDraft: setCodexPathDraft,
+    enterpriseTenantDomainDraft,
+    enterpriseApiKeyDraft,
+    enterpriseAiUsage: enterpriseAiUsageSnapshot,
+    enterpriseAiLoading,
+    enterpriseAiSaving,
+    enterpriseAiError,
+    developerModeEnabled,
+    developerBaseUrlDraft,
+    developerApiKeyDraft,
+    developerRuntimeSaving,
+    developerRuntimeError,
     onSetCodexArgsDraft: setCodexArgsDraft,
+    onSetEnterpriseTenantDomainDraft: setEnterpriseTenantDomainDraft,
+    onSetEnterpriseApiKeyDraft: setEnterpriseApiKeyDraft,
+    onSetDeveloperBaseUrlDraft: setDeveloperBaseUrlDraft,
+    onSetDeveloperApiKeyDraft: setDeveloperApiKeyDraft,
     onSetGlobalAgentsContent: setGlobalAgentsContent,
     onSetGlobalConfigContent: setGlobalConfigContent,
-    onBrowseCodex: handleBrowseCodex,
+    onEnterpriseAiLogin: handleEnterpriseAiLogin,
+    onEnterpriseAiValidate: handleEnterpriseAiValidate,
+    onEnterpriseAiLogout: handleEnterpriseAiLogout,
+    onRefreshEnterpriseAiUsage: handleRefreshEnterpriseAiUsage,
+    onSaveDeveloperRuntime: handleSaveDeveloperRuntime,
     onSaveCodexSettings: handleSaveCodexSettings,
     onRunDoctor: handleRunDoctor,
     onRunCodexUpdate: handleRunCodexUpdate,

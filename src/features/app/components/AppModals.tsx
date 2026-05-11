@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense } from "react";
 import type { ComponentType } from "react";
-import type { BranchInfo, WorkspaceInfo } from "../../../types";
+import type { BranchInfo, EnterpriseAiLoginResult, WorkspaceInfo } from "../../../types";
 import type { SettingsViewProps } from "../../settings/components/SettingsView";
 import { useRenameThreadPrompt } from "../../threads/hooks/useRenameThreadPrompt";
 import { useClonePrompt } from "../../workspaces/hooks/useClonePrompt";
@@ -42,6 +42,11 @@ const BranchSwitcherPrompt = lazy(() =>
 const InitGitRepoPrompt = lazy(() =>
   import("../../git/components/InitGitRepoPrompt").then((module) => ({
     default: module.InitGitRepoPrompt,
+  })),
+);
+const EnterpriseAiLoginModal = lazy(() =>
+  import("../../enterprise-ai/components/EnterpriseAiLoginModal").then((module) => ({
+    default: module.EnterpriseAiLoginModal,
   })),
 );
 
@@ -118,6 +123,10 @@ export type AppModalsProps = {
   onCloseSettings: () => void;
   SettingsViewComponent: ComponentType<SettingsViewProps>;
   settingsProps: Omit<SettingsViewProps, "initialSection" | "onClose">;
+  enterpriseAiLoginOpen?: boolean;
+  enterpriseAiLoginTenantDomain?: string | null;
+  onCloseEnterpriseAiLogin?: () => void;
+  onEnterpriseAiLoginSuccess?: (result: EnterpriseAiLoginResult) => void | Promise<void>;
 };
 
 export const AppModals = memo(function AppModals({
@@ -172,6 +181,10 @@ export const AppModals = memo(function AppModals({
   onCloseSettings,
   SettingsViewComponent,
   settingsProps,
+  enterpriseAiLoginOpen = false,
+  enterpriseAiLoginTenantDomain = null,
+  onCloseEnterpriseAiLogin,
+  onEnterpriseAiLoginSuccess,
 }: AppModalsProps) {
   const { branches: worktreeBranches } = useGitBranches({
     activeWorkspace: worktreePrompt?.workspace ?? null,
@@ -299,6 +312,15 @@ export const AppModals = memo(function AppModals({
             {...settingsProps}
             onClose={onCloseSettings}
             initialSection={settingsSection ?? undefined}
+          />
+        </Suspense>
+      )}
+      {enterpriseAiLoginOpen && onCloseEnterpriseAiLogin && onEnterpriseAiLoginSuccess && (
+        <Suspense fallback={null}>
+          <EnterpriseAiLoginModal
+            initialTenantDomain={enterpriseAiLoginTenantDomain}
+            onCancel={onCloseEnterpriseAiLogin}
+            onSuccess={onEnterpriseAiLoginSuccess}
           />
         </Suspense>
       )}

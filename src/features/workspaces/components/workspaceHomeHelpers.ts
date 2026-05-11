@@ -10,8 +10,10 @@ export const buildIconPath = (workspacePath: string) => {
   return `${workspacePath.replace(/[\\/]+$/, "")}${separator}icon.png`;
 };
 
-export const resolveModelLabel = (model: ModelOption | null) =>
-  model?.displayName?.trim() || model?.model?.trim() || "Default model";
+export const resolveModelLabel = (
+  model: ModelOption | null,
+  fallback = "Default model",
+) => model?.displayName?.trim() || model?.model?.trim() || fallback;
 
 export const buildLabelCounts = (instances: WorkspaceHomeRunInstance[]) => {
   const counts = new Map<string, number>();
@@ -24,6 +26,12 @@ export const buildLabelCounts = (instances: WorkspaceHomeRunInstance[]) => {
 export const buildModelSummary = (
   models: ModelOption[],
   modelSelections: Record<string, number>,
+  copy: {
+    defaultModel?: string;
+    selectModels?: string;
+    modelCount?: string;
+    runCount?: string;
+  } = {},
 ) => {
   const totalInstances = Object.values(modelSelections).reduce(
     (sum, count) => sum + count,
@@ -31,12 +39,12 @@ export const buildModelSummary = (
   );
   const selectedModels = models.filter((model) => modelSelections[model.id]);
   if (selectedModels.length === 0) {
-    return "Select models";
+    return copy.selectModels ?? "Select models";
   }
   if (selectedModels.length === 1) {
     const model = selectedModels[0];
     const count = modelSelections[model.id] ?? 1;
-    return `${resolveModelLabel(model)} · ${count}x`;
+    return `${resolveModelLabel(model, copy.defaultModel ?? "Default model")} · ${count}x`;
   }
-  return `${selectedModels.length} models · ${totalInstances} runs`;
+  return `${selectedModels.length} ${copy.modelCount ?? "models"} · ${totalInstances} ${copy.runCount ?? "runs"}`;
 };

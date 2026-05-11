@@ -70,6 +70,32 @@ describe("threadReducer", () => {
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.name).toBe("Assistant note");
   });
 
+  it("stores completion timestamps on assistant messages", () => {
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [] },
+      },
+      {
+        type: "completeAgentMessage",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        text: "Done",
+        timestamp: 1234,
+        hasCustomName: false,
+      },
+    );
+
+    expect(next.itemsByThread["thread-1"]?.[0]).toMatchObject({
+      id: "assistant-1",
+      kind: "message",
+      role: "assistant",
+      text: "Done",
+      createdAt: 1234,
+    });
+  });
+
   it("updates thread timestamp when newer activity arrives", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1000 },

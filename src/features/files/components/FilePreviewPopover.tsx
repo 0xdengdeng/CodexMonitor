@@ -5,6 +5,7 @@ import { highlightLine, languageFromPath } from "../../../utils/syntax";
 import { OpenAppMenu } from "../../app/components/OpenAppMenu";
 import { PopoverSurface } from "../../design-system/components/popover/PopoverPrimitives";
 import type { OpenAppTarget } from "../../../types";
+import { useI18n } from "@/features/i18n/i18n";
 
 type FilePreviewPopoverProps = {
   path: string;
@@ -57,6 +58,7 @@ export function FilePreviewPopover({
   isLoading = false,
   error = null,
 }: FilePreviewPopoverProps) {
+  const { t } = useI18n();
   const isImagePreview = previewKind === "image";
   const lines = useMemo(
     () => (isImagePreview ? [] : content.split("\n")),
@@ -64,10 +66,13 @@ export function FilePreviewPopover({
   );
   const language = useMemo(() => languageFromPath(path), [path]);
   const selectionLabel = selection
-    ? `Lines ${selection.start + 1}-${selection.end + 1}`
+    ? t("files.preview.lines", {
+        start: selection.start + 1,
+        end: selection.end + 1,
+      })
     : isImagePreview
-      ? "Image preview"
-      : "No selection";
+      ? t("files.preview.image")
+      : t("files.preview.noSelection");
   const highlightedLines = useMemo(
     () =>
       isImagePreview
@@ -85,21 +90,21 @@ export function FilePreviewPopover({
         <div className="file-preview-title">
           <span className="file-preview-path">{path}</span>
           {truncated && (
-            <span className="file-preview-warning">Truncated</span>
+            <span className="file-preview-warning">{t("files.preview.truncated")}</span>
           )}
         </div>
         <button
           type="button"
           className="icon-button file-preview-close"
           onClick={onClose}
-          aria-label="Close preview"
-          title="Close preview"
+          aria-label={t("files.preview.close")}
+          title={t("files.preview.close")}
         >
           <X size={14} aria-hidden />
         </button>
       </div>
       {isLoading ? (
-        <div className="file-preview-status">Loading file...</div>
+        <div className="file-preview-status">{t("files.preview.loading")}</div>
       ) : error ? (
         <div className="file-preview-status file-preview-error">{error}</div>
       ) : isImagePreview ? (
@@ -122,7 +127,7 @@ export function FilePreviewPopover({
             </div>
           ) : (
             <div className="file-preview-status file-preview-error">
-              Image preview unavailable.
+              {t("files.preview.imageUnavailable")}
             </div>
           )}
         </div>
@@ -132,7 +137,7 @@ export function FilePreviewPopover({
             <div className="file-preview-selection-group">
               <span className="file-preview-selection">{selectionLabel}</span>
               {selectionHints.length > 0 ? (
-                <div className="file-preview-hints" aria-label="Selection hints">
+                <div className="file-preview-hints" aria-label={t("files.preview.selectionHints")}>
                   {selectionHints.map((hint) => (
                     <span key={hint} className="file-preview-hint">
                       {hint}
@@ -155,7 +160,7 @@ export function FilePreviewPopover({
                 onClick={onClearSelection}
                 disabled={!selection}
               >
-                Clear
+                {t("common.clear")}
               </button>
               <button
                 type="button"
@@ -163,7 +168,7 @@ export function FilePreviewPopover({
                 onClick={onAddSelection}
                 disabled={!selection || !canInsertText}
               >
-                Add to chat
+                {t("files.preview.addToChat")}
               </button>
             </div>
           </div>

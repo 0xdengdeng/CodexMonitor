@@ -1,5 +1,6 @@
 import { formatRelativeTime } from "../../../utils/time";
 import type { LatestAgentRun } from "../homeTypes";
+import { useI18n } from "@/features/i18n/i18n";
 
 type HomeLatestAgentsSectionProps = {
   isLoadingLatestAgents: boolean;
@@ -12,10 +13,12 @@ export function HomeLatestAgentsSection({
   latestAgentRuns,
   onSelectThread,
 }: HomeLatestAgentsSectionProps) {
+  const { t, language } = useI18n();
+
   return (
     <div className="home-latest">
       <div className="home-latest-header">
-        <div className="home-latest-label">Latest agents</div>
+        <div className="home-latest-label">{t("home.latest.title")}</div>
       </div>
       {latestAgentRuns.length > 0 ? (
         <div className="home-latest-grid">
@@ -34,20 +37,20 @@ export function HomeLatestAgentsSection({
                   )}
                 </div>
                 <div className="home-latest-time">
-                  {formatRelativeTime(run.timestamp)}
+                  {formatRelativeTime(run.timestamp, language)}
                 </div>
               </div>
               <div className="home-latest-message">
-                {run.message.trim() || "Agent replied."}
+                {run.message.trim() || t("home.latest.agentReplied")}
               </div>
               {run.isProcessing && (
-                <div className="home-latest-status">Running</div>
+                <div className="home-latest-status">{t("home.latest.running")}</div>
               )}
             </button>
           ))}
         </div>
       ) : isLoadingLatestAgents ? (
-        <div className="home-latest-grid home-latest-grid-loading" aria-label="Loading agents">
+        <div className="home-latest-grid home-latest-grid-loading" aria-label={t("home.latest.loading")}>
           {Array.from({ length: 3 }).map((_, index) => (
             <div className="home-latest-card home-latest-card-skeleton" key={index}>
               <div className="home-latest-card-header">
@@ -61,9 +64,9 @@ export function HomeLatestAgentsSection({
         </div>
       ) : (
         <div className="home-latest-empty">
-          <div className="home-latest-empty-title">No agent activity yet</div>
+          <div className="home-latest-empty-title">{t("home.latest.emptyTitle")}</div>
           <div className="home-latest-empty-subtitle">
-            Start a thread to see the latest responses here.
+            {t("home.latest.emptySubtitle")}
           </div>
         </div>
       )}

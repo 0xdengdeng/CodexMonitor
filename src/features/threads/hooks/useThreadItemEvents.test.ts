@@ -89,7 +89,10 @@ describe("useThreadItemEvents", () => {
       type: "upsertItem",
       workspaceId: "ws-1",
       threadId: "thread-1",
-      item: convertedItem,
+      item: {
+        ...convertedItem,
+        createdAt: expect.any(Number),
+      },
       hasCustomName: true,
     });
     expect(safeMessageActivity).toHaveBeenCalled();
@@ -114,7 +117,10 @@ describe("useThreadItemEvents", () => {
       type: "upsertItem",
       workspaceId: "ws-1",
       threadId: "thread-1",
-      item: convertedItem,
+      item: {
+        ...convertedItem,
+        createdAt: expect.any(Number),
+      },
       hasCustomName: false,
     });
     expect(safeMessageActivity).toHaveBeenCalled();
@@ -267,6 +273,7 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
       itemId: "assistant-1",
       text: "Done",
+      timestamp: 1234,
       hasCustomName: false,
     });
     expect(dispatch).toHaveBeenCalledWith({

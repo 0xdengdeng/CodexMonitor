@@ -1,4 +1,5 @@
 import type { MutableRefObject } from "react";
+import { FEATURE_VISIBILITY } from "@/features/app/config/featureVisibility";
 import { useTauriEvent } from "./useTauriEvent";
 import {
   subscribeMenuAddWorkspace,
@@ -67,6 +68,9 @@ export function useAppMenuEvents({
   });
 
   useTauriEvent(subscribeMenuNewWorktreeAgent, () => {
+    if (!FEATURE_VISIBILITY.worktreeAgentMenu) {
+      return;
+    }
     const workspace = baseWorkspaceRef.current;
     if (workspace) {
       onAddWorktreeAgent(workspace);
@@ -74,6 +78,9 @@ export function useAppMenuEvents({
   });
 
   useTauriEvent(subscribeMenuNewCloneAgent, () => {
+    if (!FEATURE_VISIBILITY.worktreeAgentMenu) {
+      return;
+    }
     const workspace = baseWorkspaceRef.current;
     if (workspace) {
       onAddCloneAgent(workspace);

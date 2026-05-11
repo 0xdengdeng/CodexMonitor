@@ -6,6 +6,7 @@ import type {
   ReviewTarget,
   WorkspaceInfo,
 } from "@/types";
+import { useI18n } from "@/features/i18n/i18n";
 import { getGitLog, listGitBranches } from "@services/tauri";
 
 export type ReviewPromptStep = "preset" | "baseBranch" | "commit" | "custom";
@@ -119,6 +120,7 @@ export function useReviewPrompt({
   onDebug,
   startReviewTarget,
 }: UseReviewPromptOptions): UseReviewPromptResult {
+  const { t } = useI18n();
   const [reviewPrompt, setReviewPrompt] = useState<ReviewPromptState>(null);
   const [highlightedPresetIndex, setHighlightedPresetIndex] = useState(0);
   const [highlightedBranchIndex, setHighlightedBranchIndex] = useState(0);
@@ -369,12 +371,12 @@ export function useReviewPrompt({
     const branch = reviewPrompt.selectedBranch.trim();
     if (!branch) {
       setReviewPrompt((prev) =>
-        prev ? { ...prev, error: "Choose a base branch." } : prev,
+        prev ? { ...prev, error: t("reviewInline.error.chooseBaseBranch") } : prev,
       );
       return;
     }
     await runReviewTarget({ type: "baseBranch", branch });
-  }, [reviewPrompt, runReviewTarget]);
+  }, [reviewPrompt, runReviewTarget, t]);
 
   const selectCommit = useCallback((sha: string, title: string) => {
     setReviewPrompt((prev) => {
@@ -422,7 +424,7 @@ export function useReviewPrompt({
     const sha = reviewPrompt.selectedCommitSha.trim();
     if (!sha) {
       setReviewPrompt((prev) =>
-        prev ? { ...prev, error: "Choose a commit to review." } : prev,
+        prev ? { ...prev, error: t("reviewInline.error.chooseCommit") } : prev,
       );
       return;
     }
@@ -432,7 +434,7 @@ export function useReviewPrompt({
       sha,
       ...(title ? { title } : {}),
     });
-  }, [reviewPrompt, runReviewTarget]);
+  }, [reviewPrompt, runReviewTarget, t]);
 
   const updateCustomInstructions = useCallback((value: string) => {
     setReviewPrompt((prev) =>
@@ -447,12 +449,12 @@ export function useReviewPrompt({
     const instructions = reviewPrompt.customInstructions.trim();
     if (!instructions) {
       setReviewPrompt((prev) =>
-        prev ? { ...prev, error: "Enter custom review instructions." } : prev,
+        prev ? { ...prev, error: t("reviewInline.error.enterCustomInstructions") } : prev,
       );
       return;
     }
     await runReviewTarget({ type: "custom", instructions });
-  }, [reviewPrompt, runReviewTarget]);
+  }, [reviewPrompt, runReviewTarget, t]);
 
   const handleReviewPromptKeyDown = useCallback(
     (event: { key: string; shiftKey?: boolean; preventDefault: () => void }) => {

@@ -1,6 +1,6 @@
 import type { ConversationItem } from "../types";
 import { parseCollabToolCallItem } from "./threadItems.collab";
-import { asNumber, asString } from "./threadItems.shared";
+import { asNumber, asString, normalizeThreadTimestamp } from "./threadItems.shared";
 
 function extractImageInputValue(input: Record<string, unknown>) {
   const value =
@@ -41,6 +41,34 @@ function parseUserInputs(inputs: Array<Record<string, unknown>>) {
   return { text: textParts.join(" ").trim(), images };
 }
 
+function getMessageCreatedAt(
+  item: Record<string, unknown>,
+  fallbackCreatedAt?: number,
+) {
+  const raw =
+    item.createdAt ??
+    item.created_at ??
+    item.timestamp ??
+    item.time ??
+    item.completedAt ??
+    item.completed_at;
+  const timestamp = normalizeThreadTimestamp(raw);
+  return timestamp > 0 ? timestamp : fallbackCreatedAt;
+}
+
+function getTurnCreatedAt(turn: Record<string, unknown>) {
+  const raw =
+    turn.startedAt ??
+    turn.started_at ??
+    turn.startTime ??
+    turn.start_time ??
+    turn.createdAt ??
+    turn.created_at ??
+    turn.timestamp;
+  const timestamp = normalizeThreadTimestamp(raw);
+  return timestamp > 0 ? timestamp : undefined;
+}
+
 export function buildConversationItem(
   item: Record<string, unknown>,
 ): ConversationItem | null {
@@ -60,6 +88,7 @@ export function buildConversationItem(
       kind: "message",
       role: "user",
       text,
+      createdAt: getMessageCreatedAt(item),
       images: images.length > 0 ? images : undefined,
     };
   }
@@ -208,6 +237,7 @@ export function buildConversationItem(
 
 export function buildConversationItemFromThreadItem(
   item: Record<string, unknown>,
+  fallbackCreatedAt?: number,
 ): ConversationItem | null {
   const type = asString(item.type);
   const id = asString(item.id);
@@ -222,6 +252,7 @@ export function buildConversationItemFromThreadItem(
       kind: "message",
       role: "user",
       text,
+      createdAt: getMessageCreatedAt(item, fallbackCreatedAt),
       images: images.length > 0 ? images : undefined,
     };
   }
@@ -231,6 +262,7 @@ export function buildConversationItemFromThreadItem(
       kind: "message",
       role: "assistant",
       text: asString(item.text),
+      createdAt: getMessageCreatedAt(item, fallbackCreatedAt),
     };
   }
   if (type === "reasoning") {
@@ -250,11 +282,12 @@ export function buildItemsFromThread(thread: Record<string, unknown>) {
   const items: ConversationItem[] = [];
   turns.forEach((turn) => {
     const turnRecord = turn as Record<string, unknown>;
+    const turnCreatedAt = getTurnCreatedAt(turnRecord);
     const turnItems = Array.isArray(turnRecord.items)
       ? (turnRecord.items as Record<string, unknown>[])
       : [];
     turnItems.forEach((item) => {
-      const converted = buildConversationItemFromThreadItem(item);
+      const converted = buildConversationItemFromThreadItem(item, turnCreatedAt);
       if (converted) {
         items.push(converted);
       }

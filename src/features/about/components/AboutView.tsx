@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useI18n } from "@/features/i18n/i18n";
 
-const GITHUB_URL = "https://github.com/Dimillian/CodexMonitor";
+const GITHUB_URL = "https://github.com/0xdengdeng/CodexMonitor";
 const TWITTER_URL = "https://x.com/dimillian";
 
 export function AboutView() {
+  const { t } = useI18n();
   const [version, setVersion] = useState<string | null>(null);
 
   const handleOpenGitHub = () => {
@@ -44,15 +46,17 @@ export function AboutView() {
           <img
             className="about-icon"
             src="/app-icon.png"
-            alt="Codex Monitor icon"
+            alt={t("about.iconAlt")}
           />
-          <div className="about-title">Codex Monitor</div>
+          <div className="about-title">{t("app.name")}</div>
         </div>
         <div className="about-version">
-          {version ? `Version ${version}` : "Version —"}
+          {version
+            ? t("about.version", { version })
+            : t("about.versionMissing")}
         </div>
         <div className="about-tagline">
-          Monitor the situation of your Codex agents
+          {t("about.tagline")}
         </div>
         <div className="about-divider" />
         <div className="about-links">
@@ -72,7 +76,7 @@ export function AboutView() {
             Twitter
           </button>
         </div>
-        <div className="about-footer">Made with ♥ by Codex & Dimillian</div>
+        <div className="about-footer">{t("about.footer")}</div>
       </div>
     </div>
   );

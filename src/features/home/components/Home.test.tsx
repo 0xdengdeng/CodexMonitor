@@ -23,6 +23,7 @@ const baseProps = {
   usageWorkspaceOptions: [],
   onUsageWorkspaceChange: vi.fn(),
   accountRateLimits: null,
+  enterpriseAiUsage: null,
   usageShowRemaining: false,
   accountInfo: null,
   onSelectThread: vi.fn(),
@@ -68,7 +69,7 @@ describe("Home", () => {
 
     expect(screen.getByText("No agent activity yet")).toBeTruthy();
     expect(
-      screen.getByText("Start a thread to see the latest responses here."),
+      screen.getByText("Use a project and start a task. The agent's progress will appear here."),
     ).toBeTruthy();
   });
 

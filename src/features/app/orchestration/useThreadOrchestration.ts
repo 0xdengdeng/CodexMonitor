@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import { pushErrorToast } from "@/services/toasts";
 import type {
   AccessMode,
@@ -286,6 +287,7 @@ export function useThreadSelectionHandlersOrchestration({
   setSelectedCodexArgsOverride,
   persistThreadCodexParams,
 }: UseThreadSelectionHandlersOrchestrationParams) {
+  const { t } = useI18n();
   const handleSelectModel = useCallback(
     (id: string | null) => {
       setSelectedModelId(id);
@@ -368,14 +370,14 @@ export function useThreadSelectionHandlersOrchestration({
       const next = normalizeCodexArgsInput(value);
       if (next && getIgnoredCodexArgsFlagsMetadata(next).hasIgnoredFlags) {
         pushErrorToast({
-          title: "Some codex args are ignored",
-          message: "Selected flags are ignored for per-thread overrides.",
+          title: t("thread.codexArgsIgnoredTitle"),
+          message: t("thread.codexArgsIgnoredMessage"),
         });
       }
       setSelectedCodexArgsOverride?.(next);
       persistThreadCodexParams({ codexArgsOverride: next });
     },
-    [persistThreadCodexParams, setSelectedCodexArgsOverride],
+    [persistThreadCodexParams, setSelectedCodexArgsOverride, t],
   );
 
   return {

@@ -103,6 +103,7 @@ export type ConversationItem =
       kind: "message";
       role: "user" | "assistant";
       text: string;
+      createdAt?: number;
       images?: string[];
     }
   | {
@@ -205,7 +206,39 @@ export type RemoteBackendTarget = {
   token: string | null;
   lastConnectedAtMs?: number | null;
 };
+export type ManagedRuntimeConfig = {
+  enabled: boolean;
+  baseUrl: string | null;
+  model: string | null;
+};
+export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
+export type EnterpriseAiConfig = {
+  tenantDomain: string | null;
+  status: EnterpriseAiStatus;
+  accountName: string | null;
+  keyLast4: string | null;
+  lastValidatedAtMs: number | null;
+  lastError: string | null;
+};
+export type RuntimeApiKeyStatus = {
+  hasApiKey: boolean;
+};
+export type EnterpriseAiLoginResult = {
+  settings: AppSettings;
+  usage: EnterpriseAiUsageSnapshot | null;
+};
+export type EnterpriseAiUsageSnapshot = {
+  tenantDomain: string | null;
+  accountName: string | null;
+  updatedAtMs: number;
+  requests7d: number | null;
+  tokens7d: number | null;
+  balance: number | null;
+  creditedTotal: number | null;
+  usageSpentTotal: number | null;
+};
 export type ThemePreference = "system" | "light" | "dark" | "dim";
+export type InterfaceLanguagePreference = "system" | "en" | "zh-CN";
 export type PersonalityPreference = "friendly" | "pragmatic";
 export type FollowUpMessageBehavior = "queue" | "steer";
 export type ComposerSendIntent = "default" | "queue" | "steer";
@@ -236,7 +269,6 @@ export type OpenAppTarget = {
 };
 
 export type AppSettings = {
-  codexBin: string | null;
   codexArgs: string | null;
   backendMode: BackendMode;
   remoteBackendProvider: RemoteBackendProvider;
@@ -244,6 +276,8 @@ export type AppSettings = {
   remoteBackendToken: string | null;
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
+  managedRuntime: ManagedRuntimeConfig;
+  enterpriseAi: EnterpriseAiConfig;
   keepDaemonRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;
   reviewDeliveryMode: "inline" | "detached";
@@ -269,6 +303,7 @@ export type AppSettings = {
   lastComposerReasoningEffort: string | null;
   uiScale: number;
   theme: ThemePreference;
+  interfaceLanguage: InterfaceLanguagePreference;
   usageShowRemaining: boolean;
   showMessageFilePath: boolean;
   chatHistoryScrollbackItems: number | null;
@@ -293,10 +328,6 @@ export type AppSettings = {
   unifiedExecEnabled: boolean;
   experimentalAppsEnabled: boolean;
   personality: PersonalityPreference;
-  dictationEnabled: boolean;
-  dictationModelId: string;
-  dictationPreferredLanguage: string | null;
-  dictationHoldKey: string | null;
   composerEditorPreset: ComposerEditorPreset;
   composerFenceExpandOnSpace: boolean;
   composerFenceExpandOnEnter: boolean;
@@ -361,7 +392,6 @@ export type TailscaleDaemonCommandPreview = {
 
 export type CodexDoctorResult = {
   ok: boolean;
-  codexBin: string | null;
   version: string | null;
   appServerOk: boolean;
   details: string | null;
@@ -371,7 +401,7 @@ export type CodexDoctorResult = {
   nodeDetails: string | null;
 };
 
-export type CodexUpdateMethod = "brew_formula" | "brew_cask" | "npm" | "unknown";
+export type CodexUpdateMethod = "bundled" | "brew_formula" | "brew_cask" | "npm" | "unknown";
 
 export type CodexUpdateResult = {
   ok: boolean;
@@ -681,31 +711,3 @@ export type DebugEntry = {
 
 export type TerminalStatus = "idle" | "connecting" | "ready" | "error";
 
-export type DictationModelState = "missing" | "downloading" | "ready" | "error";
-
-export type DictationDownloadProgress = {
-  totalBytes?: number | null;
-  downloadedBytes: number;
-};
-
-export type DictationModelStatus = {
-  state: DictationModelState;
-  modelId: string;
-  progress?: DictationDownloadProgress | null;
-  error?: string | null;
-  path?: string | null;
-};
-
-export type DictationSessionState = "idle" | "listening" | "processing";
-
-export type DictationEvent =
-  | { type: "state"; state: DictationSessionState }
-  | { type: "level"; value: number }
-  | { type: "transcript"; text: string }
-  | { type: "error"; message: string }
-  | { type: "canceled"; message: string };
-
-export type DictationTranscript = {
-  id: string;
-  text: string;
-};

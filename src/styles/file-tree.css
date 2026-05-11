@@ -368,7 +368,7 @@
 }
 
 .file-preview-line:not(.is-selected):hover {
-  background: color-mix(in srgb, var(--surface-active) 45%, transparent);
+  background: color-mix(in srgb, var(--surface-active) 45%, var(--surface-card));
   transform: none;
   box-shadow: none;
 }
@@ -382,7 +382,7 @@
 }
 
 .file-preview-line.is-selected {
-  background: color-mix(in srgb, var(--surface-active) 65%, transparent);
+  background: color-mix(in srgb, var(--surface-active) 65%, var(--surface-card));
   border-color: transparent;
   box-shadow: inset 3px 0 0 var(--border-accent);
 }

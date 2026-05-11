@@ -7,6 +7,8 @@ mod codex_args;
 mod codex_config;
 #[path = "../codex/home.rs"]
 mod codex_home;
+#[path = "../codex/runtime.rs"]
+mod codex_runtime;
 #[path = "../files/io.rs"]
 mod file_io;
 #[path = "../files/ops.rs"]
@@ -80,6 +82,7 @@ use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
 use shared::codex_core::CodexLoginCancelState;
 use shared::process_core::kill_child_process_tree;
 use shared::prompts_core::{self, CustomPromptEntry};
+use shared::settings_core::sync_managed_runtime_config_from_settings;
 use shared::{
     agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
     local_usage_core, settings_core, workspaces_core, worktree_core,
@@ -88,30 +91,41 @@ use storage::{read_settings, read_workspaces};
 use types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
-    WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+    RuntimeApiKeyStatus, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
 };
 use workspace_settings::apply_workspace_settings_update;
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:4732";
 const MAX_IN_FLIGHT_RPC_PER_CONNECTION: usize = 32;
-const DAEMON_NAME: &str = "codex-monitor-daemon";
+const DAEMON_NAME: &str = "agentdesk-daemon";
 
 fn spawn_with_client(
     event_sink: DaemonEventSink,
     client_version: String,
+    app_settings: &Mutex<AppSettings>,
     entry: WorkspaceEntry,
-    default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
-) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(
-        entry,
-        default_bin,
-        codex_args,
-        codex_home,
-        client_version,
-        event_sink,
-    )
+) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> + '_ {
+    async move {
+        let codex_bin = codex_runtime::resolve_codex_runtime_from_current_exe()?;
+        let runtime_env = {
+            let settings = app_settings.lock().await;
+            shared::runtime_config_core::build_managed_runtime_env_from_store(
+                &settings.managed_runtime,
+            )?
+        };
+        spawn_workspace_session(
+            entry,
+            codex_bin,
+            codex_args,
+            codex_home,
+            runtime_env,
+            client_version,
+            event_sink,
+        )
+        .await
+    }
 }
 
 #[derive(Clone)]
@@ -168,10 +182,21 @@ struct WorkspaceFileResponse {
 
 impl DaemonState {
     fn load(config: &DaemonConfig, event_sink: DaemonEventSink) -> Self {
+        if let Err(err) = codex_home::configure_managed_codex_home(&config.data_dir) {
+            eprintln!("daemon: failed to configure AgentDesk Codex home: {err}");
+        }
+        if let Err(err) =
+            shared::runtime_secret_core::configure_runtime_secret_store(&config.data_dir)
+        {
+            eprintln!("daemon: failed to configure AgentDesk runtime secret store: {err}");
+        }
         let storage_path = config.data_dir.join("workspaces.json");
         let settings_path = config.data_dir.join("settings.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
+        if let Err(err) = sync_managed_runtime_config_from_settings(&app_settings) {
+            eprintln!("daemon: failed to sync agentDesk runtime config: {err}");
+        }
         let daemon_binary_path = std::env::current_exe()
             .ok()
             .and_then(|path| path.to_str().map(str::to_string));
@@ -259,12 +284,12 @@ impl DaemonState {
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -289,12 +314,12 @@ impl DaemonState {
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -337,12 +362,12 @@ impl DaemonState {
             |root, args| {
                 workspaces_core::run_git_command_unit(root, args, git_core::run_git_command_owned)
             },
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -438,12 +463,12 @@ impl DaemonState {
             |root, args| {
                 workspaces_core::run_git_command_unit(root, args, git_core::run_git_command_owned)
             },
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -511,12 +536,12 @@ impl DaemonState {
             |workspaces, workspace_id, next_settings| {
                 apply_workspace_settings_update(workspaces, workspace_id, next_settings)
             },
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -539,12 +564,12 @@ impl DaemonState {
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -565,12 +590,12 @@ impl DaemonState {
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
-            move |entry, default_bin, next_args, codex_home| {
+            move |entry, next_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     next_args,
                     codex_home,
                 )
@@ -586,6 +611,22 @@ impl DaemonState {
     async fn update_app_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
         settings_core::update_app_settings_core(settings, &self.app_settings, &self.settings_path)
             .await
+    }
+
+    async fn runtime_api_key_status(&self) -> Result<RuntimeApiKeyStatus, String> {
+        Ok(RuntimeApiKeyStatus {
+            has_api_key: shared::runtime_secret_core::runtime_api_key_exists()?,
+        })
+    }
+
+    async fn runtime_api_key_set(&self, api_key: String) -> Result<RuntimeApiKeyStatus, String> {
+        shared::runtime_secret_core::set_runtime_api_key(&api_key)?;
+        Ok(RuntimeApiKeyStatus { has_api_key: true })
+    }
+
+    async fn runtime_api_key_clear(&self) -> Result<RuntimeApiKeyStatus, String> {
+        shared::runtime_secret_core::clear_runtime_api_key()?;
+        Ok(RuntimeApiKeyStatus { has_api_key: false })
     }
 
     async fn set_codex_feature_flag(
@@ -692,11 +733,7 @@ impl DaemonState {
         codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
-    async fn read_thread(
-        &self,
-        workspace_id: String,
-        thread_id: String,
-    ) -> Result<Value, String> {
+    async fn read_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
         codex_core::read_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
@@ -765,8 +802,7 @@ impl DaemonState {
         limit: Option<u32>,
         sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
-            .await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(
@@ -966,12 +1002,12 @@ impl DaemonState {
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
-            |entry, default_bin, codex_args, codex_home| {
+            |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
+                    &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -1260,9 +1296,9 @@ impl DaemonState {
 
     async fn codex_doctor(
         &self,
-        codex_bin: Option<String>,
         codex_args: Option<String>,
     ) -> Result<Value, String> {
+        let codex_bin = codex_runtime::resolve_codex_runtime_from_current_exe()?;
         codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
     }
 
@@ -1486,20 +1522,20 @@ fn default_data_dir() -> PathBuf {
     if let Ok(xdg) = env::var("XDG_DATA_HOME") {
         let trimmed = xdg.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed).join("codex-monitor-daemon");
+            return PathBuf::from(trimmed).join("agentdesk-daemon");
         }
     }
     let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home)
         .join(".local")
         .join("share")
-        .join("codex-monitor-daemon")
+        .join("agentdesk-daemon")
 }
 
 fn usage() -> String {
     format!(
         "\
-USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
+USAGE:\n  agentdesk-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
 OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  -h, --help               Show this help\n"
     )
 }
@@ -1508,7 +1544,8 @@ fn parse_args() -> Result<DaemonConfig, String> {
     let mut listen = DEFAULT_LISTEN_ADDR
         .parse::<SocketAddr>()
         .map_err(|err| err.to_string())?;
-    let mut token = env::var("CODEX_MONITOR_DAEMON_TOKEN")
+    let mut token = env::var("AGENTDESK_DAEMON_TOKEN")
+        .or_else(|_| env::var("CODEX_MONITOR_DAEMON_TOKEN"))
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
@@ -1552,7 +1589,7 @@ fn parse_args() -> Result<DaemonConfig, String> {
 
     if token.is_none() && !insecure_no_auth {
         return Err(
-            "Missing --token (or set CODEX_MONITOR_DAEMON_TOKEN). Use --insecure-no-auth for local dev only."
+            "Missing --token (or set AGENTDESK_DAEMON_TOKEN). Use --insecure-no-auth for local dev only."
                 .to_string(),
         );
     }
@@ -1614,7 +1651,7 @@ mod tests {
             app_settings: Mutex::new(AppSettings::default()),
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
-            daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
+            daemon_binary_path: Some("/tmp/agentdesk-daemon".to_string()),
         }
     }
 
@@ -1940,7 +1977,7 @@ fn main() {
             }
         };
         eprintln!(
-            "codex-monitor-daemon listening on {} (data dir: {})",
+            "agentdesk-daemon listening on {} (data dir: {})",
             config.listen,
             state
                 .storage_path

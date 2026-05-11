@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import type {
   AppMention,
   ComposerSendIntent,
@@ -77,6 +78,7 @@ export function usePullRequestComposer({
   clearActiveImages,
   handleSend,
 }: UsePullRequestComposerOptions) {
+  const { t } = useI18n();
   const isPullRequestComposer = useMemo(
     () =>
       Boolean(selectedPullRequest) &&
@@ -191,7 +193,10 @@ export function usePullRequestComposer({
       return pullRequestReviewActions.map((action) => ({
         id: action.id,
         label: action.label,
-        title: `${action.label} for PR #${selectedPullRequest.number}`,
+        title: t("git.prReview.actionTitle", {
+          action: action.label,
+          number: selectedPullRequest.number,
+        }),
         disabled: pullRequestReviewLaunching,
         onSelect: async () => {
           const reviewThreadId = await runPullRequestReview({
@@ -214,8 +219,8 @@ export function usePullRequestComposer({
       return [
         {
           id: "commit-review",
-          label: "Review Commit",
-          title: `Review commit ${shortSha}`,
+          label: t("git.composer.reviewCommit"),
+          title: t("git.composer.reviewCommitTitle", { sha: shortSha }),
           onSelect: async () => {
             await startReview(reviewCommand);
           },
@@ -235,9 +240,10 @@ export function usePullRequestComposer({
     selectedCommit,
     selectedPullRequest,
     startReview,
+    t,
   ]);
 
-  const composerSendLabel = isPullRequestComposer ? "Ask PR" : undefined;
+  const composerSendLabel = isPullRequestComposer ? t("git.composer.askPr") : undefined;
   const handleComposerSend = isPullRequestComposer
     ? handleSendPullRequestQuestion
     : handleSend;

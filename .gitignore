@@ -12,6 +12,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.env.ota
 src-tauri/tauri.ios.local.conf.json
 .testflight.local.env
 

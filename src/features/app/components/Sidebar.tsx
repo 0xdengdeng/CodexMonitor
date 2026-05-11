@@ -39,6 +39,7 @@ import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
+import { useI18n } from "@/features/i18n/i18n";
 
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
 const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
@@ -69,14 +70,8 @@ function getThreadBucketId(timestamp: number, nowMs: number): ThreadBucket["id"]
 function groupFlatThreadRowsByTimeBucket(
   groups: FlatThreadRootGroup[],
   nowMs: number,
+  bucketLabels: Record<ThreadBucket["id"], string>,
 ): ThreadBucket[] {
-  const bucketLabels: Record<ThreadBucket["id"], string> = {
-    now: "Now",
-    today: "Earlier today",
-    yesterday: "Yesterday",
-    week: "This week",
-    older: "Older",
-  };
   const order: ThreadBucket["id"][] = ["now", "today", "yesterday", "week", "older"];
   const bucketMap = new Map<ThreadBucket["id"], FlatThreadRow[]>();
 
@@ -121,16 +116,21 @@ type SidebarProps = {
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
+  enterpriseAi: {
+    tenantDomain: string | null;
+    status: "disconnected" | "connected" | "invalid";
+    accountName: string | null;
+  };
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
   accountSwitching: boolean;
   onOpenSettings: () => void;
+  onOpenEnterpriseAiSettings: () => void;
   onOpenDebug: () => void;
   showDebugButton: boolean;
   onAddWorkspace: () => void;
   onSelectHome: () => void;
   onSelectWorkspace: (id: string) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onAddAgent: (workspace: WorkspaceInfo) => void;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => void;
   onAddCloneAgent: (workspace: WorkspaceInfo) => void;
@@ -181,17 +181,14 @@ export const Sidebar = memo(function Sidebar({
   userInputRequests = [],
   accountRateLimits,
   usageShowRemaining,
-  accountInfo,
-  onSwitchAccount,
-  onCancelSwitchAccount,
-  accountSwitching,
+  enterpriseAi,
   onOpenSettings,
+  onOpenEnterpriseAiSettings,
   onOpenDebug,
   showDebugButton,
   onAddWorkspace,
   onSelectHome,
   onSelectWorkspace,
-  onConnectWorkspace,
   onAddAgent,
   onAddWorktreeAgent,
   onAddCloneAgent,
@@ -217,6 +214,7 @@ export const Sidebar = memo(function Sidebar({
   onWorkspaceDragLeave,
   onWorkspaceDrop,
 }: SidebarProps) {
+  const { t, language } = useI18n();
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
   );
@@ -260,7 +258,13 @@ export const Sidebar = memo(function Sidebar({
     weeklyResetLabel,
     creditsLabel,
     showWeekly,
-  } = getUsageLabels(accountRateLimits, usageShowRemaining);
+  } = getUsageLabels(accountRateLimits, usageShowRemaining, {
+    availableCredits: t("sidebar.usage.availableCredits"),
+    remaining: t("sidebar.usage.remaining"),
+    resets: t("sidebar.usage.resets"),
+    unlimited: t("home.usage.card.unlimited"),
+    used: t("sidebar.usage.used"),
+  }, language);
   const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
   const isSearchActive = Boolean(normalizedQuery);
@@ -354,16 +358,9 @@ export const Sidebar = memo(function Sidebar({
     [normalizedQuery],
   );
 
-  const accountEmail = accountInfo?.email?.trim() ?? "";
-  const accountButtonLabel = accountEmail
-    ? accountEmail
-    : accountInfo?.type === "apikey"
-      ? "API key"
-      : "Sign in to Codex";
-  const accountActionLabel = accountEmail ? "Switch account" : "Sign in";
-  const showAccountSwitcher = Boolean(activeWorkspaceId);
-  const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
-  const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
+  const enterpriseSignedIn = enterpriseAi.status === "connected";
+  const enterpriseAccountLabel =
+    enterpriseAi.accountName?.trim() || enterpriseAi.tenantDomain?.trim() || null;
   const refreshDisabled = workspaces.length === 0 || workspaces.every((workspace) => !workspace.connected);
   const refreshInProgress = workspaces.some(
     (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false,
@@ -674,8 +671,15 @@ export const Sidebar = memo(function Sidebar({
     [flatThreadRootGroups],
   );
   const threadBuckets = useMemo(
-    () => groupFlatThreadRowsByTimeBucket(flatThreadRootGroups, Date.now()),
-    [flatThreadRootGroups],
+    () =>
+      groupFlatThreadRowsByTimeBucket(flatThreadRootGroups, Date.now(), {
+        now: t("sidebar.bucket.now"),
+        today: t("sidebar.bucket.today"),
+        yesterday: t("sidebar.bucket.yesterday"),
+        week: t("sidebar.bucket.week"),
+        older: t("sidebar.bucket.older"),
+      }),
+    [flatThreadRootGroups, t],
   );
 
   const scrollFadeDeps = useMemo(
@@ -825,9 +829,9 @@ export const Sidebar = memo(function Sidebar({
   const getThreadTime = useCallback(
     (thread: ThreadSummary) => {
       const timestamp = thread.updatedAt ?? null;
-      return timestamp ? formatRelativeTimeShort(timestamp) : null;
+      return timestamp ? formatRelativeTimeShort(timestamp, language) : null;
     },
-    [],
+    [language],
   );
   const pinnedRootCount = useMemo(() => countRootRows(pinnedThreadRows), [pinnedThreadRows]);
 
@@ -900,10 +904,10 @@ export const Sidebar = memo(function Sidebar({
       >
         <div
           className={`workspace-drop-overlay-text${
-            workspaceDropText === "Adding Project..." ? " is-busy" : ""
+            workspaceDropText === t("sidebar.drop.addingProject") ? " is-busy" : ""
           }`}
         >
-          {workspaceDropText === "Drop Project Here" && (
+          {workspaceDropText === t("sidebar.drop.dropProjectHere") && (
             <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
           )}
           {workspaceDropText}
@@ -920,7 +924,9 @@ export const Sidebar = memo(function Sidebar({
           {pinnedThreadRows.length > 0 && (
             <div className="pinned-section">
               <div className="sidebar-section-header">
-                <div className="sidebar-section-title">Pinned conversations</div>
+                <div className="sidebar-section-title">
+                  {t("sidebar.conversations.pinned")}
+                </div>
                 <div className="sidebar-section-count">{pinnedRootCount}</div>
               </div>
               <PinnedThreadList
@@ -997,7 +1003,6 @@ export const Sidebar = memo(function Sidebar({
                   newAgentDraftWorkspaceId={newAgentDraftWorkspaceId}
                   startingDraftThreadWorkspaceId={startingDraftThreadWorkspaceId}
                   onSelectWorkspace={onSelectWorkspace}
-                  onConnectWorkspace={onConnectWorkspace}
                   onAddAgent={onAddAgent}
                   onAddWorktreeAgent={onAddWorktreeAgent}
                   onAddCloneAgent={onAddCloneAgent}
@@ -1015,15 +1020,15 @@ export const Sidebar = memo(function Sidebar({
           {!groupedWorkspacesForRender.length && (
             <div className="empty">
               {isSearchActive
-                ? "No conversations match your search."
-                : "Add a workspace to start."}
+                ? t("sidebar.conversations.noSearchMatches")
+                : t("sidebar.conversations.addWorkspace")}
             </div>
           )}
           {isThreadsOnlyMode &&
             groupedWorkspacesForRender.length > 0 &&
             flatThreadRows.length === 0 &&
             pinnedThreadRows.length === 0 && (
-              <div className="empty">No conversations yet.</div>
+              <div className="empty">{t("sidebar.conversations.empty")}</div>
             )}
         </div>
       </div>
@@ -1037,14 +1042,9 @@ export const Sidebar = memo(function Sidebar({
         onOpenSettings={onOpenSettings}
         onOpenDebug={onOpenDebug}
         showDebugButton={showDebugButton}
-        showAccountSwitcher={showAccountSwitcher}
-        accountLabel={accountButtonLabel}
-        accountActionLabel={accountActionLabel}
-        accountDisabled={accountSwitchDisabled}
-        accountSwitching={accountSwitching}
-        accountCancelDisabled={accountCancelDisabled}
-        onSwitchAccount={onSwitchAccount}
-        onCancelSwitchAccount={onCancelSwitchAccount}
+        accountSignedIn={enterpriseSignedIn}
+        accountLabel={enterpriseAccountLabel}
+        onOpenEnterpriseAiSettings={onOpenEnterpriseAiSettings}
       />
     </aside>
   );

@@ -16,6 +16,7 @@ import {
   resizeTerminalSession,
   writeTerminalSession,
 } from "../../../services/tauri";
+import { useI18n } from "@/features/i18n/i18n";
 
 const MAX_BUFFER_CHARS = 200_000;
 
@@ -119,6 +120,7 @@ export function useTerminalSession({
   onDebug,
   onSessionExit,
 }: UseTerminalSessionOptions): TerminalSessionState {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -131,25 +133,28 @@ export function useTerminalSession({
   const activeTerminalIdRef = useRef<string | null>(null);
   const pendingFocusRef = useRef(false);
   const [status, setStatus] = useState<TerminalStatus>("idle");
-  const [message, setMessage] = useState("Open a terminal to start a session.");
+  const [message, setMessage] = useState(t("terminal.openPrompt"));
   const [hasSession, setHasSession] = useState(false);
   const [readyKey, setReadyKey] = useState<string | null>(null);
   const [sessionResetCounter, setSessionResetCounter] = useState(0);
-  const cleanupTerminalSession = useCallback((workspaceId: string, terminalId: string) => {
-    const key = `${workspaceId}:${terminalId}`;
-    outputBuffersRef.current.delete(key);
-    openedSessionsRef.current.delete(key);
-    if (readyKey === key) {
-      setReadyKey(null);
-    }
-    setSessionResetCounter((prev) => prev + 1);
-    if (activeKeyRef.current === key) {
-      terminalRef.current?.reset();
-      setHasSession(false);
-      setStatus("idle");
-      setMessage("Open a terminal to start a session.");
-    }
-  }, [readyKey]);
+  const cleanupTerminalSession = useCallback(
+    (workspaceId: string, terminalId: string) => {
+      const key = `${workspaceId}:${terminalId}`;
+      outputBuffersRef.current.delete(key);
+      openedSessionsRef.current.delete(key);
+      if (readyKey === key) {
+        setReadyKey(null);
+      }
+      setSessionResetCounter((prev) => prev + 1);
+      if (activeKeyRef.current === key) {
+        terminalRef.current?.reset();
+        setHasSession(false);
+        setStatus("idle");
+        setMessage(t("terminal.openPrompt"));
+      }
+    },
+    [readyKey, t],
+  );
 
   const activeKey = useMemo(() => {
     if (!activeWorkspace || !activeTerminalId) {
@@ -312,14 +317,14 @@ export function useTerminalSession({
     }
     if (!activeWorkspace || !activeTerminalId) {
       setStatus("idle");
-      setMessage("Open a terminal to start a session.");
+      setMessage(t("terminal.openPrompt"));
       setHasSession(false);
       setReadyKey(null);
       return;
     }
     if (!terminalRef.current || !fitAddonRef.current) {
       setStatus("idle");
-      setMessage("Preparing terminal...");
+      setMessage(t("terminal.preparing"));
       setHasSession(false);
       setReadyKey(null);
       return;
@@ -332,13 +337,13 @@ export function useTerminalSession({
     const rows = terminalRef.current.rows;
     const openSession = async () => {
       setStatus("connecting");
-      setMessage("Starting terminal session...");
+      setMessage(t("terminal.starting"));
       if (!openedSessionsRef.current.has(key)) {
         await openTerminalSession(activeWorkspace.id, activeTerminalId, cols, rows);
         openedSessionsRef.current.add(key);
       }
       setStatus("ready");
-      setMessage("Terminal ready.");
+      setMessage(t("terminal.ready"));
       setHasSession(true);
       setReadyKey(key);
       if (renderedKeyRef.current !== key) {
@@ -351,7 +356,7 @@ export function useTerminalSession({
 
     openSession().catch((error) => {
       setStatus("error");
-      setMessage("Failed to start terminal session.");
+      setMessage(t("terminal.startFailed"));
       onDebug?.(buildErrorDebugEntry("terminal open error", error));
     });
   }, [
@@ -362,6 +367,7 @@ export function useTerminalSession({
     refreshTerminal,
     syncActiveBuffer,
     sessionResetCounter,
+    t,
   ]);
 
   useEffect(() => {

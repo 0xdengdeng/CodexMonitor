@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 
 import type { WorkspaceInfo } from "../../../types";
+import { useI18n } from "@/features/i18n/i18n";
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
@@ -13,7 +14,6 @@ type WorkspaceCardProps = {
   onSelectWorkspace: (id: string) => void;
   onShowWorkspaceMenu: (event: MouseEvent, workspaceId: string) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
-  onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onToggleAddMenu: (anchor: {
     workspaceId: string;
     top: number;
@@ -34,11 +34,12 @@ export function WorkspaceCard({
   onSelectWorkspace,
   onShowWorkspaceMenu,
   onToggleWorkspaceCollapse,
-  onConnectWorkspace,
   onToggleAddMenu,
   children,
 }: WorkspaceCardProps) {
+  const { t } = useI18n();
   const contentCollapsedClass = isCollapsed ? " collapsed" : "";
+  const summaryId = summary ? `${workspace.id}-workspace-summary` : undefined;
 
   return (
     <div className="workspace-card">
@@ -54,6 +55,7 @@ export function WorkspaceCard({
             onSelectWorkspace(workspace.id);
           }
         }}
+        aria-describedby={summaryId}
       >
         <div className="workspace-copy">
           <div className="workspace-name-row">
@@ -66,14 +68,23 @@ export function WorkspaceCard({
                   onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
                 }}
                 data-tauri-drag-region="false"
-                aria-label={isCollapsed ? "Show agents" : "Hide agents"}
+                aria-label={
+                  isCollapsed ? t("sidebar.workspace.showAgents") : t("sidebar.workspace.hideAgents")
+                }
                 aria-expanded={!isCollapsed}
+                type="button"
               >
                 <span className="workspace-toggle-icon">›</span>
               </button>
             </div>
           </div>
-          {summary && <div className="workspace-summary">{summary}</div>}
+          {summary && (
+            <div className="workspace-meta">
+              <div className="workspace-summary workspace-meta-summary" id={summaryId}>
+                {summary}
+              </div>
+            </div>
+          )}
         </div>
         <div className="workspace-actions">
           <button
@@ -98,23 +109,13 @@ export function WorkspaceCard({
               );
             }}
             data-tauri-drag-region="false"
-            aria-label="Add agent options"
+            aria-label={t("sidebar.workspace.addAgentOptions")}
             aria-expanded={addMenuOpen}
+            type="button"
           >
-            +
+            <span aria-hidden>+</span>
+            <span>{t("sidebar.workspace.addAgent")}</span>
           </button>
-          {!workspace.connected && (
-            <span
-              className="connect"
-              title="Connect workspace context to the shared Codex server"
-              onClick={(event) => {
-                event.stopPropagation();
-                onConnectWorkspace(workspace);
-              }}
-            >
-              connect
-            </span>
-          )}
         </div>
       </div>
       <div

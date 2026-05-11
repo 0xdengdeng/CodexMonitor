@@ -12,7 +12,6 @@ import type {
   ComposerSendIntent,
   ComposerEditorSettings,
   CustomPromptOption,
-  DictationTranscript,
   FollowUpMessageBehavior,
   QueuedMessage,
   ServiceTier,
@@ -44,6 +43,7 @@ import { ComposerMetaBar } from "./ComposerMetaBar";
 import { ComposerQueue } from "./ComposerQueue";
 import { isMacPlatform } from "../../../utils/platformPaths";
 import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
+import { useI18n } from "@/features/i18n/i18n";
 
 type ComposerProps = {
   onSend: (
@@ -101,18 +101,6 @@ type ComposerProps = {
   editorSettings?: ComposerEditorSettings;
   editorExpanded?: boolean;
   onToggleEditorExpanded?: () => void;
-  dictationEnabled?: boolean;
-  dictationState?: "idle" | "listening" | "processing";
-  dictationLevel?: number;
-  onToggleDictation?: () => void;
-  onCancelDictation?: () => void;
-  onOpenDictationSettings?: () => void;
-  dictationTranscript?: DictationTranscript | null;
-  onDictationTranscriptHandled?: (id: string) => void;
-  dictationError?: string | null;
-  onDismissDictationError?: () => void;
-  dictationHint?: string | null;
-  onDismissDictationHint?: () => void;
   reviewPrompt?: ReviewPromptState;
   onReviewPromptClose?: () => void;
   onReviewPromptShowPreset?: () => void;
@@ -210,18 +198,6 @@ export const Composer = memo(function Composer({
   editorSettings: editorSettingsProp,
   editorExpanded = false,
   onToggleEditorExpanded,
-  dictationEnabled = false,
-  dictationState = "idle",
-  dictationLevel = 0,
-  onToggleDictation,
-  onCancelDictation,
-  onOpenDictationSettings,
-  dictationTranscript = null,
-  onDictationTranscriptHandled,
-  dictationError = null,
-  onDismissDictationError,
-  dictationHint = null,
-  onDismissDictationHint,
   reviewPrompt,
   onReviewPromptClose,
   onReviewPromptShowPreset,
@@ -244,13 +220,13 @@ export const Composer = memo(function Composer({
   onFileAutocompleteActiveChange,
   contextActions = [],
 }: ComposerProps) {
+  const { t } = useI18n();
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
   const editorSettings = editorSettingsProp ?? DEFAULT_EDITOR_SETTINGS;
-  const isDictationBusy = dictationState !== "idle";
   const canSend = text.trim().length > 0 || attachedImages.length > 0;
   const isMac = isMacPlatform();
   const followUpShortcutLabel = isMac ? "Shift+Cmd+Enter" : "Shift+Ctrl+Enter";
@@ -268,9 +244,11 @@ export const Composer = memo(function Composer({
     : "default";
   const effectiveSendLabel = isProcessing
     ? effectiveFollowUpBehavior === "steer"
-      ? "Steer"
-      : "Queue"
-    : sendLabel;
+      ? t("settings.composer.steer")
+      : t("settings.composer.queue")
+    : sendLabel === "Send"
+      ? t("composer.send")
+      : sendLabel;
   const {
     expandFenceOnSpace,
     expandFenceOnEnter,
@@ -427,17 +405,11 @@ export const Composer = memo(function Composer({
     onPrefillHandled,
     insertText,
     onInsertHandled,
-    dictationTranscript,
-    onDictationTranscriptHandled,
-    textareaRef,
-    selectionStart,
     syncDraftText,
-    text,
     setComposerText,
     setAppMentionBindings,
     bindingsFromMentions,
     resetHistoryNavigation,
-    handleSelectionChange,
   });
 
   const applyTextInsertion = useCallback(
@@ -562,7 +534,6 @@ export const Composer = memo(function Composer({
     handleHistoryKeyDown,
     handleInputKeyDown,
     handleSend,
-    isDictationBusy,
     isMac,
     onReviewPromptKeyDown,
     oppositeSubmitIntent,
@@ -584,25 +555,30 @@ export const Composer = memo(function Composer({
       />
       {isProcessing && composerFollowUpHintEnabled && (
         <div className="composer-followup-hint" role="status" aria-live="polite">
-          <div className="composer-followup-title">Follow-up behavior</div>
+          <div className="composer-followup-title">{t("composer.followUpTitle")}</div>
           <div className="composer-followup-copy">
             {oppositeFallsBackToQueue ? (
-              <>
-                Default: Queue (Steer unavailable). Both Enter and {followUpShortcutLabel} will
-                queue this message.
-              </>
+              t("composer.followUpQueueUnavailable", {
+                shortcut: followUpShortcutLabel,
+              })
             ) : (
-              <>
-                Default: {effectiveFollowUpBehavior === "steer" ? "Steer" : "Queue"}. Press{" "}
-                {followUpShortcutLabel} to{" "}
-                {oppositeFollowUpIntent === "steer" ? "steer" : "queue"} this message.
-              </>
+              t("composer.followUpDefault", {
+                behavior:
+                  effectiveFollowUpBehavior === "steer"
+                    ? t("settings.composer.steer")
+                    : t("settings.composer.queue"),
+                shortcut: followUpShortcutLabel,
+                intent:
+                  oppositeFollowUpIntent === "steer"
+                    ? t("settings.composer.steer")
+                    : t("settings.composer.queue"),
+              })
             )}
           </div>
         </div>
       )}
       {contextActions.length > 0 ? (
-        <div className="composer-context-actions" role="toolbar" aria-label="Review tools">
+        <div className="composer-context-actions" role="toolbar" aria-label={t("composer.reviewTools")}>
           {contextActions.map((action) => (
             <button
               key={action.id}
@@ -628,16 +604,6 @@ export const Composer = memo(function Composer({
         isProcessing={isProcessing}
         onStop={onStop}
         onSend={() => handleSend(defaultSubmitIntent)}
-        dictationEnabled={dictationEnabled}
-        dictationState={dictationState}
-        dictationLevel={dictationLevel}
-        onToggleDictation={onToggleDictation}
-        onCancelDictation={onCancelDictation}
-        onOpenDictationSettings={onOpenDictationSettings}
-        dictationError={dictationError}
-        onDismissDictationError={onDismissDictationError}
-        dictationHint={dictationHint}
-        onDismissDictationHint={onDismissDictationHint}
         attachments={attachedImages}
         onAddAttachment={onPickImages}
         onAttachImages={onAttachImages}

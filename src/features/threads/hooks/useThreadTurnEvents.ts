@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
+import { useI18n } from "@/features/i18n/i18n";
 import type { RateLimitSnapshot, TurnPlan } from "@/types";
 import { interruptTurn as interruptTurnService } from "@services/tauri";
 import { getThreadTimestamp } from "@utils/threadItems";
@@ -56,6 +57,7 @@ export function useThreadTurnEvents({
   safeMessageActivity,
   recordThreadActivity,
 }: UseThreadTurnEventsOptions) {
+  const { t } = useI18n();
   const immediateActiveTurnIdByThreadRef = useRef<Record<string, string | null>>({});
   const lastReducerActiveTurnIdByThreadRef = useRef<Record<string, string | null>>({});
   const hasOptimisticActiveTurnByThreadRef = useRef<Record<string, boolean>>({});
@@ -435,8 +437,8 @@ export function useThreadTurnEvents({
       );
       setActiveTurnId(threadId, null);
       const message = payload.message
-        ? `Turn failed: ${payload.message}`
-        : "Turn failed.";
+        ? t("threadMessaging.turnFailedWithReason", { reason: payload.message })
+        : t("threadMessaging.turnFailed");
       pushThreadErrorMessage(threadId, message);
       safeMessageActivity();
     },
@@ -448,6 +450,7 @@ export function useThreadTurnEvents({
       pushThreadErrorMessage,
       safeMessageActivity,
       setActiveTurnId,
+      t,
     ],
   );
 

@@ -46,6 +46,14 @@ import {
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
   createAgent,
+  clearRuntimeApiKey,
+  enterpriseAiLogin,
+  enterpriseAiLogout,
+  enterpriseAiUsage,
+  enterpriseAiValidate,
+  isDeveloperModeEnabled,
+  getRuntimeApiKeyStatus,
+  setRuntimeApiKey,
   updateAgent,
   deleteAgent,
   readAgentConfigToml,
@@ -490,6 +498,41 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_start");
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_stop");
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_status");
+  });
+
+  it("invokes runtime api key wrappers", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({ hasApiKey: true });
+
+    await getRuntimeApiKeyStatus();
+    await setRuntimeApiKey("sk-test");
+    await clearRuntimeApiKey();
+    await isDeveloperModeEnabled();
+
+    expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_status");
+    expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_set", {
+      apiKey: "sk-test",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("runtime_api_key_clear");
+    expect(invokeMock).toHaveBeenCalledWith("is_developer_mode_enabled");
+  });
+
+  it("invokes enterprise ai wrappers", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({});
+
+    await enterpriseAiLogin("acme", "sk-test");
+    await enterpriseAiValidate();
+    await enterpriseAiUsage();
+    await enterpriseAiLogout();
+
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_login", {
+      tenantDomain: "acme",
+      apiKey: "sk-test",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_validate");
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_usage");
+    expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_logout");
   });
 
   it("reads agent.md for a workspace", async () => {

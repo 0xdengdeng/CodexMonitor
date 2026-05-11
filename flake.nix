@@ -1,5 +1,5 @@
 {
-  description = "CodexMonitor Tauri app for orchestrating Codex agents";
+  description = "AgentDesk Tauri app for orchestrating AI development agents";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -24,7 +24,7 @@
         ];
 
         frontend = pkgs.buildNpmPackage {
-          pname = "codex-monitor-frontend";
+          pname = "agentdesk-frontend";
           version = packageJson.version;
           src = ./.;
           nodejs = pkgs.nodejs_20;
@@ -44,7 +44,7 @@
         };
 
         appPackage = pkgs.rustPlatform.buildRustPackage {
-          pname = "codex-monitor";
+          pname = "agentdesk";
           version = packageJson.version;
           src = ./src-tauri;
 
@@ -86,7 +86,7 @@
           installPhase = ''
             mkdir -p $out/bin
             target_dir="target/${pkgs.stdenv.hostPlatform.rust.rustcTarget}"
-            cp "$target_dir/release/codex-monitor" $out/bin/
+            cp "$target_dir/release/agentdesk" $out/bin/
           '';
         };
       in
