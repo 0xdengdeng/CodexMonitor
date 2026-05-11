@@ -276,7 +276,6 @@ describe("useAppSettings", () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
     const response: CodexDoctorResult = {
       ok: true,
-      codexBin: "/bin/codex",
       version: "1.0.0",
       appServerOk: true,
       details: null,

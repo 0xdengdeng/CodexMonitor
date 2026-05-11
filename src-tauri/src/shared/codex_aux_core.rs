@@ -378,7 +378,6 @@ pub(crate) async fn codex_doctor_core(
     };
     Ok(json!({
         "ok": version.is_some() && app_server_ok,
-        "codexBin": resolved,
         "version": version,
         "appServerOk": app_server_ok,
         "details": details,

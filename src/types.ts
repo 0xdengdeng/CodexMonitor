@@ -396,7 +396,6 @@ export type TailscaleDaemonCommandPreview = {
 
 export type CodexDoctorResult = {
   ok: boolean;
-  codexBin: string | null;
   version: string | null;
   appServerOk: boolean;
   details: string | null;

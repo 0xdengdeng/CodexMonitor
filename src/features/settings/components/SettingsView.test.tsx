@@ -190,7 +190,6 @@ const baseSettings: AppSettings = {
 
 const createDoctorResult = () => ({
   ok: true,
-  codexBin: null,
   version: null,
   appServerOk: true,
   details: null,

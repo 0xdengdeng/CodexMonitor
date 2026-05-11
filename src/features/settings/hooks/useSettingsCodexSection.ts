@@ -251,7 +251,6 @@ export const useSettingsCodexSection = ({
         status: "done",
         result: {
           ok: false,
-          codexBin: null,
           version: null,
           appServerOk: false,
           details: error instanceof Error ? error.message : String(error),
