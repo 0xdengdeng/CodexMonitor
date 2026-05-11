@@ -236,6 +236,21 @@ export const FEATURE_VISIBILITY = {
 
 ---
 
+### Cut #5b 修补:把主题 + 语言切换补回 about section
+
+**起因**:Cut #1(Settings 13→4)砍 nav 时,product-cuts.md 写"主题切换从老 display 摘过来进 about",但**实际只改了 nav,没真把字段挪过去** — 用户报告"找不到主题切换"。
+
+**修复**:
+- `SettingsAboutSection` 接收新 prop `onUpdateAppSettings`
+- 在 about section 顶部加两个 `<select>`:主题(system/light/dark/dim)+ 界面语言(系统/中/英)
+- `useSettingsViewOrchestration.aboutSectionProps` 增加 `onUpdateAppSettings` 透传
+
+**未动**:
+- 老 `SettingsDisplaySection.tsx` 文件完整保留(里面还有 reduce transparency / notification sounds 等,以后如需也从那里摘)
+- 老 display section 的 hook / orchestration 数据没改
+
+**恢复或扩展**:再补 reduce transparency / 通知声音等 = 从 SettingsDisplaySection.tsx 摘对应 field 加进 about 即可。
+
 ### Cut #6:GitHub PR/Issues + Worktree-agent menu flag 隐藏(commit eee8416)
 
 **新增 flag**:

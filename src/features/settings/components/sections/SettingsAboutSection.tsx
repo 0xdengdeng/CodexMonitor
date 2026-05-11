@@ -15,6 +15,7 @@ import { useI18n } from "@/features/i18n/i18n";
 
 type SettingsAboutSectionProps = {
   appSettings: AppSettings;
+  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onToggleAutomaticAppUpdateChecks?: () => void;
 };
 
@@ -34,6 +35,7 @@ function formatBytes(value: number) {
 
 export function SettingsAboutSection({
   appSettings,
+  onUpdateAppSettings,
   onToggleAutomaticAppUpdateChecks,
 }: SettingsAboutSectionProps) {
   const { t } = useI18n();
@@ -93,6 +95,47 @@ export function SettingsAboutSection({
 
   return (
     <SettingsSection title={t("settings.about.title")} subtitle={t("settings.about.subtitle")}>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="theme-select">
+          {t("settings.display.theme")}
+        </label>
+        <select
+          id="theme-select"
+          className="settings-select"
+          value={appSettings.theme}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              theme: event.target.value as AppSettings["theme"],
+            })
+          }
+        >
+          <option value="system">{t("settings.display.theme.system")}</option>
+          <option value="light">{t("settings.display.theme.light")}</option>
+          <option value="dark">{t("settings.display.theme.dark")}</option>
+          <option value="dim">{t("settings.display.theme.dim")}</option>
+        </select>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="interface-language-select">
+          {t("settings.display.interfaceLanguage.label")}
+        </label>
+        <select
+          id="interface-language-select"
+          className="settings-select"
+          value={appSettings.interfaceLanguage}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              interfaceLanguage: event.target.value as AppSettings["interfaceLanguage"],
+            })
+          }
+        >
+          <option value="system">{t("settings.display.interfaceLanguage.system")}</option>
+          <option value="zh-Hans">{t("settings.display.interfaceLanguage.chinese")}</option>
+          <option value="en">{t("settings.display.interfaceLanguage.english")}</option>
+        </select>
+      </div>
       <div className="settings-field">
         <div className="settings-help">
           {t("settings.about.version", { value: __APP_VERSION__ })}

@@ -194,6 +194,7 @@ export function useSettingsViewOrchestration({
   return {
     aboutSectionProps: {
       appSettings,
+      onUpdateAppSettings,
       onToggleAutomaticAppUpdateChecks,
     },
     projectsSectionProps,
