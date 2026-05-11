@@ -44,7 +44,6 @@ fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, par
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
-    _default_codex_bin: Option<String>,
     codex_args: Option<String>,
     app_handle: AppHandle,
     codex_home: Option<PathBuf>,

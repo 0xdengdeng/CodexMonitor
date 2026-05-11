@@ -104,7 +104,6 @@ fn spawn_with_client(
     client_version: String,
     app_settings: &Mutex<AppSettings>,
     entry: WorkspaceEntry,
-    _default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> + '_ {
@@ -285,13 +284,12 @@ impl DaemonState {
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -316,13 +314,12 @@ impl DaemonState {
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -365,13 +362,12 @@ impl DaemonState {
             |root, args| {
                 workspaces_core::run_git_command_unit(root, args, git_core::run_git_command_owned)
             },
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -467,13 +463,12 @@ impl DaemonState {
             |root, args| {
                 workspaces_core::run_git_command_unit(root, args, git_core::run_git_command_owned)
             },
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -541,13 +536,12 @@ impl DaemonState {
             |workspaces, workspace_id, next_settings| {
                 apply_workspace_settings_update(workspaces, workspace_id, next_settings)
             },
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -570,13 +564,12 @@ impl DaemonState {
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
-            move |entry, default_bin, codex_args, codex_home| {
+            move |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )
@@ -597,13 +590,12 @@ impl DaemonState {
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
-            move |entry, default_bin, next_args, codex_home| {
+            move |entry, next_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     next_args,
                     codex_home,
                 )
@@ -1010,13 +1002,12 @@ impl DaemonState {
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
-            |entry, default_bin, codex_args, codex_home| {
+            |entry, codex_args, codex_home| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     &self.app_settings,
                     entry,
-                    default_bin,
                     codex_args,
                     codex_home,
                 )

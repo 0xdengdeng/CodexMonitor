@@ -29,7 +29,7 @@ pub(crate) async fn add_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<WorkspaceInfo, String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let normalized_path = normalize_workspace_path_input(&path);
@@ -58,16 +58,13 @@ where
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let codex_args = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
+            resolve_workspace_codex_args(&entry, None, Some(&settings))
         };
         let codex_home = resolve_workspace_codex_home(&entry, None);
         (
-            spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?,
+            spawn_session(entry.clone(), codex_args, codex_home).await?,
             true,
         )
     };
@@ -117,7 +114,7 @@ pub(crate) async fn add_clone_core<F, Fut>(
     spawn_session: F,
 ) -> Result<WorkspaceInfo, String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let copy_name = copy_name.trim().to_string();
@@ -209,15 +206,12 @@ where
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let codex_args = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
+            resolve_workspace_codex_args(&entry, None, Some(&settings))
         };
         let codex_home = resolve_workspace_codex_home(&entry, None);
-        match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
+        match spawn_session(entry.clone(), codex_args, codex_home).await {
             Ok(session) => (session, true),
             Err(error) => {
                 let _ = tokio::fs::remove_dir_all(&destination_path).await;
@@ -309,7 +303,7 @@ pub(crate) async fn add_workspace_from_git_url_core<F, Fut>(
     spawn_session: F,
 ) -> Result<WorkspaceInfo, String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let url = url.trim().to_string();
@@ -374,15 +368,12 @@ where
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let codex_args = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
+            resolve_workspace_codex_args(&entry, None, Some(&settings))
         };
         let codex_home = resolve_workspace_codex_home(&entry, None);
-        match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
+        match spawn_session(entry.clone(), codex_args, codex_home).await {
             Ok(session) => (session, true),
             Err(error) => {
                 let _ = tokio::fs::remove_dir_all(&clone_path).await;
@@ -554,7 +545,7 @@ where
         &str,
         WorkspaceSettings,
     ) -> Result<WorkspaceEntry, String>,
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);

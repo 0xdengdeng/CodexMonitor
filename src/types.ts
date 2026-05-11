@@ -269,7 +269,6 @@ export type OpenAppTarget = {
 };
 
 export type AppSettings = {
-  codexBin: string | null;
   codexArgs: string | null;
   backendMode: BackendMode;
   remoteBackendProvider: RemoteBackendProvider;

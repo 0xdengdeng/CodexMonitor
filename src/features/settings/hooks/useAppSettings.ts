@@ -174,7 +174,6 @@ function buildDefaultSettings(): AppSettings {
     lastConnectedAtMs: null,
   };
   return {
-    codexBin: null,
     codexArgs: null,
     backendMode: isMobile ? "remote" : "local",
     remoteBackendProvider: defaultRemote.provider,
@@ -297,7 +296,6 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     ...remoteBackendSettings,
-    codexBin: null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     managedRuntime: normalizeManagedRuntime(settings.managedRuntime),
     enterpriseAi: normalizeEnterpriseAi(settings.enterpriseAi),

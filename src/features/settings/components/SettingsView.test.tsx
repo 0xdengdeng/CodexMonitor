@@ -80,7 +80,6 @@ getAgentsSettingsMock.mockResolvedValue({
 });
 
 const baseSettings: AppSettings = {
-  codexBin: null,
   codexArgs: null,
   backendMode: "local",
   remoteBackendProvider: "tcp",
@@ -1234,7 +1233,7 @@ describe("SettingsView Codex section", () => {
         onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
         reduceTransparency={false}
         onToggleTransparency={vi.fn()}
-        appSettings={{ ...baseSettings, codexBin: "/usr/local/bin/codex" }}
+        appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}

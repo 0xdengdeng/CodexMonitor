@@ -291,14 +291,11 @@ pub(crate) async fn codex_doctor_core(
     codex_bin: Option<String>,
     codex_args: Option<String>,
 ) -> Result<Value, String> {
-    let (default_bin, default_args) = {
+    let default_args = {
         let settings = app_settings.lock().await;
-        (settings.codex_bin.clone(), settings.codex_args.clone())
+        settings.codex_args.clone()
     };
-    let resolved = codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or(default_bin);
+    let resolved = codex_bin.clone().filter(|value| !value.trim().is_empty());
     let resolved_args = codex_args
         .clone()
         .filter(|value| !value.trim().is_empty())

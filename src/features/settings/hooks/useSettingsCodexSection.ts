@@ -227,15 +227,13 @@ export const useSettingsCodexSection = ({
   }, [appSettings.managedRuntime.baseUrl]);
 
   const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
-  const codexDirty =
-    appSettings.codexBin !== null || nextCodexArgs !== (appSettings.codexArgs ?? null);
+  const codexDirty = nextCodexArgs !== (appSettings.codexArgs ?? null);
 
   const handleSaveCodexSettings = async () => {
     setIsSavingSettings(true);
     try {
       await onUpdateAppSettings({
         ...appSettings,
-        codexBin: null,
         codexArgs: nextCodexArgs,
       });
     } finally {

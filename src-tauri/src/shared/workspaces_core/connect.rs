@@ -59,7 +59,7 @@ pub(crate) async fn connect_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<(), String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
@@ -83,15 +83,12 @@ where
             .insert(entry.id.clone(), existing_session);
         return Ok(());
     }
-    let (default_bin, codex_args) = {
+    let codex_args = {
         let settings = app_settings.lock().await;
-        (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
-        )
+        resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings))
     };
     let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
+    let session = spawn_session(entry.clone(), codex_args, codex_home).await?;
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
@@ -201,7 +198,7 @@ mod tests {
                 &workspaces,
                 &sessions,
                 &app_settings,
-                move |_entry, _default_bin, _codex_args, _codex_home| {
+                move |_entry, _codex_args, _codex_home| {
                     let spawn_calls_ref = spawn_calls_ref.clone();
                     async move {
                         spawn_calls_ref.fetch_add(1, Ordering::SeqCst);
@@ -233,7 +230,7 @@ mod tests {
                 &workspaces,
                 &sessions,
                 &app_settings,
-                move |_entry, _default_bin, _codex_args, _codex_home| {
+                move |_entry, _codex_args, _codex_home| {
                     let spawn_calls_ref = spawn_calls_ref.clone();
                     let entry_for_spawn = entry_for_spawn.clone();
                     async move {
