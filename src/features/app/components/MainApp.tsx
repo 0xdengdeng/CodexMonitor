@@ -473,6 +473,7 @@ export default function MainApp() {
     startFast,
     startStatus,
     reviewPrompt,
+    openReviewPrompt,
     closeReviewPrompt,
     showPresetStep,
     choosePreset,
@@ -1621,6 +1622,7 @@ export default function MainApp() {
     activeThreadId,
     startNewAgentDraft,
     startCompact,
+    openReviewPrompt,
   });
   const layoutSurfaces = useMainAppLayoutSurfaces({
     appSettings: {

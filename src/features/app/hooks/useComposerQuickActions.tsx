@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import ListCollapse from "lucide-react/dist/esm/icons/list-collapse";
 import Plus from "lucide-react/dist/esm/icons/plus";
+import ScanSearch from "lucide-react/dist/esm/icons/scan-search";
 
 import { useI18n } from "@/features/i18n/i18n";
 import type { ComposerQuickAction } from "@/features/composer/components/Composer";
@@ -10,6 +11,7 @@ type UseComposerQuickActionsOptions = {
   activeThreadId: string | null;
   startNewAgentDraft: (workspaceId: string) => void;
   startCompact: (text: string) => void | Promise<void>;
+  openReviewPrompt: () => void;
 };
 
 export function useComposerQuickActions({
@@ -17,6 +19,7 @@ export function useComposerQuickActions({
   activeThreadId,
   startNewAgentDraft,
   startCompact,
+  openReviewPrompt,
 }: UseComposerQuickActionsOptions): ComposerQuickAction[] {
   const { t } = useI18n();
   return useMemo(() => {
@@ -40,6 +43,20 @@ export function useComposerQuickActions({
           void startCompact("");
         },
       },
+      {
+        id: "quick-review",
+        label: t("composer.quickAction.review"),
+        title: t("composer.quickAction.reviewTitle"),
+        icon: <ScanSearch size={12} />,
+        onSelect: () => openReviewPrompt(),
+      },
     ];
-  }, [activeThreadId, activeWorkspaceId, startCompact, startNewAgentDraft, t]);
+  }, [
+    activeThreadId,
+    activeWorkspaceId,
+    openReviewPrompt,
+    startCompact,
+    startNewAgentDraft,
+    t,
+  ]);
 }
