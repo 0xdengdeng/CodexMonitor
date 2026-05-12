@@ -45,15 +45,15 @@ describe("ComposerMetaBar", () => {
   it("shows context window usage as a meter with visible token counts", () => {
     renderMetaBar({
       total: {
+        ...emptyBreakdown,
+        totalTokens: 500_000,
+      },
+      last: {
         totalTokens: 42_800,
         inputTokens: 30_000,
         cachedInputTokens: 10_000,
         outputTokens: 2_000,
         reasoningOutputTokens: 800,
-      },
-      last: {
-        ...emptyBreakdown,
-        totalTokens: 1_200,
       },
       modelContextWindow: 128_000,
     });

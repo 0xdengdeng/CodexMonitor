@@ -104,8 +104,9 @@ export function ComposerMetaBar({
     "--composer-model-select-width": `${Math.max(selectedModelLabel.length + 2, 8)}ch`,
   } as CSSProperties;
   const contextWindow = contextUsage?.modelContextWindow ?? null;
-  const contextUsedTokens = contextUsage?.total.totalTokens ?? 0;
-  const contextLastTokens = contextUsage?.last.totalTokens ?? 0;
+  // Use `last.totalTokens` — current context window occupancy (resets after /compact).
+  // `total.totalTokens` is cumulative session spend and would never decrease.
+  const contextUsedTokens = contextUsage?.last.totalTokens ?? 0;
   const contextUsedPercent = hasPositiveValue(contextWindow)
     ? clampPercent((contextUsedTokens / contextWindow) * 100)
     : null;
@@ -130,11 +131,10 @@ export function ComposerMetaBar({
     ? t("composer.contextUsageDetails", {
         used: formatTokenCount(contextUsedTokens),
         window: formatTokenCount(contextWindow),
-        last: formatTokenCount(contextLastTokens),
-        input: formatTokenCount(contextUsage?.total.inputTokens),
-        cached: formatTokenCount(contextUsage?.total.cachedInputTokens),
-        output: formatTokenCount(contextUsage?.total.outputTokens),
-        reasoning: formatTokenCount(contextUsage?.total.reasoningOutputTokens),
+        input: formatTokenCount(contextUsage?.last.inputTokens),
+        cached: formatTokenCount(contextUsage?.last.cachedInputTokens),
+        output: formatTokenCount(contextUsage?.last.outputTokens),
+        reasoning: formatTokenCount(contextUsage?.last.reasoningOutputTokens),
       })
     : t("composer.contextUsageUnknownDetail");
   const planMode =
