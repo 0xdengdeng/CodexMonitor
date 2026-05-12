@@ -11,6 +11,7 @@ import type { useMainAppPromptActions } from "@app/hooks/useMainAppPromptActions
 import type { useMainAppSidebarMenuOrchestration } from "@app/hooks/useMainAppSidebarMenuOrchestration";
 import type { useMainAppWorktreeState } from "@app/hooks/useMainAppWorktreeState";
 import type { LayoutNodesOptions } from "@/features/layout/hooks/layoutNodes/types";
+import { buildShellSurface } from "@app/pages/shell/buildShellSurface";
 
 type SidebarProps = LayoutNodesOptions["primary"]["sidebarProps"];
 type ComposerProps = NonNullable<LayoutNodesOptions["primary"]["composerProps"]>;
@@ -218,7 +219,7 @@ type UseMainAppLayoutSurfacesArgs = {
   handleDebugClick: () => void;
 };
 
-type MainAppLayoutSurfacesContext = UseMainAppLayoutSurfacesArgs & {
+export type MainAppLayoutSurfacesContext = UseMainAppLayoutSurfacesArgs & {
   sidebarRateLimits: SidebarProps["accountRateLimits"];
   sidebarAccount: SidebarProps["accountInfo"];
   t: (key: string, values?: I18nValues) => string;
@@ -847,76 +848,6 @@ function buildGitSurface({
   };
 }
 
-function buildSecondarySurface({
-  activePlan,
-  composerWorkspaceState,
-  gitState,
-  terminalOpen,
-  debugOpen,
-  debugEntries,
-  terminalTabs,
-  activeTerminalId,
-  onSelectTerminal,
-  onNewTerminal,
-  onCloseTerminal,
-  terminalState,
-  onClearDebug,
-  onCopyDebug,
-  onResizeDebug,
-  onResizeTerminal,
-  isPhone,
-  setActiveTab,
-}: MainAppLayoutSurfacesContext): LayoutNodesOptions["secondary"] {
-  return {
-    planPanelProps: {
-      plan: activePlan,
-      isProcessing: composerWorkspaceState.isProcessing,
-    },
-    terminalDockProps: {
-      isOpen: terminalOpen,
-      terminals: terminalTabs,
-      activeTerminalId,
-      onSelectTerminal,
-      onNewTerminal,
-      onCloseTerminal,
-      onResizeStart: onResizeTerminal,
-    },
-    terminalState,
-    debugPanelProps: {
-      entries: debugEntries,
-      isOpen: debugOpen,
-      onClear: onClearDebug,
-      onCopy: onCopyDebug,
-      onResizeStart: onResizeDebug,
-    },
-    compactNavProps: {
-      onGoProjects: () => setActiveTab("projects"),
-      centerMode: gitState.centerMode,
-      selectedDiffPath: gitState.selectedDiffPath,
-      onBackFromDiff: () => {
-        gitState.setCenterMode("chat");
-      },
-      onShowSelectedDiff: () => {
-        const fallbackPath = gitState.selectedDiffPath ?? gitState.activeDiffs[0]?.path;
-
-        if (!fallbackPath) {
-          return;
-        }
-
-        if (!gitState.selectedDiffPath) {
-          gitState.setSelectedDiffPath(fallbackPath);
-        }
-
-        gitState.setCenterMode("diff");
-        if (isPhone) {
-          setActiveTab("git");
-        }
-      },
-      hasActiveGitDiffs: gitState.activeDiffs.length > 0,
-    },
-  };
-}
-
 export function useMainAppLayoutSurfaces({
   appSettings,
   workspaces,
@@ -1235,6 +1166,6 @@ export function useMainAppLayoutSurfaces({
   return {
     primary: buildPrimarySurface(context),
     git: buildGitSurface(context),
-    secondary: buildSecondarySurface(context),
+    secondary: buildShellSurface(context),
   };
 }
