@@ -93,7 +93,123 @@
 4. `useMainAppLayoutNodes(layoutSurfaces)` → ReactNode 三块（实际是节点 ~18 个）
 5. 拼装 `MainAppShellProps` → 渲染 `<MainAppShell {...props} />`
 
-> P4 会把第 2 步里"页面专属"的 hook 调用聚合成 `useCodexPageState / useGitPageState / useShellState` 放进 pages/ 下；MainApp 自身收缩到 ≤ ~300 行。
+### MainApp.tsx 顶层 hook 索引（按归属页面分类）
+
+> **目的**：想调"某页面的 X 行为"时，先查这个表定位到 hook 名 + MainApp.tsx 的行号，比通读 1940 行高效。
+> **维护**：搬动 hook 调用、增减 hook、改行号区段时同步本表。
+
+行号以 `MainApp.tsx` 当前提交为准（2026-05-12 P4 时校准）。
+
+#### 应用级 / 跨页（不归任何单页）
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useAppBootstrapOrchestration` | 100 | appSettings / doctor / codexUpdate / debug 基础态 |
+| `useLayoutController` | 246 | 视口尺寸 / 侧栏宽 / 折叠状态 / 隔行渲染开关 |
+| `useTauriEvent` | 1420 | 监听 Tauri OS 事件（深链接等） |
+| `useUpdaterController` | 544 | 自动更新（toast 状态 + 启动 / 关闭） |
+| `useMobileServerSetup` | 176 | 移动端连接向导 |
+| `useErrorToasts` | 274 | 错误 toast 全局状态 |
+| `useMainAppModals` | 948 | 应用级模态框（设置 / 添加 workspace / clone / 工作区分组等） |
+| `useMainAppSettingsActions` | 920 | 设置相关动作 |
+| `useAppShellOrchestration` | 1446 | shell 编排（centerMode / showHome / showGitDetail 等） |
+| `useMainAppShellProps` | 1867 | 最终壳层 props（含 layout 入参）|
+| `useMainAppDisplayNodes` | 1552 | 展示节点（含 workspaceHomeNode）|
+| `useMainAppLayoutSurfaces` | 1627 | 把所有状态聚合成 codex / git / shell 三个 surface |
+| `useMainAppLayoutNodes` | 1823 | surface → 实际 ReactNode |
+
+#### Workspace 管理（侧栏 / Home / 顶栏共用）
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useWorkspaceController` | 136 | workspaces CRUD（核心） |
+| `useWorkspaceSelection` | 889 | 选 workspace / 切换主页 |
+| `useWorkspaceOrderingOrchestration` | 914 | workspace 排序与分组操作 |
+| `useWorkspaceFromUrlPrompt` | 932 | 从 URL 添加 workspace |
+| `useMainAppWorkspaceLifecycle` | 1280 | workspace 加载 / 连接生命周期 |
+| `useMainAppWorkspaceActions` | 1297 | workspace 增删等用户动作 |
+| `useMainAppWorktreeState` | 1266 | worktree 当前态（父 workspace / 名称 / 改名提示）|
+| `useRenameWorktreePrompt` | 770 | worktree 重命名表单 |
+| `useWorkspaceLaunchScript` | 845 | 单个启动脚本（当前 workspace） |
+| `useWorkspaceLaunchScripts` | 855 | 启动脚本集合（多 workspace 编辑器） |
+| `useWorktreeSetupScript` | 875 | worktree 创建后的 setup 脚本 |
+
+#### Thread 管理（侧栏列表 + Codex 主区都用）
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useThreads` | 429 | threads CRUD（核心，对话页 +侧栏列表都依赖） |
+| `useThreadListSortKey` | 125 | 列表排序偏好 |
+| `useThreadListActions` | 698 | 列表排序刷新动作 |
+| `useThreadRows` | 744 | 线程行渲染数据（侧栏组装） |
+| `useNewAgentDraft` | 731 | 新 agent 草稿态 |
+| `useThreadSelectionHandlersOrchestration` | 325 | 选 thread 时的连锁切换 |
+| `useThreadCodexBootstrapOrchestration` | 193 | thread 初次加载的参数引导 |
+| `useThreadCodexSyncOrchestration` | 670 | thread codex 参数同步 |
+| `useMainAppThreadCodexState` | 410 | thread codex 状态（model / effort / preset 等） |
+| `useThreadUiOrchestration` | 1376 | thread UI 编排（drafts / autoarchive 等） |
+| `useRemoteThreadLiveConnection` | 523 | 远程线程实时连接 |
+| `useMainAppMobileThreadRefresh` | 536 | 移动端线程刷新 |
+| `useTrayRecentThreads` | 746 | 托盘"最近线程"投递 |
+
+#### 侧栏 / 顶栏（codex surface 的常驻 chrome）
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useMainAppSidebarMenuOrchestration` | 1474 | 侧栏菜单与右键操作 |
+| `useAccountSwitching` | 719 | 账号切换 UI |
+| `useOpenAppIcons` | 930 | "用应用打开"按钮 icon 加载 |
+
+#### 对话页（Codex）专属
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useModels` | 282 | 模型列表（输入区下拉） |
+| `useCollaborationModes` | 299 | 协作模式列表 |
+| `useCollaborationModeSelection` | 422 | 已选协作模式 payload |
+| `useSkills` | 397 | 技能列表（@ skill 选择） |
+| `useCustomPrompts` | 398 | 自定义 prompts（输入区 / git prompts 共用） |
+| `useApps` | 663 | 第三方 apps（输入区 @ 触发） |
+| `useComposerShortcuts` | 372 / 377 | 输入区快捷键（两次调用，分别处理新会话与发送） |
+| `useComposerMenuActions` | 382 | 输入区菜单动作 |
+| `useMainAppComposerWorkspaceState` | 1151 | 输入区工作区态（draft / 队列 / 图片 / files 等） |
+| `useComposerEditorState` | 637 | 输入区编辑器态（展开 / 折叠等） |
+| `useComposerQuickActions` | 1620 | 快捷按钮（/new /compact /review） |
+| `useInterruptShortcut` | 1328 | 中断当前回合的快捷键 |
+| `useCopyThread` | 765 | 复制线程到剪贴板 |
+| `usePlanReadyActions` | 1434 | plan 就绪后的接受 / 修改动作 |
+| `useResponseRequiredNotificationsController` | 708 | "需要你回复"系统通知 |
+| `useArchiveShortcut` | 1533 | 归档当前线程快捷键 |
+| `useAutoExitEmptyDiff` | 752 | git 视图无 diff 时自动切回 chat |
+
+#### Git 页专属
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useMainAppGitState` | 568 | Git 大状态（status / branches / diffs / commits / PRs / issues / 远程） |
+| `usePullRequestComposer` | 1347 | PR composer（选 PR + 草拟评审消息） |
+| `useBranchSwitcherShortcut` | 1034 | 分支切换快捷键 |
+| `useMainAppPromptActions` | 1253 | Prompts 面板的 CRUD 动作（位于 Git 文件面板 tab） |
+
+#### Shell 页 / 跨页辅助（Plan / Terminal / Debug）
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useTerminalController` | 799 | 终端状态 + tab 管理 |
+| Debug 相关状态 | 100 | 来自 `useAppBootstrapOrchestration` 返回 |
+| Plan 数据 | 410 | 来自 `useMainAppThreadCodexState` 返回的 `activePlan` |
+
+#### 首页（Home）专属
+
+| Hook | 行号 | 作用 |
+|---|---|---|
+| `useWorkspaceInsightsOrchestration` | 1097 | Home 数据洞察（最近 agent runs / usage） |
+| `useHomeAccount` | 1124 | Home 账号信息（与侧栏账号是两套数据源） |
+| `useTraySessionUsage` | 1141 | 托盘会话使用 |
+
+> **不在本表的**：`useRef` / `useState` / `useMemo` / `useEffect` / `useCallback` 这些 React 原语调用。本表只列**业务 hook**（自定义 `useXxx`）。
+
+> P5 会在 MainApp 收尾时再次核对行号，并把本表里仍然能聚合的 hook 子集做轻量聚合（比如把"对话页专属"里 useComposerXxx 系列 4 个合并为一个 hook）。但不强行重组，保留 hook 顺序与依赖。
 
 ## 七、维护守则（任何改动都要回看本表）
 
@@ -110,3 +226,4 @@
 - **2026-05-12 P1**：`buildSecondarySurface` → `pages/shell/buildShellSurface.ts`。`MainAppLayoutSurfacesContext` 类型 export 以供 surface 文件复用。`useMainAppLayoutSurfaces` 主 hook 主体返回的字段名 `secondary` 暂保留（来自 `LayoutNodesOptions["secondary"]`），等 P3 完成后统一重命名。
 - **2026-05-12 P2**：`buildGitSurface` → `pages/git/buildGitSurface.ts`（200 行整体迁移，逻辑零变更）。
 - **2026-05-12 P3**：`buildPrimarySurface` → `pages/codex/buildCodexSurface.ts`（420 行整体迁移，函数改名，逻辑零变更）。`REMOTE_THREAD_POLL_INTERVAL_MS` import 从主 hook 转移到 buildCodexSurface（唯一使用点）。`useMainAppLayoutSurfaces.ts` 从 1240 → 551 行。pr-reviewer subagent 复核通过（0 Must-Fix）。新增"反向引用守则 = 仅 `import type`" 入 README 第七节。
+- **2026-05-12 P4（轻量版）**：MainApp.tsx 60 个顶层业务 hook 全部按归属页面分类，加入第六节"MainApp.tsx 顶层 hook 索引"。**未做代码搬动**——评估后认为强行搬 hook 会破坏调用顺序依赖图、风险陡增、收益边际递减；文档级索引已能满足"未来调整能找到对应的地方"。每条带 `MainApp.tsx` 行号便于跳转。
