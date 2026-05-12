@@ -1,8 +1,11 @@
 name: Build Codex Sidecar
 
-# Pre-builds the bundled Codex runtime binary so release workflows don't
-# need to compile it (it's the largest single piece of cargo work, ~70 min
-# on cold Windows runners). Artifact is consumed by release-windows.yml.
+# Pre-builds the bundled Codex runtime binary for every target supported by
+# release.yml. Release workflows download these artifacts instead of compiling
+# Codex inline (which costs ~70 min per platform on a cold runner).
+#
+# Run on demand whenever the Codex source ref changes; release.yml consumes
+# the latest successful run.
 
 on:
   workflow_dispatch:
@@ -16,9 +19,28 @@ permissions:
   contents: read
 
 jobs:
-  build_windows:
-    name: codex sidecar (x86_64-pc-windows-msvc)
-    runs-on: windows-latest
+  build:
+    name: codex sidecar (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            binary: codex.exe
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            binary: codex
+          - target: x86_64-apple-darwin
+            os: macos-latest    # cross-compile from arm64 runner
+            binary: codex
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            binary: codex
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            binary: codex
     steps:
       - name: Checkout Codex runtime
         uses: actions/checkout@v4
@@ -28,44 +50,60 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: codex-rs -> target
+          key: ${{ matrix.target }}
 
-      - name: Install LLVM (bindgen)
+      - name: Install LLVM (Windows)
+        if: runner.os == 'Windows'
         run: choco install llvm -y --no-progress
 
-      - name: Configure LLVM (bindgen)
+      - name: Configure LLVM (Windows)
+        if: runner.os == 'Windows'
         run: |
           echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
+      - name: Install CMake (macOS)
+        if: runner.os == 'macOS'
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config libssl-dev
+
       - name: Build Codex binary
-        run: cargo build --release -p codex-cli --bin codex
+        shell: bash
+        run: cargo build --release --target ${{ matrix.target }} -p codex-cli --bin codex
         working-directory: codex-rs
 
-      - name: Capture build metadata
+      - name: Stage artifact + metadata
         shell: bash
         run: |
           set -euo pipefail
           cd codex-rs
           mkdir -p ../artifact
-          cp target/release/codex.exe ../artifact/codex.exe
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" "../artifact/${{ matrix.binary }}"
           {
             echo "ref=${{ inputs.codex_ref }}"
             echo "commit=$(git rev-parse HEAD)"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "target=x86_64-pc-windows-msvc"
+            echo "target=${{ matrix.target }}"
           } > ../artifact/metadata.txt
 
       - name: Upload sidecar artifact
         uses: actions/upload-artifact@v4
         with:
-          name: codex-sidecar-x86_64-pc-windows-msvc
+          name: codex-sidecar-${{ matrix.target }}
           if-no-files-found: error
           retention-days: 30
           path: |
-            artifact/codex.exe
+            artifact/${{ matrix.binary }}
             artifact/metadata.txt

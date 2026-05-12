@@ -2,10 +2,16 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      sidecar_run_id:
+        description: Run ID from "Build Codex Sidecar" workflow to consume (blank = latest successful)
+        required: false
+        default: ""
 
 permissions:
   contents: write
   pull-requests: write
+  actions: read  # download codex sidecar artifact from build-codex-sidecar.yml runs
 
 env:
   RELEASE_REPOSITORY: 0xdengdeng/CodexMonitor
@@ -59,10 +65,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Sync Codex runtime sidecar
+      - name: Download Codex sidecar
         env:
-          AGENTDESK_CODEX_TARGET: ${{ matrix.target }}
-        run: npm run sync:codex-runtime:release
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "$SIDECAR_RUN_ID" ]; then
+            RUN_ID="$SIDECAR_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --repo ${{ github.repository }} \
+              --workflow=build-codex-sidecar.yml \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+            if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+              echo "No successful build-codex-sidecar run found. Trigger it first." >&2
+              exit 1
+            fi
+          fi
+          mkdir -p sidecar
+          gh run download "$RUN_ID" \
+            --repo ${{ github.repository }} \
+            --name codex-sidecar-${{ matrix.target }} \
+            --dir sidecar
+          chmod +x sidecar/codex
+          cat sidecar/metadata.txt
+          {
+            echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex"
+            echo "AGENTDESK_CODEX_TARGET=${{ matrix.target }}"
+          } >> "$GITHUB_ENV"
 
       - name: Import signing certificate
         env:
@@ -199,8 +233,10 @@ jobs:
         include:
           - platform: ubuntu-24.04
             arch: x86_64
+            target: x86_64-unknown-linux-gnu
           - platform: ubuntu-24.04-arm
             arch: aarch64
+            target: aarch64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
 
@@ -225,6 +261,39 @@ jobs:
 
       - name: install frontend dependencies
         run: npm ci
+
+      - name: Download Codex sidecar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "$SIDECAR_RUN_ID" ]; then
+            RUN_ID="$SIDECAR_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --repo ${{ github.repository }} \
+              --workflow=build-codex-sidecar.yml \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+            if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+              echo "No successful build-codex-sidecar run found. Trigger it first." >&2
+              exit 1
+            fi
+          fi
+          mkdir -p sidecar
+          gh run download "$RUN_ID" \
+            --repo ${{ github.repository }} \
+            --name codex-sidecar-${{ matrix.target }} \
+            --dir sidecar
+          chmod +x sidecar/codex
+          cat sidecar/metadata.txt
+          {
+            echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex"
+            echo "AGENTDESK_CODEX_TARGET=${{ matrix.target }}"
+          } >> "$GITHUB_ENV"
 
       - name: Write Tauri signing key
         run: |
@@ -295,6 +364,39 @@ jobs:
       - name: install frontend dependencies
         run: npm ci
 
+      - name: Download Codex sidecar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$SIDECAR_RUN_ID" ]; then
+            RUN_ID="$SIDECAR_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --repo ${{ github.repository }} \
+              --workflow=build-codex-sidecar.yml \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+            if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+              echo "No successful build-codex-sidecar run found. Trigger it first." >&2
+              exit 1
+            fi
+          fi
+          mkdir -p sidecar
+          gh run download "$RUN_ID" \
+            --repo ${{ github.repository }} \
+            --name codex-sidecar-x86_64-pc-windows-msvc \
+            --dir sidecar
+          cat sidecar/metadata.txt
+          {
+            echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex.exe"
+            echo "AGENTDESK_CODEX_TARGET=x86_64-pc-windows-msvc"
+          } >> "$GITHUB_ENV"
+
       - name: Write Tauri signing key
         shell: bash
         run: |
@@ -317,7 +419,9 @@ jobs:
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
-          npm run tauri:build:win
+          # NSIS only — OTA uses the .exe installer, MSI's WiX light.exe has
+          # been flaky on the runner.
+          npm run tauri:build:win -- --bundles nsis
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -623,11 +727,7 @@ jobs:
             find release-artifacts -type f | sort
             exit 1
           fi
-          if [ ${#windows_msis[@]} -eq 0 ]; then
-            echo "No Windows .msi artifacts found for release upload"
-            find release-artifacts -type f | sort
-            exit 1
-          fi
+          # MSI is optional — NSIS-only Windows builds produce no .msi.
 
           gh release create "v${VERSION}" \
             --title "v${VERSION}" \
