@@ -247,4 +247,8 @@ async function main() {
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
 if (invokedPath === fileURLToPath(import.meta.url)) {
   await main();
+  // TosClient keeps HTTP agent keep-alive sockets open after uploads finish,
+  // which holds the event loop and prevents Node from exiting cleanly. Force
+  // exit after main() resolves so CI doesn't hang post-upload.
+  process.exit(process.exitCode ?? 0);
 }
