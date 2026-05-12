@@ -227,3 +227,4 @@
 - **2026-05-12 P2**：`buildGitSurface` → `pages/git/buildGitSurface.ts`（200 行整体迁移，逻辑零变更）。
 - **2026-05-12 P3**：`buildPrimarySurface` → `pages/codex/buildCodexSurface.ts`（420 行整体迁移，函数改名，逻辑零变更）。`REMOTE_THREAD_POLL_INTERVAL_MS` import 从主 hook 转移到 buildCodexSurface（唯一使用点）。`useMainAppLayoutSurfaces.ts` 从 1240 → 551 行。pr-reviewer subagent 复核通过（0 Must-Fix）。新增"反向引用守则 = 仅 `import type`" 入 README 第七节。
 - **2026-05-12 P4（轻量版）**：MainApp.tsx 60 个顶层业务 hook 全部按归属页面分类，加入第六节"MainApp.tsx 顶层 hook 索引"。**未做代码搬动**——评估后认为强行搬 hook 会破坏调用顺序依赖图、风险陡增、收益边际递减；文档级索引已能满足"未来调整能找到对应的地方"。每条带 `MainApp.tsx` 行号便于跳转。
+- **2026-05-12 P5（收尾）**：全量验证（typecheck ✅ / lint 0 errors ✅ / 989 tests ✅）。`docs/codebase-map.md` 加一行"Find which page owns a UI surface" 指向本 README。整套页面拆分完成。规模盘点：surface 编排从 1240 → 550 行（-690），新增 pages/ 700 行 + README 索引 229 行；逻辑零变更。

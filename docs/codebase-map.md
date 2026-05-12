@@ -28,7 +28,7 @@ If a behavior must work in both app and daemon, implement it in `src-tauri/src/s
 | Need | Primary files to edit |
 | --- | --- |
 | App-level UI composition/layout wiring | `src/App.tsx`, `src/features/app/components/AppLayout.tsx`, `src/features/app/bootstrap/*`, `src/features/app/orchestration/*`, `src/features/app/hooks/*` |
-| Add/change Tauri IPC methods used by frontend | `src/services/tauri.ts`, `src-tauri/src/lib.rs`, matching backend adapter module |
+| Find which page owns a UI surface / which file builds a `*Props` | `src/features/app/pages/README.md` (page → file index + MainApp hook map), then `src/features/app/pages/{codex,git,shell}/build*Surface.ts` |
 | Add/change app-server event handling in UI | `src/services/events.ts`, `src/features/app/hooks/useAppServerEvents.ts`, `src/utils/appServerEvents.ts`, `src/features/threads/utils/threadNormalize.ts` |
 | Change thread state transitions | `src/features/threads/hooks/useThreadsReducer.ts`, `src/features/threads/hooks/threadReducer/*`, `src/features/threads/hooks/useThreads.ts`, focused thread hooks under `src/features/threads/hooks/*` |
 | Add/change composer slash commands | `docs/slash-commands.md`, `src/features/composer/hooks/useComposerAutocompleteState.ts`, `src/features/threads/hooks/useQueuedSend.ts`, `src/features/threads/hooks/useThreadMessaging.ts`, `src/features/app/hooks/useComposerController.ts`, `src/features/app/hooks/useMainAppComposerWorkspaceState.ts` |
