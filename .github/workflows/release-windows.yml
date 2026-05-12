@@ -58,7 +58,9 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: CodexMonitor/src-tauri -> target
+          workspaces: |
+            CodexMonitor/src-tauri -> target
+            Codex/codex-rs -> target
 
       - name: Install LLVM (bindgen)
         run: choco install llvm -y --no-progress
