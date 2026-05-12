@@ -7,13 +7,14 @@ name: Release (Windows only)
 on:
   workflow_dispatch:
     inputs:
-      codex_ref:
-        description: Codex runtime branch, tag, or commit to bundle
-        required: true
-        default: product/custom-codex
+      sidecar_run_id:
+        description: Run ID from "Build Codex Sidecar" workflow to consume (blank = latest successful)
+        required: false
+        default: ""
 
 permissions:
   contents: write
+  actions: read  # for downloading sidecar artifact from prior workflow run
 
 concurrency:
   group: release-windows-${{ github.ref }}
@@ -21,7 +22,6 @@ concurrency:
 
 env:
   RELEASE_REPOSITORY: 0xdengdeng/CodexMonitor
-  AGENTDESK_CODEX_REPO: ${{ github.workspace }}/Codex
 
 jobs:
   build_windows:
@@ -38,13 +38,6 @@ jobs:
         with:
           path: CodexMonitor
 
-      - name: Checkout Codex runtime
-        uses: actions/checkout@v4
-        with:
-          repository: 0xdengdeng/codex
-          ref: ${{ inputs.codex_ref }}
-          path: Codex
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -58,9 +51,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: |
-            CodexMonitor/src-tauri -> target
-            Codex/codex-rs -> target
+          workspaces: CodexMonitor/src-tauri -> target
 
       - name: Install LLVM (bindgen)
         run: choco install llvm -y --no-progress
@@ -74,6 +65,39 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Download prebuilt Codex sidecar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [ -n "$SIDECAR_RUN_ID" ]; then
+            RUN_ID="$SIDECAR_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --repo ${{ github.repository }} \
+              --workflow=build-codex-sidecar.yml \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+            if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+              echo "No successful build-codex-sidecar run found. Trigger it first." >&2
+              exit 1
+            fi
+          fi
+          echo "Using Codex sidecar from run $RUN_ID"
+          mkdir -p sidecar
+          gh run download "$RUN_ID" \
+            --repo ${{ github.repository }} \
+            --name codex-sidecar-x86_64-pc-windows-msvc \
+            --dir sidecar
+          ls -la sidecar
+          cat sidecar/metadata.txt
+          chmod +x sidecar/codex.exe || true
 
       - name: Write Tauri signing key
         shell: bash
@@ -93,6 +117,10 @@ jobs:
 
       - name: Build Windows bundles
         shell: bash
+        env:
+          # Skip Codex cargo build — use the prebuilt sidecar from the
+          # build-codex-sidecar workflow.
+          AGENTDESK_CODEX_BIN: ${{ github.workspace }}/sidecar/codex.exe
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY

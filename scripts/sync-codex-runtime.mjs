@@ -82,9 +82,9 @@ const sourceBinary = explicitCodexBin
     );
 const targetBinary = path.join(binariesDir, sidecarName);
 
-if (!fs.existsSync(codexRsDir)) {
+if (!explicitCodexBin && !fs.existsSync(codexRsDir)) {
   throw new Error(
-    `Codex runtime source not found at ${codexRsDir}. Set AGENTDESK_CODEX_REPO to your Codex fork.`,
+    `Codex runtime source not found at ${codexRsDir}. Set AGENTDESK_CODEX_REPO to your Codex fork, or AGENTDESK_CODEX_BIN to a prebuilt binary.`,
   );
 }
 

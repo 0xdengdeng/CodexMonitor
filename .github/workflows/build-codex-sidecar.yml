@@ -1,0 +1,71 @@
+name: Build Codex Sidecar
+
+# Pre-builds the bundled Codex runtime binary so release workflows don't
+# need to compile it (it's the largest single piece of cargo work, ~70 min
+# on cold Windows runners). Artifact is consumed by release-windows.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      codex_ref:
+        description: Codex runtime branch, tag, or commit to bundle
+        required: true
+        default: product/custom-codex
+
+permissions:
+  contents: read
+
+jobs:
+  build_windows:
+    name: codex sidecar (x86_64-pc-windows-msvc)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Codex runtime
+        uses: actions/checkout@v4
+        with:
+          repository: 0xdengdeng/codex
+          ref: ${{ inputs.codex_ref }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs -> target
+
+      - name: Install LLVM (bindgen)
+        run: choco install llvm -y --no-progress
+
+      - name: Configure LLVM (bindgen)
+        run: |
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Build Codex binary
+        run: cargo build --release -p codex-cli --bin codex
+        working-directory: codex-rs
+
+      - name: Capture build metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd codex-rs
+          mkdir -p ../artifact
+          cp target/release/codex.exe ../artifact/codex.exe
+          {
+            echo "ref=${{ inputs.codex_ref }}"
+            echo "commit=$(git rev-parse HEAD)"
+            echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "target=x86_64-pc-windows-msvc"
+          } > ../artifact/metadata.txt
+
+      - name: Upload sidecar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-sidecar-x86_64-pc-windows-msvc
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            artifact/codex.exe
+            artifact/metadata.txt
