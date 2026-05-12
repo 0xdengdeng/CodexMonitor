@@ -54,14 +54,11 @@
 
 | Surface | 目录 | 拆分状态 | 包含的节点 |
 |---|---|---|---|
-| Codex | `pages/codex/` | ⏳ 待建（P3） | 侧栏 / 主区消息 / 输入区 / Home / 顶栏 / TabBar / TabletNav / 三 Toast |
+| Codex | `pages/codex/buildCodexSurface.ts` | ✅ 已就位（P3） | 侧栏 / 主区消息 / 输入区 / Home / 顶栏 / TabBar / TabletNav / 三 Toast |
 | Git | `pages/git/buildGitSurface.ts` | ✅ 已就位（P2） | Git 文件面板 / Diff viewer / 文件树 / Prompts 面板 |
 | Shell（跨页辅助） | `pages/shell/buildShellSurface.ts` | ✅ 已就位（P1） | Plan 面板 / 终端 Dock / Debug 面板 / 紧凑空态节点 |
 
-当前过渡期，剩余 surface 的产出逻辑还在 `src/features/app/hooks/useMainAppLayoutSurfaces.ts`：
-- `buildPrimarySurface` 行 227-647（将迁为 `pages/codex/buildCodexSurface.ts`）
-- ~~`buildGitSurface`~~ → 已迁到 `pages/git/buildGitSurface.ts`
-- ~~`buildSecondarySurface`~~ → 已迁到 `pages/shell/buildShellSurface.ts`
+三个 surface 已全部迁出。`src/features/app/hooks/useMainAppLayoutSurfaces.ts` 现在只做"上下文聚合 + 调 3 个 builder"，~550 行（原 1240）。
 
 > 注：surface 命名调整 — 原 `primary/secondary` 是按"主 / 辅"层切；新名 `codex/shell` 按职责切，避免和"主 tab"语义混淆。
 
@@ -105,9 +102,11 @@
 3. **拆出新 surface**：在 `useMainAppLayoutSurfaces.ts` 主 hook 追加 `<name>: build<Name>Surface(context)`，在三、surface 模块表追加一行，并在四、节点工厂表补充其归属。
 4. **移动 / 删除节点**：从二、五个页面表 + 跨页常驻表里把对应行删除或迁移。
 5. **每次涉及上述任一动作的 PR**：必须更新本 README 受影响的行，否则不允许合入（subagent 复核会卡）。
+6. **反向引用守则**：`pages/<目录>/build<Name>Surface.ts` 反向引用主 hook（`@app/hooks/useMainAppLayoutSurfaces`）**只允许 `import type`**，禁止取值导入。原因：主 hook 同时是这三个 builder 的调用方，值导入会形成运行时循环引用。当前 TypeScript + 打包工具会消除 `import type`，循环安全；一旦改成值导入，立刻成真实环。
 
 ## 八、变更日志
 
 - **2026-05-12 P0**：三层架构梳理完成，建立索引。
 - **2026-05-12 P1**：`buildSecondarySurface` → `pages/shell/buildShellSurface.ts`。`MainAppLayoutSurfacesContext` 类型 export 以供 surface 文件复用。`useMainAppLayoutSurfaces` 主 hook 主体返回的字段名 `secondary` 暂保留（来自 `LayoutNodesOptions["secondary"]`），等 P3 完成后统一重命名。
 - **2026-05-12 P2**：`buildGitSurface` → `pages/git/buildGitSurface.ts`（200 行整体迁移，逻辑零变更）。
+- **2026-05-12 P3**：`buildPrimarySurface` → `pages/codex/buildCodexSurface.ts`（420 行整体迁移，函数改名，逻辑零变更）。`REMOTE_THREAD_POLL_INTERVAL_MS` import 从主 hook 转移到 buildCodexSurface（唯一使用点）。`useMainAppLayoutSurfaces.ts` 从 1240 → 551 行。pr-reviewer subagent 复核通过（0 Must-Fix）。新增"反向引用守则 = 仅 `import type`" 入 README 第七节。
