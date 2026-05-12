@@ -23,6 +23,7 @@ import { useComposerMenuActions } from "@/features/composer/hooks/useComposerMen
 import { useComposerEditorState } from "@/features/composer/hooks/useComposerEditorState";
 import { useMainAppComposerWorkspaceState } from "@app/hooks/useMainAppComposerWorkspaceState";
 import { useMainAppGitState } from "@app/hooks/useMainAppGitState";
+import { useComposerQuickActions } from "@app/hooks/useComposerQuickActions";
 import { useMainAppLayoutSurfaces } from "@app/hooks/useMainAppLayoutSurfaces";
 import { useMainAppLayoutNodes } from "@app/hooks/useMainAppLayoutNodes";
 import { useWorkspaceFromUrlPrompt } from "@/features/workspaces/hooks/useWorkspaceFromUrlPrompt";
@@ -1615,6 +1616,13 @@ export default function MainApp() {
       : null,
   });
   const { workspaceHomeNode } = displayNodes;
+  const composerQuickActions = useComposerQuickActions({
+    activeWorkspaceId,
+    activeThreadId,
+    startNewAgentDraft,
+    startCompact,
+    startFork,
+  });
   const layoutSurfaces = useMainAppLayoutSurfaces({
     appSettings: {
       usageShowRemaining: appSettings.usageShowRemaining,
@@ -1688,6 +1696,7 @@ export default function MainApp() {
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,
     composerWorkspaceState,
+    composerQuickActions,
     promptActions,
     worktreeState,
     sidebarHandlers: sidebarMenuOrchestration,

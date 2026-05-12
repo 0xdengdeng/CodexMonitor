@@ -14,6 +14,7 @@ import type { LayoutNodesOptions } from "@/features/layout/hooks/layoutNodes/typ
 
 type SidebarProps = LayoutNodesOptions["primary"]["sidebarProps"];
 type ComposerProps = NonNullable<LayoutNodesOptions["primary"]["composerProps"]>;
+type ComposerQuickActions = NonNullable<ComposerProps["quickActions"]>;
 type MainHeaderProps = NonNullable<LayoutNodesOptions["primary"]["mainHeaderProps"]>;
 type GitDiffPanelProps = LayoutNodesOptions["git"]["gitDiffPanelProps"];
 
@@ -86,6 +87,7 @@ type UseMainAppLayoutSurfacesArgs = {
   onOpenEnterpriseAiSettings: () => void;
   gitState: ReturnType<typeof useMainAppGitState>;
   composerWorkspaceState: ReturnType<typeof useMainAppComposerWorkspaceState>;
+  composerQuickActions: ComposerQuickActions;
   promptActions: ReturnType<typeof useMainAppPromptActions>;
   worktreeState: ReturnType<typeof useMainAppWorktreeState>;
   sidebarHandlers: ReturnType<typeof useMainAppSidebarMenuOrchestration>;
@@ -277,6 +279,7 @@ function buildPrimarySurface({
   onOpenEnterpriseAiSettings,
   gitState,
   composerWorkspaceState,
+  composerQuickActions,
   worktreeState,
   sidebarHandlers,
   displayNodes,
@@ -512,6 +515,7 @@ function buildPrimarySurface({
           editorExpanded: composerEditorExpanded,
           onToggleEditorExpanded: onToggleComposerEditorExpanded,
           contextActions: composerContextActions,
+          quickActions: composerQuickActions,
           reviewPrompt,
           onReviewPromptClose: closeReviewPrompt,
           onReviewPromptShowPreset: showPresetStep,
@@ -969,6 +973,7 @@ export function useMainAppLayoutSurfaces({
   onOpenEnterpriseAiSettings,
   gitState,
   composerWorkspaceState,
+  composerQuickActions,
   promptActions,
   worktreeState,
   sidebarHandlers,
@@ -1126,6 +1131,7 @@ export function useMainAppLayoutSurfaces({
     onUsageWorkspaceChange,
     gitState,
     composerWorkspaceState,
+    composerQuickActions,
     promptActions,
     worktreeState,
     sidebarHandlers,

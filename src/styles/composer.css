@@ -140,6 +140,40 @@
   color: var(--text-strong);
 }
 
+.composer-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.composer-quick-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cm-border-emphasis);
+  background: var(--surface-card);
+  color: var(--text-muted);
+}
+
+.composer-quick-action:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+}
+
+.composer-quick-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.composer-quick-action-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
 .composer-input {
   display: block;
 }

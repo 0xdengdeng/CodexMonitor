@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type ClipboardEvent,
+  type ReactNode,
 } from "react";
 import type {
   AppMention,
@@ -134,6 +135,16 @@ type ComposerProps = {
     disabled?: boolean;
     onSelect: () => void | Promise<void>;
   }[];
+  quickActions?: ComposerQuickAction[];
+};
+
+export type ComposerQuickAction = {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  title?: string;
+  disabled?: boolean;
+  onSelect: () => void | Promise<void>;
 };
 
 const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
@@ -219,6 +230,7 @@ export const Composer = memo(function Composer({
   onReviewPromptConfirmCustom,
   onFileAutocompleteActiveChange,
   contextActions = [],
+  quickActions = [],
 }: ComposerProps) {
   const { t } = useI18n();
   const [text, setText] = useState(draftText);
@@ -591,6 +603,27 @@ export const Composer = memo(function Composer({
               }}
             >
               {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {quickActions.length > 0 ? (
+        <div className="composer-quick-actions" role="toolbar" aria-label={t("composer.quickActions")}>
+          {quickActions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className="ghost composer-quick-action"
+              title={action.title}
+              disabled={disabled || Boolean(action.disabled)}
+              onClick={() => {
+                void action.onSelect();
+              }}
+            >
+              <span className="composer-quick-action-icon" aria-hidden>
+                {action.icon}
+              </span>
+              <span className="composer-quick-action-label">{action.label}</span>
             </button>
           ))}
         </div>
