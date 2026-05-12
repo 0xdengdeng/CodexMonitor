@@ -55,12 +55,12 @@
 | Surface | 目录 | 拆分状态 | 包含的节点 |
 |---|---|---|---|
 | Codex | `pages/codex/` | ⏳ 待建（P3） | 侧栏 / 主区消息 / 输入区 / Home / 顶栏 / TabBar / TabletNav / 三 Toast |
-| Git | `pages/git/` | ⏳ 待建（P2） | Git 文件面板 / Diff viewer / 文件树 / Prompts 面板 |
+| Git | `pages/git/buildGitSurface.ts` | ✅ 已就位（P2） | Git 文件面板 / Diff viewer / 文件树 / Prompts 面板 |
 | Shell（跨页辅助） | `pages/shell/buildShellSurface.ts` | ✅ 已就位（P1） | Plan 面板 / 终端 Dock / Debug 面板 / 紧凑空态节点 |
 
 当前过渡期，剩余 surface 的产出逻辑还在 `src/features/app/hooks/useMainAppLayoutSurfaces.ts`：
 - `buildPrimarySurface` 行 227-647（将迁为 `pages/codex/buildCodexSurface.ts`）
-- `buildGitSurface` 行 648-849（将迁为 `pages/git/buildGitSurface.ts`）
+- ~~`buildGitSurface`~~ → 已迁到 `pages/git/buildGitSurface.ts`
 - ~~`buildSecondarySurface`~~ → 已迁到 `pages/shell/buildShellSurface.ts`
 
 > 注：surface 命名调整 — 原 `primary/secondary` 是按"主 / 辅"层切；新名 `codex/shell` 按职责切，避免和"主 tab"语义混淆。
@@ -110,3 +110,4 @@
 
 - **2026-05-12 P0**：三层架构梳理完成，建立索引。
 - **2026-05-12 P1**：`buildSecondarySurface` → `pages/shell/buildShellSurface.ts`。`MainAppLayoutSurfacesContext` 类型 export 以供 surface 文件复用。`useMainAppLayoutSurfaces` 主 hook 主体返回的字段名 `secondary` 暂保留（来自 `LayoutNodesOptions["secondary"]`），等 P3 完成后统一重命名。
+- **2026-05-12 P2**：`buildGitSurface` → `pages/git/buildGitSurface.ts`（200 行整体迁移，逻辑零变更）。
