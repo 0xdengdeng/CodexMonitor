@@ -1621,7 +1621,6 @@ export default function MainApp() {
     activeThreadId,
     startNewAgentDraft,
     startCompact,
-    startFork,
   });
   const layoutSurfaces = useMainAppLayoutSurfaces({
     appSettings: {

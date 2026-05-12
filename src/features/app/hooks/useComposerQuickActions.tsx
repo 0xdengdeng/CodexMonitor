@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import GitFork from "lucide-react/dist/esm/icons/git-fork";
 import ListCollapse from "lucide-react/dist/esm/icons/list-collapse";
 import Plus from "lucide-react/dist/esm/icons/plus";
 
@@ -11,7 +10,6 @@ type UseComposerQuickActionsOptions = {
   activeThreadId: string | null;
   startNewAgentDraft: (workspaceId: string) => void;
   startCompact: (text: string) => void | Promise<void>;
-  startFork: (text: string) => void | Promise<void>;
 };
 
 export function useComposerQuickActions({
@@ -19,7 +17,6 @@ export function useComposerQuickActions({
   activeThreadId,
   startNewAgentDraft,
   startCompact,
-  startFork,
 }: UseComposerQuickActionsOptions): ComposerQuickAction[] {
   const { t } = useI18n();
   return useMemo(() => {
@@ -43,22 +40,6 @@ export function useComposerQuickActions({
           void startCompact("");
         },
       },
-      {
-        id: "quick-fork",
-        label: t("composer.quickAction.fork"),
-        title: t("composer.quickAction.forkTitle"),
-        icon: <GitFork size={12} />,
-        onSelect: () => {
-          void startFork("");
-        },
-      },
     ];
-  }, [
-    activeThreadId,
-    activeWorkspaceId,
-    startCompact,
-    startFork,
-    startNewAgentDraft,
-    t,
-  ]);
+  }, [activeThreadId, activeWorkspaceId, startCompact, startNewAgentDraft, t]);
 }
