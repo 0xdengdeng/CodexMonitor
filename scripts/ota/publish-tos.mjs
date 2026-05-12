@@ -204,6 +204,25 @@ async function uploadFile(client, config, item) {
   });
 }
 
+async function fileSize(filePath) {
+  try {
+    const stat = await fs.stat(filePath);
+    return stat.size;
+  } catch {
+    return null;
+  }
+}
+
+async function existingObjectSize(client, bucket, key) {
+  try {
+    const result = await client.headObject({ bucket, key });
+    const length = result?.data?.["content-length"] ?? result?.headers?.["content-length"];
+    return length != null ? Number(length) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function publishToTos(config = buildConfig()) {
   const artifactsDir = path.resolve(config.artifactsDir);
   const manifest = await writeTosLatestManifest({ ...config, artifactsDir });
@@ -219,11 +238,33 @@ export async function publishToTos(config = buildConfig()) {
     accessKeySecret: config.accessKeySecret,
     endpoint: config.endpoint,
     region: config.region,
+    // 30 min hard ceiling per request. Defaults to no timeout, which can
+    // leave large uploads (70+ MB to Beijing TOS from US/EU runners) hung
+    // for hours when a connection silently stalls.
+    requestTimeout: 30 * 60 * 1000,
   });
 
   for (const item of plan) {
-    console.log(`Uploading ${item.filePath} -> tos://${config.bucket}/${item.key}`);
+    const localSize = await fileSize(item.filePath);
+    // latest.json is always re-uploaded (its content reflects this run's
+    // manifest with the rewritten TOS URLs). Other files are deduped:
+    // if the bucket already has an object with matching size, skip.
+    const isManifest = item.key.endsWith("/latest.json");
+    if (!isManifest && localSize != null) {
+      const remoteSize = await existingObjectSize(client, config.bucket, item.key);
+      if (remoteSize === localSize) {
+        console.log(
+          `Skipping ${item.key} (already on TOS with matching size ${localSize}B)`,
+        );
+        continue;
+      }
+    }
+    console.log(
+      `Uploading ${item.filePath} (${localSize ?? "?"}B) -> tos://${config.bucket}/${item.key}`,
+    );
+    const started = Date.now();
     await uploadFile(client, config, item);
+    console.log(`  done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
   }
 
   console.log(
