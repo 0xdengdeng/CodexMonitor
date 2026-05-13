@@ -237,133 +237,6 @@ jobs:
             release-artifacts/AgentDesk-${{ matrix.arch }}.app.tar.gz
             release-artifacts/AgentDesk-${{ matrix.arch }}.app.tar.gz.sig
 
-  build_linux:
-    name: linux bundles (${{ matrix.arch }})
-    runs-on: ${{ matrix.platform }}
-    environment: release
-    env:
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu-24.04
-            arch: x86_64
-            target: x86_64-unknown-linux-gnu
-          - platform: ubuntu-24.04-arm
-            arch: aarch64
-            target: aarch64-unknown-linux-gnu
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: install dependencies (linux only)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 xdg-utils libasound2-dev rpm
-
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: npm
-
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
-
-      - name: install frontend dependencies
-        run: npm ci
-
-      - name: Download Codex sidecar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
-          TARGET: ${{ matrix.target }}
-        run: |
-          set -euo pipefail
-          ARTIFACT_NAME="codex-sidecar-${TARGET}"
-          REPO=${{ github.repository }}
-          if [ -n "$SIDECAR_RUN_ID" ]; then
-            RUN_ID="$SIDECAR_RUN_ID"
-          else
-            # Scan recent runs (any conclusion) for one containing the
-            # target's artifact. A run may have partial failures while
-            # still having a successful job for this target — uploaded
-            # artifacts persist regardless of the overall run conclusion.
-            RUN_ID=""
-            for CANDIDATE in $(gh run list \
-              --repo "$REPO" \
-              --workflow=build-codex-sidecar.yml \
-              --limit 20 \
-              --json databaseId \
-              --jq '.[].databaseId'); do
-              FOUND=$(gh api "/repos/$REPO/actions/runs/$CANDIDATE/artifacts" \
-                --jq ".artifacts[] | select(.name == \"$ARTIFACT_NAME\") | .id" \
-                | head -1)
-              if [ -n "$FOUND" ]; then
-                RUN_ID="$CANDIDATE"
-                break
-              fi
-            done
-            if [ -z "$RUN_ID" ]; then
-              echo "No build-codex-sidecar run found with artifact $ARTIFACT_NAME." >&2
-              echo "Trigger build-codex-sidecar.yml first (optionally with target_filter=$TARGET)." >&2
-              exit 1
-            fi
-          fi
-          echo "Using sidecar artifact $ARTIFACT_NAME from run $RUN_ID"
-          mkdir -p sidecar
-          gh run download "$RUN_ID" \
-            --repo "$REPO" \
-            --name "$ARTIFACT_NAME" \
-            --dir sidecar
-          chmod +x sidecar/codex
-          cat sidecar/metadata.txt
-          {
-            echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex"
-            echo "AGENTDESK_CODEX_TARGET=$TARGET"
-          } >> "$GITHUB_ENV"
-
-      - name: Write Tauri signing key
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.tauri"
-          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/agentdesk.key"
-
-      - name: build AppImage and RPM
-        run: |
-          set -euo pipefail
-          export TAURI_SIGNING_PRIVATE_KEY
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
-          npm run tauri -- build --bundles appimage,rpm
-
-      - name: Validate Linux bundle outputs
-        run: |
-          set -euo pipefail
-          mapfile -t appimages < <(find src-tauri/target/release/bundle/appimage -type f -name '*.AppImage*' | sort)
-          mapfile -t rpms < <(find src-tauri/target/release/bundle/rpm -type f -name '*.rpm' | sort)
-          if [ ${#appimages[@]} -eq 0 ]; then
-            echo "No AppImage output found"
-            exit 1
-          fi
-          if [ ${#rpms[@]} -eq 0 ]; then
-            echo "No RPM output found"
-            exit 1
-          fi
-
-      - name: Upload Linux bundles
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-bundles-${{ matrix.arch }}
-          path: |
-            src-tauri/target/release/bundle/appimage/*.AppImage*
-            src-tauri/target/release/bundle/rpm/*.rpm
-
   build_windows:
     runs-on: windows-latest
     environment: release
@@ -483,7 +356,6 @@ jobs:
     environment: release
     needs:
       - build_macos
-      - build_linux
       - build_windows
     steps:
       - name: Checkout
@@ -495,13 +367,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: macos-artifacts-*
-          path: release-artifacts
-          merge-multiple: true
-
-      - name: Download Linux bundles
-        uses: actions/download-artifact@v4
-        with:
-          pattern: linux-bundles-*
           path: release-artifacts
           merge-multiple: true
 
@@ -529,22 +394,6 @@ jobs:
             echo "Renaming $artifact -> $target"
             mv "$artifact" "$target"
           done < <(find release-artifacts -type f -name '* *' -print0)
-
-      - name: Validate RPM artifacts
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y rpm
-          mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
-          if [ ${#rpms[@]} -eq 0 ]; then
-            echo "No RPM artifacts found"
-            find release-artifacts -type f | sort
-            exit 1
-          fi
-          for rpm_file in "${rpms[@]}"; do
-            rpm -qip "$rpm_file"
-            rpm -qp --requires "$rpm_file"
-          done
 
       - name: Build latest.json
         run: |
@@ -643,24 +492,6 @@ jobs:
               "signature": sig_path.read_text().strip(),
             }
 
-          appimages = list(artifacts_dir.rglob("*.AppImage.tar.gz"))
-          if not appimages:
-            appimages = list(artifacts_dir.rglob("*.AppImage"))
-          if not appimages:
-            raise SystemExit("No AppImage artifacts found for latest.json")
-
-          for appimage in appimages:
-            arch = detect_arch(appimage.name)
-            if not arch:
-              continue
-            sig_path = appimage.with_suffix(appimage.suffix + ".sig")
-            if not sig_path.exists():
-              raise SystemExit(f"Missing signature for {appimage.name}")
-            platforms[f"linux-{arch}"] = {
-              "url": release_url(appimage.name),
-              "signature": sig_path.read_text().strip(),
-            }
-
           exe_candidates = sorted(artifacts_dir.rglob("*.exe"), key=lambda p: p.name.lower())
           windows_installer = None
           preferred_installers = []
@@ -746,14 +577,11 @@ jobs:
           )
 
           shopt -s nullglob globstar
-          appimages=(release-artifacts/**/*.AppImage*)
           mapfile -t macos_zips < <(find release-artifacts -type f -name 'AgentDesk-*.zip' | sort)
           mapfile -t macos_dmgs < <(find release-artifacts -type f -name 'AgentDesk_*.dmg' | sort)
           mapfile -t macos_tarballs < <(find release-artifacts -type f -name 'AgentDesk-*.app.tar.gz' | sort)
           mapfile -t macos_sigs < <(find release-artifacts -type f -name 'AgentDesk-*.app.tar.gz.sig' | sort)
-          mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
           mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
-          mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
           if [ ${#macos_tarballs[@]} -eq 0 ]; then
             echo "No macOS .app.tar.gz artifacts found for release upload"
             find release-artifacts -type f | sort
@@ -761,11 +589,6 @@ jobs:
           fi
           if [ ${#macos_dmgs[@]} -eq 0 ]; then
             echo "No macOS .dmg artifacts found for release upload"
-            find release-artifacts -type f | sort
-            exit 1
-          fi
-          if [ ${#rpms[@]} -eq 0 ]; then
-            echo "No RPM artifacts found for release upload"
             find release-artifacts -type f | sort
             exit 1
           fi
@@ -784,10 +607,7 @@ jobs:
             "${macos_dmgs[@]}" \
             "${macos_tarballs[@]}" \
             "${macos_sigs[@]}" \
-            "${appimages[@]}" \
-            "${rpms[@]}" \
             "${windows_exes[@]}" \
-            "${windows_msis[@]}" \
             release-artifacts/latest.json
 
       - name: Bump version and open PR
