@@ -14,6 +14,18 @@ on:
         description: Codex runtime branch, tag, or commit to bundle
         required: true
         default: product/custom-codex
+      target_filter:
+        description: "Only build this single target (blank = all 5 platforms)"
+        required: false
+        default: ""
+        type: choice
+        options:
+          - ""
+          - x86_64-pc-windows-msvc
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
 
 permissions:
   contents: read
@@ -21,6 +33,7 @@ permissions:
 jobs:
   build:
     name: codex sidecar (${{ matrix.target }})
+    if: inputs.target_filter == '' || inputs.target_filter == matrix.target
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

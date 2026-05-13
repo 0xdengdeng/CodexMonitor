@@ -69,33 +69,50 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
+          TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
+          ARTIFACT_NAME="codex-sidecar-${TARGET}"
+          REPO=${{ github.repository }}
           if [ -n "$SIDECAR_RUN_ID" ]; then
             RUN_ID="$SIDECAR_RUN_ID"
           else
-            RUN_ID=$(gh run list \
-              --repo ${{ github.repository }} \
+            # Scan recent runs (any conclusion) for one containing the
+            # target's artifact. A run may have partial failures while
+            # still having a successful job for this target — uploaded
+            # artifacts persist regardless of the overall run conclusion.
+            RUN_ID=""
+            for CANDIDATE in $(gh run list \
+              --repo "$REPO" \
               --workflow=build-codex-sidecar.yml \
-              --status success \
-              --limit 1 \
+              --limit 20 \
               --json databaseId \
-              --jq '.[0].databaseId')
-            if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
-              echo "No successful build-codex-sidecar run found. Trigger it first." >&2
+              --jq '.[].databaseId'); do
+              FOUND=$(gh api "/repos/$REPO/actions/runs/$CANDIDATE/artifacts" \
+                --jq ".artifacts[] | select(.name == \"$ARTIFACT_NAME\") | .id" \
+                | head -1)
+              if [ -n "$FOUND" ]; then
+                RUN_ID="$CANDIDATE"
+                break
+              fi
+            done
+            if [ -z "$RUN_ID" ]; then
+              echo "No build-codex-sidecar run found with artifact $ARTIFACT_NAME." >&2
+              echo "Trigger build-codex-sidecar.yml first (optionally with target_filter=$TARGET)." >&2
               exit 1
             fi
           fi
+          echo "Using sidecar artifact $ARTIFACT_NAME from run $RUN_ID"
           mkdir -p sidecar
           gh run download "$RUN_ID" \
-            --repo ${{ github.repository }} \
-            --name codex-sidecar-${{ matrix.target }} \
+            --repo "$REPO" \
+            --name "$ARTIFACT_NAME" \
             --dir sidecar
           chmod +x sidecar/codex
           cat sidecar/metadata.txt
           {
             echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex"
-            echo "AGENTDESK_CODEX_TARGET=${{ matrix.target }}"
+            echo "AGENTDESK_CODEX_TARGET=$TARGET"
           } >> "$GITHUB_ENV"
 
       - name: Import signing certificate
@@ -266,33 +283,50 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
+          TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
+          ARTIFACT_NAME="codex-sidecar-${TARGET}"
+          REPO=${{ github.repository }}
           if [ -n "$SIDECAR_RUN_ID" ]; then
             RUN_ID="$SIDECAR_RUN_ID"
           else
-            RUN_ID=$(gh run list \
-              --repo ${{ github.repository }} \
+            # Scan recent runs (any conclusion) for one containing the
+            # target's artifact. A run may have partial failures while
+            # still having a successful job for this target — uploaded
+            # artifacts persist regardless of the overall run conclusion.
+            RUN_ID=""
+            for CANDIDATE in $(gh run list \
+              --repo "$REPO" \
               --workflow=build-codex-sidecar.yml \
-              --status success \
-              --limit 1 \
+              --limit 20 \
               --json databaseId \
-              --jq '.[0].databaseId')
-            if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
-              echo "No successful build-codex-sidecar run found. Trigger it first." >&2
+              --jq '.[].databaseId'); do
+              FOUND=$(gh api "/repos/$REPO/actions/runs/$CANDIDATE/artifacts" \
+                --jq ".artifacts[] | select(.name == \"$ARTIFACT_NAME\") | .id" \
+                | head -1)
+              if [ -n "$FOUND" ]; then
+                RUN_ID="$CANDIDATE"
+                break
+              fi
+            done
+            if [ -z "$RUN_ID" ]; then
+              echo "No build-codex-sidecar run found with artifact $ARTIFACT_NAME." >&2
+              echo "Trigger build-codex-sidecar.yml first (optionally with target_filter=$TARGET)." >&2
               exit 1
             fi
           fi
+          echo "Using sidecar artifact $ARTIFACT_NAME from run $RUN_ID"
           mkdir -p sidecar
           gh run download "$RUN_ID" \
-            --repo ${{ github.repository }} \
-            --name codex-sidecar-${{ matrix.target }} \
+            --repo "$REPO" \
+            --name "$ARTIFACT_NAME" \
             --dir sidecar
           chmod +x sidecar/codex
           cat sidecar/metadata.txt
           {
             echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex"
-            echo "AGENTDESK_CODEX_TARGET=${{ matrix.target }}"
+            echo "AGENTDESK_CODEX_TARGET=$TARGET"
           } >> "$GITHUB_ENV"
 
       - name: Write Tauri signing key
@@ -368,33 +402,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
+          TARGET: x86_64-pc-windows-msvc
         shell: bash
         run: |
           set -euo pipefail
+          ARTIFACT_NAME="codex-sidecar-${TARGET}"
+          REPO=${{ github.repository }}
           if [ -n "$SIDECAR_RUN_ID" ]; then
             RUN_ID="$SIDECAR_RUN_ID"
           else
-            RUN_ID=$(gh run list \
-              --repo ${{ github.repository }} \
+            RUN_ID=""
+            for CANDIDATE in $(gh run list \
+              --repo "$REPO" \
               --workflow=build-codex-sidecar.yml \
-              --status success \
-              --limit 1 \
+              --limit 20 \
               --json databaseId \
-              --jq '.[0].databaseId')
-            if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
-              echo "No successful build-codex-sidecar run found. Trigger it first." >&2
+              --jq '.[].databaseId'); do
+              FOUND=$(gh api "/repos/$REPO/actions/runs/$CANDIDATE/artifacts" \
+                --jq ".artifacts[] | select(.name == \"$ARTIFACT_NAME\") | .id" \
+                | head -1)
+              if [ -n "$FOUND" ]; then
+                RUN_ID="$CANDIDATE"
+                break
+              fi
+            done
+            if [ -z "$RUN_ID" ]; then
+              echo "No build-codex-sidecar run found with artifact $ARTIFACT_NAME." >&2
+              echo "Trigger build-codex-sidecar.yml first (optionally with target_filter=$TARGET)." >&2
               exit 1
             fi
           fi
+          echo "Using sidecar artifact $ARTIFACT_NAME from run $RUN_ID"
           mkdir -p sidecar
           gh run download "$RUN_ID" \
-            --repo ${{ github.repository }} \
-            --name codex-sidecar-x86_64-pc-windows-msvc \
+            --repo "$REPO" \
+            --name "$ARTIFACT_NAME" \
             --dir sidecar
           cat sidecar/metadata.txt
           {
             echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex.exe"
-            echo "AGENTDESK_CODEX_TARGET=x86_64-pc-windows-msvc"
+            echo "AGENTDESK_CODEX_TARGET=$TARGET"
           } >> "$GITHUB_ENV"
 
       - name: Write Tauri signing key
