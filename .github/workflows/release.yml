@@ -577,6 +577,28 @@ jobs:
           print(f"Validated {len(payload.get('platforms', {}))} latest.json platform URL(s).")
           PY
 
+      # TOS publish first: latest.json on TOS is the OTA endpoint clients
+      # actually consult (tauri.conf.json pins it). GitHub release is a
+      # backup channel. If TOS fails, skipping the GH release step leaves
+      # no half-published state pointing at missing files.
+      - name: Publish to TOS
+        env:
+          TOS_ACCESS_KEY_ID: ${{ secrets.TOS_ACCESS_KEY_ID }}
+          TOS_SECRET_ACCESS_KEY: ${{ secrets.TOS_SECRET_ACCESS_KEY }}
+          TOS_REGION: cn-beijing
+          TOS_ENDPOINT: tos-cn-beijing.volces.com
+          TOS_BUCKET: qihang-ai
+          TOS_PUBLIC_BASE_URL: https://qihang-ai.tos-cn-beijing.volces.com
+          OTA_PREFIX: codexmonitor
+          OTA_ARTIFACTS_DIR: release-artifacts
+        run: |
+          set -euo pipefail
+          # release-artifacts/ contains files with the names Tauri produced
+          # (Chinese-named .exe etc). publish-tos.mjs uploads them as-is and
+          # rewrites latest.json's GitHub URLs to TOS URLs that match.
+          npm ci
+          npm run ota:publish:tos
+
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -625,104 +647,6 @@ jobs:
             "${windows_exes[@]}" \
             release-artifacts/latest.json
 
-      - name: Bump version and open PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          VERSION=$(python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          data = json.loads(Path("src-tauri/tauri.conf.json").read_text())
-          print(data["version"])
-          PY
-          )
-
-          NEXT_VERSION=$(python3 - <<'PY' "$VERSION"
-          import sys
-
-          version = sys.argv[1]
-          parts = version.split(".")
-          if len(parts) != 3:
-              raise SystemExit("Expected version like 0.X.Y")
-
-          major, minor, patch = (int(p) for p in parts)
-          print(f"{major}.{minor}.{patch + 1}")
-          PY
-          )
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          npm version "$NEXT_VERSION" --no-git-tag-version
-
-          python3 - <<PY
-          import json
-          from pathlib import Path
-
-          path = Path("src-tauri/tauri.conf.json")
-          data = json.loads(path.read_text())
-          data["version"] = "$NEXT_VERSION"
-          path.write_text(json.dumps(data, indent=2) + "\n")
-          PY
-
-          python3 - <<PY
-          import re
-          from pathlib import Path
-
-          path = Path("src-tauri/Cargo.toml")
-          content = path.read_text()
-          content, count = re.subn(
-            r'(?m)^version = ".*"$',
-            'version = "$NEXT_VERSION"',
-            content,
-            count=1,
-          )
-          if count != 1:
-            raise SystemExit("Failed to update src-tauri/Cargo.toml version")
-          path.write_text(content)
-          PY
-
-          python3 - <<PY
-          import re
-          from pathlib import Path
-
-          path = Path("src-tauri/Cargo.lock")
-          content = path.read_text()
-          content, count = re.subn(
-            r'(?ms)(\[\[package\]\]\nname = "agentdesk"\nversion = ")[^"]+(")',
-            r'\g<1>$NEXT_VERSION\2',
-            content,
-            count=1,
-          )
-          if count != 1:
-            raise SystemExit("Failed to update agentdesk version in src-tauri/Cargo.lock")
-          path.write_text(content)
-          PY
-
-          python3 - <<PY
-          import plistlib
-          from pathlib import Path
-
-          path = Path("src-tauri/gen/apple/codex-monitor_iOS/Info.plist")
-          with path.open("rb") as f:
-            data = plistlib.load(f)
-
-          data["CFBundleShortVersionString"] = "$NEXT_VERSION"
-          data["CFBundleVersion"] = "$NEXT_VERSION"
-
-          with path.open("wb") as f:
-            plistlib.dump(data, f, sort_keys=False)
-          PY
-
-          git checkout -b "chore/bump-version-${NEXT_VERSION}"
-          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json src-tauri/gen/apple/codex-monitor_iOS/Info.plist
-          git commit -m "chore: bump version to ${NEXT_VERSION}"
-          git push origin "chore/bump-version-${NEXT_VERSION}"
-
-          gh pr create \
-            --title "chore: bump version to ${NEXT_VERSION}" \
-            --body "Post-release version bump to ${NEXT_VERSION}." \
-            --base main \
-            --head "chore/bump-version-${NEXT_VERSION}"
+      # Post-release version bump is left to a human commit. The auto-PR
+      # path required granting GitHub Actions PR-create permission on the
+      # repo, which is an extra setting churn for negligible benefit.
