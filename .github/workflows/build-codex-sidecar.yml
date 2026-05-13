@@ -80,9 +80,25 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Ensure target installed (cross-compile safety)
+      - name: Install target for Codex-pinned toolchain
         shell: bash
-        run: rustup target add ${{ matrix.target }}
+        run: |
+          # Codex pins a specific Rust version via rust-toolchain.toml — adding
+          # the target to `stable` doesn't help cargo, which auto-installs the
+          # pinned channel and looks for std there. Read the pinned channel and
+          # add the target to it explicitly.
+          set -euo pipefail
+          PIN_FILE="codex-rs/rust-toolchain.toml"
+          if [ ! -f "$PIN_FILE" ]; then
+            PIN_FILE="rust-toolchain.toml"
+          fi
+          CHANNEL=$(awk -F'"' '/^channel = /{print $2; exit}' "$PIN_FILE")
+          echo "Codex-pinned Rust channel: ${CHANNEL:-<unset>}"
+          if [ -n "$CHANNEL" ]; then
+            rustup toolchain install "$CHANNEL" --target ${{ matrix.target }} --profile minimal --no-self-update
+          fi
+          # Belt-and-suspenders for default `stable` callers too.
+          rustup target add ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
