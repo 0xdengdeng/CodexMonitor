@@ -79,8 +79,29 @@ pub(crate) fn resolve_codex_runtime_from_current_exe() -> Result<String, String>
 
 #[allow(dead_code)]
 pub(crate) fn resolve_codex_runtime(app_handle: &AppHandle) -> Result<String, String> {
-    let resource_dir = app_handle.path().resource_dir().ok();
-    resolve_codex_runtime_from_resource_dir(resource_dir.as_deref())
+    // Tauri 2's `externalBin` drops the sidecar in Contents/MacOS/ on macOS and
+    // alongside the executable on Windows/Linux. `resource_dir()` points at
+    // Contents/Resources/ on macOS — that's a legacy fallback only; the live
+    // bundle never has codex-runtime there. Search the executable dir first,
+    // then fall back to resource_dir for parity with older bundles.
+    let mut search_dirs: Vec<PathBuf> = Vec::new();
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(executable_dir) = current_exe.parent() {
+            search_dirs.extend(executable_runtime_search_dirs(executable_dir));
+        }
+    }
+    if let Ok(resource_dir) = app_handle.path().resource_dir() {
+        if !search_dirs.iter().any(|dir| dir == &resource_dir) {
+            search_dirs.push(resource_dir);
+        }
+    }
+    if search_dirs.is_empty() {
+        return Err(
+            "Bundled Codex runtime not found because no search directory could be resolved."
+                .to_string(),
+        );
+    }
+    resolve_codex_runtime_from_search_dirs(search_dirs)
 }
 
 #[cfg(test)]
