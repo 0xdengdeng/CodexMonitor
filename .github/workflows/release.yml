@@ -110,6 +110,13 @@ jobs:
             --dir sidecar
           chmod +x sidecar/codex
           cat sidecar/metadata.txt
+          # Place the sidecar where Tauri-bundler expects it. We bypass
+          # sync-codex-runtime.mjs because release.yml invokes tauri via
+          # `npm run tauri -- build` (no pretauri:build hook fires for that
+          # script name).
+          mkdir -p src-tauri/binaries
+          cp sidecar/codex "src-tauri/binaries/codex-runtime-${TARGET}"
+          chmod +x "src-tauri/binaries/codex-runtime-${TARGET}"
           {
             echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex"
             echo "AGENTDESK_CODEX_TARGET=$TARGET"
@@ -276,6 +283,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SIDECAR_RUN_ID: ${{ inputs.sidecar_run_id }}
           TARGET: x86_64-pc-windows-msvc
+          # Git Bash on the Windows runner rewrites URL paths starting with
+          # `/` into local filesystem paths (MSYS posix conversion). Disable
+          # it so gh api calls hit the right endpoint.
+          MSYS_NO_PATHCONV: "1"
         shell: bash
         run: |
           set -euo pipefail
@@ -312,6 +323,10 @@ jobs:
             --name "$ARTIFACT_NAME" \
             --dir sidecar
           cat sidecar/metadata.txt
+          # Place the sidecar where Tauri-bundler expects it. (Same reason as
+          # macOS — `npm run tauri -- build` doesn't fire pretauri hooks.)
+          mkdir -p src-tauri/binaries
+          cp sidecar/codex.exe "src-tauri/binaries/codex-runtime-${TARGET}.exe"
           {
             echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex.exe"
             echo "AGENTDESK_CODEX_TARGET=$TARGET"
