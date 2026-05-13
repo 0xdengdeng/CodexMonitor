@@ -130,15 +130,23 @@ if [[ "${bundle_openssl}" -eq 1 ]]; then
   codesign --force --options runtime --timestamp --sign "${identity}" "${frameworks_dir}/libssl.3.dylib"
 fi
 
-# Codesign every executable under Contents/MacOS — Tauri doesn't auto-sign
-# secondary binaries (codex-runtime, codex_monitor_daemon{,ctl} aliases),
-# so notarize would reject the .app without these.
+# Codesign every executable under Contents/MacOS. Order matters:
+# codesign treats siblings of the main binary in MacOS/ as "subcomponents"
+# under `--options runtime`, so all sidecars must be signed before
+# `agentdesk` (the main bin) itself. Sign the main binary last.
 shopt -s nullglob
+main_bin="${app_path}/Contents/MacOS/agentdesk"
 for macho in "${app_path}/Contents/MacOS"/*; do
+  if [[ "${macho}" == "${main_bin}" ]]; then
+    continue
+  fi
   if [[ -f "${macho}" && -x "${macho}" ]]; then
     codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${macho}"
   fi
 done
+if [[ -f "${main_bin}" ]]; then
+  codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${main_bin}"
+fi
 shopt -u nullglob
 codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${app_path}"
 
