@@ -130,13 +130,16 @@ if [[ "${bundle_openssl}" -eq 1 ]]; then
   codesign --force --options runtime --timestamp --sign "${identity}" "${frameworks_dir}/libssl.3.dylib"
 fi
 
-codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${bin_path}"
-if [[ -f "${daemon_path}" ]]; then
-  codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${daemon_path}"
-fi
-if [[ -f "${daemonctl_path}" ]]; then
-  codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${daemonctl_path}"
-fi
+# Codesign every executable under Contents/MacOS — Tauri doesn't auto-sign
+# secondary binaries (codex-runtime, codex_monitor_daemon{,ctl} aliases),
+# so notarize would reject the .app without these.
+shopt -s nullglob
+for macho in "${app_path}/Contents/MacOS"/*; do
+  if [[ -f "${macho}" && -x "${macho}" ]]; then
+    codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${macho}"
+  fi
+done
+shopt -u nullglob
 codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${app_path}"
 
 if [[ "${bundle_openssl}" -eq 1 ]]; then
