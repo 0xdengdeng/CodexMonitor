@@ -16,6 +16,7 @@ mod files;
 mod git;
 mod git_utils;
 mod local_usage;
+mod managed_runtime;
 #[cfg(desktop)]
 mod menu;
 #[cfg(not(desktop))]

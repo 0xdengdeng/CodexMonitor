@@ -320,9 +320,7 @@ fn rename_worktree_preserves_custom_name() {
             |value| sanitize_worktree_name(value),
             |_, _, current| Ok(current.to_path_buf()),
             |_root, _args| async move { Ok(()) },
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
-                Err("spawn not expected".to_string())
-            },
+            |_entry, _codex_args, _codex_home| async move { Err("spawn not expected".to_string()) },
         )
         .await
         .expect("rename worktree");
@@ -391,9 +389,7 @@ fn rename_worktree_updates_name_when_unmodified() {
             |value| sanitize_worktree_name(value),
             |_, _, current| Ok(current.to_path_buf()),
             |_root, _args| async move { Ok(()) },
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
-                Err("spawn not expected".to_string())
-            },
+            |_entry, _codex_args, _codex_home| async move { Err("spawn not expected".to_string()) },
         )
         .await
         .expect("rename worktree");
@@ -468,9 +464,7 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
                     Ok(())
                 }
             },
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
-                Err("spawn not expected".to_string())
-            },
+            |_entry, _codex_args, _codex_home| async move { Err("spawn not expected".to_string()) },
         )
         .await;
 

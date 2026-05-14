@@ -7,7 +7,7 @@ use crate::codex::home::resolve_default_codex_home;
 use crate::shared::config_toml_core;
 use crate::shared::runtime_config_core;
 use crate::storage::write_settings;
-use crate::types::AppSettings;
+use crate::types::{AppSettings, EnterpriseAiConfig};
 use crate::utils::normalize_windows_namespace_path;
 
 fn normalize_personality(value: &str) -> Option<&'static str> {
@@ -58,6 +58,28 @@ pub(crate) async fn update_app_settings_core_allow_managed_runtime_clear(
     settings_path: &PathBuf,
 ) -> Result<AppSettings, String> {
     update_app_settings_core_inner(settings, app_settings, settings_path, false).await
+}
+
+pub(crate) async fn clear_managed_runtime_account_core(
+    app_settings: &Mutex<AppSettings>,
+    settings_path: &PathBuf,
+) -> Result<AppSettings, String> {
+    let mut next = app_settings.lock().await.clone();
+    next.enterprise_ai = EnterpriseAiConfig::default();
+    next.managed_runtime.enabled = false;
+    next.managed_runtime.base_url = None;
+    update_app_settings_core_allow_managed_runtime_clear(next, app_settings, settings_path).await
+}
+
+pub(crate) fn managed_runtime_config_changed(
+    previous: &AppSettings,
+    updated: &AppSettings,
+) -> bool {
+    let previous = runtime_config_core::normalize_managed_runtime_config(&previous.managed_runtime);
+    let updated = runtime_config_core::normalize_managed_runtime_config(&updated.managed_runtime);
+    previous.enabled != updated.enabled
+        || previous.base_url != updated.base_url
+        || previous.model != updated.model
 }
 
 async fn update_app_settings_core_inner(

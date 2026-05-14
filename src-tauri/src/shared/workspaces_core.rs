@@ -18,7 +18,8 @@ pub(crate) use io::{
     read_workspace_file_core,
 };
 pub(crate) use runtime_codex_args::{
-    set_workspace_runtime_codex_args_core, WorkspaceRuntimeCodexArgsResult,
+    restart_connected_workspace_sessions_core, set_workspace_runtime_codex_args_core,
+    WorkspaceRuntimeCodexArgsResult, WorkspaceRuntimeRestartResult,
 };
 pub(crate) use worktree::{
     add_worktree_core, remove_worktree_core, rename_worktree_core, rename_worktree_upstream_core,

@@ -1,10 +1,12 @@
 use serde_json::json;
 use tauri::{AppHandle, State, Window};
 
+use crate::managed_runtime;
 use crate::remote_backend;
 use crate::shared::runtime_secret_core;
 use crate::shared::settings_core::{
-    get_app_settings_core, get_codex_config_path_core, update_app_settings_core,
+    clear_managed_runtime_account_core, get_app_settings_core, get_codex_config_path_core,
+    managed_runtime_config_changed, update_app_settings_core,
 };
 use crate::state::AppState;
 use crate::types::{AppSettings, BackendMode, RuntimeApiKeyStatus};
@@ -27,6 +29,7 @@ pub(crate) async fn get_app_settings(
 pub(crate) async fn update_app_settings(
     settings: AppSettings,
     state: State<'_, AppState>,
+    app: AppHandle,
     window: Window,
 ) -> Result<AppSettings, String> {
     let previous = state.app_settings.lock().await.clone();
@@ -34,6 +37,9 @@ pub(crate) async fn update_app_settings(
         update_app_settings_core(settings, &state.app_settings, &state.settings_path).await?;
     if should_reset_remote_backend(&previous, &updated) {
         *state.remote_backend.lock().await = None;
+    }
+    if managed_runtime_config_changed(&previous, &updated) {
+        managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
     }
     ensure_remote_runtime_for_settings(&updated, state).await;
     let _ = window::apply_window_appearance(&window, updated.theme.as_str());
@@ -74,6 +80,7 @@ pub(crate) async fn runtime_api_key_set(
     }
 
     runtime_secret_core::set_runtime_api_key(&api_key)?;
+    managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
     Ok(RuntimeApiKeyStatus { has_api_key: true })
 }
 
@@ -89,6 +96,8 @@ pub(crate) async fn runtime_api_key_clear(
     }
 
     runtime_secret_core::clear_runtime_api_key()?;
+    clear_managed_runtime_account_core(&state.app_settings, &state.settings_path).await?;
+    managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
     Ok(RuntimeApiKeyStatus { has_api_key: false })
 }
 

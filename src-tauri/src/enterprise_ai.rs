@@ -2,11 +2,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use reqwest::header::{CONTENT_TYPE, COOKIE, SET_COOKIE};
 use serde_json::{json, Value};
-use tauri::State;
+use tauri::{AppHandle, State};
 
+use crate::managed_runtime;
 use crate::shared::runtime_secret_core;
 use crate::shared::settings_core::{
-    update_app_settings_core, update_app_settings_core_allow_managed_runtime_clear,
+    clear_managed_runtime_account_core, managed_runtime_config_changed, update_app_settings_core,
 };
 use crate::state::AppState;
 use crate::types::{
@@ -184,18 +185,6 @@ async fn persist_settings(
     update_app_settings_core(settings, &state.app_settings, &state.settings_path).await
 }
 
-async fn persist_settings_allow_managed_runtime_clear(
-    settings: AppSettings,
-    state: &State<'_, AppState>,
-) -> Result<AppSettings, String> {
-    update_app_settings_core_allow_managed_runtime_clear(
-        settings,
-        &state.app_settings,
-        &state.settings_path,
-    )
-    .await
-}
-
 async fn fetch_json(path: &str, cookie: &str) -> Result<Value, String> {
     let client = reqwest::Client::builder()
         .build()
@@ -240,12 +229,14 @@ pub(crate) async fn enterprise_ai_login(
     tenant_domain: String,
     api_key: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<EnterpriseAiLoginResult, String> {
     let session = login_session(&tenant_domain, &api_key).await?;
     runtime_secret_core::set_runtime_api_key(api_key.trim())?;
     let current = state.app_settings.lock().await.clone();
     let settings =
         persist_settings(settings_with_connected_account(current, &session), &state).await?;
+    managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
     let usage = Some(usage_for_session(&session).await);
     Ok(EnterpriseAiLoginResult { settings, usage })
 }
@@ -253,6 +244,7 @@ pub(crate) async fn enterprise_ai_login(
 #[tauri::command]
 pub(crate) async fn enterprise_ai_validate(
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<EnterpriseAiLoginResult, String> {
     let current = state.app_settings.lock().await.clone();
     let Some(tenant_domain) = current.enterprise_ai.tenant_domain.clone() else {
@@ -274,9 +266,14 @@ pub(crate) async fn enterprise_ai_validate(
 
     match login_session(&tenant_domain, &api_key).await {
         Ok(session) => {
-            let settings =
-                persist_settings(settings_with_connected_account(current, &session), &state)
-                    .await?;
+            let settings = persist_settings(
+                settings_with_connected_account(current.clone(), &session),
+                &state,
+            )
+            .await?;
+            if managed_runtime_config_changed(&current, &settings) {
+                managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
+            }
             let usage = Some(usage_for_session(&session).await);
             Ok(EnterpriseAiLoginResult { settings, usage })
         }
@@ -297,13 +294,13 @@ pub(crate) async fn enterprise_ai_validate(
 #[tauri::command]
 pub(crate) async fn enterprise_ai_logout(
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<AppSettings, String> {
     runtime_secret_core::clear_runtime_api_key()?;
-    let mut next = state.app_settings.lock().await.clone();
-    next.enterprise_ai = EnterpriseAiConfig::default();
-    next.managed_runtime.enabled = false;
-    next.managed_runtime.base_url = None;
-    persist_settings_allow_managed_runtime_clear(next, &state).await
+    let settings =
+        clear_managed_runtime_account_core(&state.app_settings, &state.settings_path).await?;
+    managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
+    Ok(settings)
 }
 
 #[tauri::command]

@@ -604,13 +604,49 @@ impl DaemonState {
         .await
     }
 
+    async fn restart_connected_workspace_sessions(
+        &self,
+        client_version: String,
+    ) -> Result<workspaces_core::WorkspaceRuntimeRestartResult, String> {
+        workspaces_core::restart_connected_workspace_sessions_core(
+            &self.workspaces,
+            &self.sessions,
+            &self.app_settings,
+            move |entry, next_args, codex_home| {
+                spawn_with_client(
+                    self.event_sink.clone(),
+                    client_version.clone(),
+                    &self.app_settings,
+                    entry,
+                    next_args,
+                    codex_home,
+                )
+            },
+        )
+        .await
+    }
+
     async fn get_app_settings(&self) -> AppSettings {
         settings_core::get_app_settings_core(&self.app_settings).await
     }
 
-    async fn update_app_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
-        settings_core::update_app_settings_core(settings, &self.app_settings, &self.settings_path)
-            .await
+    async fn update_app_settings(
+        &self,
+        settings: AppSettings,
+        client_version: String,
+    ) -> Result<AppSettings, String> {
+        let previous = self.app_settings.lock().await.clone();
+        let updated = settings_core::update_app_settings_core(
+            settings,
+            &self.app_settings,
+            &self.settings_path,
+        )
+        .await?;
+        if settings_core::managed_runtime_config_changed(&previous, &updated) {
+            self.restart_connected_workspace_sessions(client_version)
+                .await?;
+        }
+        Ok(updated)
     }
 
     async fn runtime_api_key_status(&self) -> Result<RuntimeApiKeyStatus, String> {
@@ -619,13 +655,26 @@ impl DaemonState {
         })
     }
 
-    async fn runtime_api_key_set(&self, api_key: String) -> Result<RuntimeApiKeyStatus, String> {
+    async fn runtime_api_key_set(
+        &self,
+        api_key: String,
+        client_version: String,
+    ) -> Result<RuntimeApiKeyStatus, String> {
         shared::runtime_secret_core::set_runtime_api_key(&api_key)?;
+        self.restart_connected_workspace_sessions(client_version)
+            .await?;
         Ok(RuntimeApiKeyStatus { has_api_key: true })
     }
 
-    async fn runtime_api_key_clear(&self) -> Result<RuntimeApiKeyStatus, String> {
+    async fn runtime_api_key_clear(
+        &self,
+        client_version: String,
+    ) -> Result<RuntimeApiKeyStatus, String> {
         shared::runtime_secret_core::clear_runtime_api_key()?;
+        settings_core::clear_managed_runtime_account_core(&self.app_settings, &self.settings_path)
+            .await?;
+        self.restart_connected_workspace_sessions(client_version)
+            .await?;
         Ok(RuntimeApiKeyStatus { has_api_key: false })
     }
 
