@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: var(--ds-panel-gap);
   background: transparent;
-  padding: 12px 12px 0;
+  padding: 12px;
   -webkit-app-region: no-drag;
   min-height: 0;
   flex: 1;
@@ -34,6 +34,25 @@
   align-items: center;
   min-height: var(--ds-panel-header-min-height);
   color: var(--ds-panel-header-text);
+}
+
+.ds-panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  color: var(--ds-panel-header-text);
+}
+
+.ds-panel-toolbar:empty {
+  display: none;
+}
+
+.ds-panel-toolbar .ds-panel-meta {
+  flex: 1;
+  justify-content: space-between;
+  min-width: 0;
 }
 
 .ds-panel-meta {

@@ -71,15 +71,12 @@ type DesktopLayoutProps = {
   messagesNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   gitDiffPanelNode: ReactNode;
-  planPanelNode: ReactNode;
   composerNode: ReactNode;
   terminalDockNode: ReactNode;
   debugPanelNode: ReactNode;
-  hasActivePlan: boolean;
   onSidebarResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onChatDiffSplitPositionResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onRightPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
-  onPlanPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
 export function DesktopLayout({
@@ -98,14 +95,11 @@ export function DesktopLayout({
   messagesNode,
   gitDiffViewerNode,
   gitDiffPanelNode,
-  planPanelNode,
   composerNode,
   terminalDockNode,
   debugPanelNode,
-  hasActivePlan,
   onSidebarResizeStart,
   onRightPanelResizeStart,
-  onPlanPanelResizeStart,
   onChatDiffSplitPositionResizeStart,
 }: DesktopLayoutProps) {
   const { t } = useI18n();
@@ -227,17 +221,9 @@ export function DesktopLayout({
               aria-label={t("layout.resizeRightPanel")}
               onMouseDown={onRightPanelResizeStart}
             />
-            <div className={`right-panel ${hasActivePlan ? "" : "plan-collapsed"}`}>
+            <div className="right-panel">
               <div className="right-panel-drag-strip" />
               <div className="right-panel-top">{gitDiffPanelNode}</div>
-              <div
-                className="right-panel-divider"
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label={t("layout.resizePlanPanel")}
-                onMouseDown={onPlanPanelResizeStart}
-              />
-              <div className="right-panel-bottom">{planPanelNode}</div>
             </div>
             {terminalDockNode}
             {debugPanelNode}

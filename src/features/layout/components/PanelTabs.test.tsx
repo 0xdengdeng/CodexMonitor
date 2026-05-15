@@ -14,19 +14,22 @@ describe("PanelTabs", () => {
     render(<PanelTabsHarness />);
     const tabs = screen.getAllByRole("tab");
 
-    tabs[0].focus();
-    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Plan" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Version" })).toBeTruthy();
 
-    await waitFor(() => {
-      expect(tabs[1].getAttribute("aria-selected")).toBe("true");
-      expect(document.activeElement).toBe(tabs[1]);
-    });
-
+    tabs[1].focus();
     fireEvent.keyDown(tabs[1], { key: "ArrowRight" });
 
     await waitFor(() => {
       expect(tabs[2].getAttribute("aria-selected")).toBe("true");
       expect(document.activeElement).toBe(tabs[2]);
+    });
+
+    fireEvent.keyDown(tabs[2], { key: "ArrowRight" });
+
+    await waitFor(() => {
+      expect(tabs[3].getAttribute("aria-selected")).toBe("true");
+      expect(document.activeElement).toBe(tabs[3]);
     });
   });
 });

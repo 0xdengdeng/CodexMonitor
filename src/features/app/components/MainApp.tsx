@@ -30,6 +30,7 @@ import { useWorkspaceFromUrlPrompt } from "@/features/workspaces/hooks/useWorksp
 import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
 import { useWorkspaceSelection } from "@/features/workspaces/hooks/useWorkspaceSelection";
 import { usePlanReadyActions } from "@app/hooks/usePlanReadyActions";
+import { usePlanPanelAutoFocus } from "@app/hooks/usePlanPanelAutoFocus";
 import { useThreadRows } from "@app/hooks/useThreadRows";
 import { useInterruptShortcut } from "@app/hooks/useInterruptShortcut";
 import { useArchiveShortcut } from "@app/hooks/useArchiveShortcut";
@@ -224,7 +225,6 @@ export default function MainApp() {
     onChatDiffSplitPositionResizeStart,
     onRightPanelResizeStart,
     planPanelHeight,
-    onPlanPanelResizeStart,
     terminalPanelHeight,
     onTerminalPanelResizeStart,
     debugPanelHeight,
@@ -1145,9 +1145,12 @@ export default function MainApp() {
   const activePlan = activeThreadId
     ? planByThread[activeThreadId] ?? null
     : null;
-  const hasActivePlan = Boolean(
-    activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
-  );
+  usePlanPanelAutoFocus({
+    activeThreadId,
+    activePlan,
+    filePanelMode,
+    setFilePanelMode: gitState.setFilePanelMode,
+  });
   const composerWorkspaceState = useMainAppComposerWorkspaceState({
     view: {
       activeTab,
@@ -1834,7 +1837,6 @@ export default function MainApp() {
     tabBarNode,
     gitDiffPanelNode,
     gitDiffViewerNode,
-    planPanelNode,
     debugPanelNode,
     debugPanelFullNode,
     terminalDockNode,
@@ -1897,7 +1899,6 @@ export default function MainApp() {
       centerMode,
       preloadGitDiffs: appSettings.preloadGitDiffs,
       splitChatDiffView: appSettings.splitChatDiffView,
-      hasActivePlan: hasActivePlan,
       activeWorkspace: Boolean(activeWorkspace),
       sidebarNode,
       messagesNode: mainMessagesNode,
@@ -1911,7 +1912,6 @@ export default function MainApp() {
       tabBarNode,
       gitDiffPanelNode,
       gitDiffViewerNode,
-      planPanelNode,
       debugPanelNode,
       debugPanelFullNode,
       terminalDockNode,
@@ -1921,7 +1921,6 @@ export default function MainApp() {
       onSidebarResizeStart,
       onChatDiffSplitPositionResizeStart,
       onRightPanelResizeStart,
-      onPlanPanelResizeStart,
     },
     topbar: {
       isCompact,

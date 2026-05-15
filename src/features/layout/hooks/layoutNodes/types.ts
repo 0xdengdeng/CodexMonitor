@@ -56,6 +56,7 @@ export type LayoutPrimarySurface = {
 
 export type LayoutGitSurface = {
   filePanelMode: ComponentProps<typeof GitDiffPanel>["filePanelMode"];
+  planPanelProps: ComponentProps<typeof PlanPanel>;
   fileTreeProps: ComponentProps<typeof FileTreePanel> | null;
   promptPanelProps: ComponentProps<typeof PromptPanel>;
   gitDiffPanelProps: ComponentProps<typeof GitDiffPanel>;

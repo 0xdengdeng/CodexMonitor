@@ -16,6 +16,7 @@ import { useComposerInsert } from "@app/hooks/useComposerInsert";
 import { useWorkspaceFileListing } from "@app/hooks/useWorkspaceFileListing";
 import { useWorkspaceAgentMd } from "@/features/workspaces/hooks/useWorkspaceAgentMd";
 import { useWorkspaceHome } from "@/features/workspaces/hooks/useWorkspaceHome";
+import type { PanelTabId } from "@/features/layout/components/PanelTabs";
 
 const RECENT_THREAD_LIMIT = 8;
 
@@ -26,7 +27,7 @@ type UseMainAppComposerWorkspaceStateArgs = {
     isTablet: boolean;
     activeTab: "home" | "projects" | "codex" | "git" | "log";
     tabletTab: "codex" | "git" | "log";
-    filePanelMode: "git" | "files" | "prompts";
+    filePanelMode: PanelTabId;
     rightPanelCollapsed: boolean;
   };
   workspace: {

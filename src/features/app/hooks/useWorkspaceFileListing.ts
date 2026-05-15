@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import { useWorkspaceFiles } from "../../workspaces/hooks/useWorkspaceFiles";
+import type { PanelTabId } from "@/features/layout/components/PanelTabs";
 
-type FilePanelMode = "git" | "files" | "prompts";
+type FilePanelMode = PanelTabId;
 type TabKey = "home" | "projects" | "codex" | "git" | "log";
 type TabletTabKey = "codex" | "git" | "log";
 

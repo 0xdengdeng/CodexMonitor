@@ -662,6 +662,9 @@ export function GitDiffPanel({
       headerClassName="git-panel-header"
       headerRight={
         <div className="git-panel-actions" role="group" aria-label={t("git.panel")}>
+          <span className="git-panel-toolbar-branch" title={branchName}>
+            {branchName}
+          </span>
           <div className="git-panel-select">
             <span className="git-panel-select-icon" aria-hidden>
               <ModeIcon />

@@ -6,6 +6,7 @@ export function buildGitSurface({
   activeWorkspace,
   gitState,
   composerWorkspaceState,
+  activePlan,
   promptActions,
   worktreeState,
   pullRequestComposer,
@@ -19,6 +20,10 @@ export function buildGitSurface({
 }: MainAppLayoutSurfacesContext): LayoutNodesOptions["git"] {
   return {
     filePanelMode: gitState.filePanelMode,
+    planPanelProps: {
+      plan: activePlan,
+      isProcessing: composerWorkspaceState.isProcessing,
+    },
     fileTreeProps: activeWorkspace
       ? {
           workspaceId: activeWorkspace.id,

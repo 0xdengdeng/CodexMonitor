@@ -10,6 +10,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import type { GitDiffSource, GitPanelMode } from "../types";
+import type { PanelTabId } from "@/features/layout/components/PanelTabs";
 import { buildPullRequestDraft } from "../../../utils/pullRequestPrompt";
 import { parsePullRequestReviewCommand } from "../utils/pullRequestReviewCommands";
 
@@ -27,7 +28,7 @@ type UsePullRequestComposerOptions = {
   activeWorkspace: WorkspaceInfo | null;
   selectedPullRequest: GitHubPullRequest | null;
   selectedCommit: GitLogEntry | null;
-  filePanelMode: "git" | "files" | "prompts";
+  filePanelMode: PanelTabId;
   gitPanelMode: GitPanelMode;
   centerMode: "chat" | "diff";
   isCompact: boolean;

@@ -29,8 +29,12 @@ export function PanelShell({
     <PanelFrame className={className}>
       <PanelHeader className={headerClassName}>
         <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
-        {headerRight}
       </PanelHeader>
+      {headerRight ? (
+        <div className="ds-panel-toolbar" role="toolbar">
+          {headerRight}
+        </div>
+      ) : null}
       {search}
       {children}
     </PanelFrame>

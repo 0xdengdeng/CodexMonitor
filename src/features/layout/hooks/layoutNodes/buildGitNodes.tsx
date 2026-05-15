@@ -1,7 +1,9 @@
 import { FileTreePanel } from "../../../files/components/FileTreePanel";
 import { GitDiffPanel } from "../../../git/components/GitDiffPanel";
 import { GitDiffViewer } from "../../../git/components/GitDiffViewer";
+import { PlanPanel } from "../../../plan/components/PlanPanel";
 import { PromptPanel } from "../../../prompts/components/PromptPanel";
+import { PanelShell } from "../../components/PanelShell";
 import type {
   LayoutGitSurface,
   LayoutNodesResult,
@@ -33,6 +35,18 @@ function buildGitDiffPanelNode(options: GitLayoutNodesOptions) {
       ? options.gitDiffViewerProps.selectedPath
       : null;
 
+  if (options.filePanelMode === "plan") {
+    return (
+      <PanelShell
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.gitDiffPanelProps.onFilePanelModeChange}
+        className="plan-inspector-panel"
+        headerClassName="git-panel-header"
+      >
+        <PlanPanel {...options.planPanelProps} />
+      </PanelShell>
+    );
+  }
   if (options.filePanelMode === "files" && options.fileTreeProps) {
     return <FileTreePanel {...options.fileTreeProps} />;
   }

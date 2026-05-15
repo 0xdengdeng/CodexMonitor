@@ -2,9 +2,10 @@ import { useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { useI18n } from "@/features/i18n/i18n";
 import Folder from "lucide-react/dist/esm/icons/folder";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import ListChecks from "lucide-react/dist/esm/icons/list-checks";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 
-export type PanelTabId = "git" | "files" | "prompts";
+export type PanelTabId = "plan" | "git" | "files" | "prompts";
 
 type PanelTab = {
   id: PanelTabId;
@@ -23,6 +24,7 @@ export function PanelTabs({ active, onSelect, tabs }: PanelTabsProps) {
   const localizedTabs = useMemo<PanelTab[]>(
     () =>
       tabs ?? [
+        { id: "plan", label: t("panelTabs.plan"), icon: <ListChecks aria-hidden /> },
         { id: "git", label: t("panelTabs.git"), icon: <GitBranch aria-hidden /> },
         { id: "files", label: t("panelTabs.files"), icon: <Folder aria-hidden /> },
         { id: "prompts", label: t("panelTabs.prompts"), icon: <ScrollText aria-hidden /> },
@@ -94,6 +96,7 @@ export function PanelTabs({ active, onSelect, tabs }: PanelTabsProps) {
             <span className="panel-tab-icon" aria-hidden>
               {tab.icon}
             </span>
+            <span className="panel-tab-label">{tab.label}</span>
           </button>
         );
       })}
