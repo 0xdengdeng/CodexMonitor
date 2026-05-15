@@ -14,6 +14,7 @@ import { formatCount, parseReasoning } from "../utils/messageRenderUtils";
 import {
   DiffRow,
   ExploreRow,
+  ImageGenerationRow,
   MessageRow,
   ReasoningRow,
   ReviewRow,
@@ -226,6 +227,9 @@ export const Messages = memo(function Messages({
           onRequestAutoScroll={requestAutoScroll}
         />
       );
+    }
+    if (item.kind === "imageGeneration") {
+      return <ImageGenerationRow key={item.id} item={item} />;
     }
     if (item.kind === "explore") {
       return <ExploreRow key={item.id} item={item} />;

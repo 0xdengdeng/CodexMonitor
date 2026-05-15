@@ -69,6 +69,112 @@ function getTurnCreatedAt(turn: Record<string, unknown>) {
   return timestamp > 0 ? timestamp : undefined;
 }
 
+function normalizeImageGenerationStatus(value: unknown) {
+  const status = asString(value).trim();
+  const normalized = status.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
+  if (normalized === "failed") {
+    return "failed" as const;
+  }
+  if (normalized === "completed" || normalized === "complete" || normalized === "success") {
+    return "completed" as const;
+  }
+  return "in_progress" as const;
+}
+
+function getContentItems(item: Record<string, unknown>) {
+  const raw = item.contentItems ?? item.content_items;
+  return Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
+}
+
+function parseImageGenerationMetadata(text: string) {
+  if (!text.trim().startsWith("{")) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function firstContentText(items: Array<Record<string, unknown>>) {
+  for (const entry of items) {
+    const type = asString(entry.type);
+    if (type === "inputText") {
+      const text = asString(entry.text);
+      if (text) {
+        return text;
+      }
+    }
+  }
+  return "";
+}
+
+function firstContentImageUrl(items: Array<Record<string, unknown>>) {
+  for (const entry of items) {
+    const type = asString(entry.type);
+    if (type === "inputImage") {
+      const url = asString(entry.imageUrl ?? entry.image_url);
+      if (url) {
+        return url;
+      }
+    }
+  }
+  return "";
+}
+
+function buildImageGenerationFromDynamicToolCall(
+  item: Record<string, unknown>,
+): ConversationItem | null {
+  const namespaceRaw = item.namespace;
+  const namespace =
+    typeof namespaceRaw === "string" && namespaceRaw.trim().length > 0
+      ? namespaceRaw.trim()
+      : null;
+  const tool = asString(item.tool).trim();
+  if (namespace !== "codex_monitor" || tool !== "generate_image") {
+    return null;
+  }
+  const id = asString(item.id);
+  if (!id) {
+    return null;
+  }
+  const args =
+    item.arguments && typeof item.arguments === "object" && !Array.isArray(item.arguments)
+      ? (item.arguments as Record<string, unknown>)
+      : {};
+  const contentItems = getContentItems(item);
+  const imageUrl = firstContentImageUrl(contentItems);
+  const text = firstContentText(contentItems);
+  const metadata = parseImageGenerationMetadata(text);
+  const success = item.success;
+  const status =
+    success === false ? "failed" : normalizeImageGenerationStatus(item.status);
+  const error =
+    status === "failed"
+      ? asString(metadata.error ?? metadata.message ?? text) || "图片生成失败。"
+      : null;
+  const savedPath =
+    asString(metadata.savedPath ?? metadata.saved_path ?? metadata.localPath ?? metadata.local_path) ||
+    imageUrl ||
+    null;
+  return {
+    id,
+    kind: "imageGeneration",
+    status,
+    prompt: asString(args.prompt),
+    revisedPrompt: asString(metadata.revisedPrompt ?? metadata.revised_prompt) || null,
+    model: asString(metadata.model) || "gpt-image-2",
+    size: asString(args.size ?? metadata.size),
+    assetId: asString(metadata.assetId ?? metadata.asset_id) || null,
+    savedPath,
+    imageSrc: imageUrl || savedPath,
+    error,
+    createdAt: getMessageCreatedAt(item),
+  };
+}
+
 export function buildConversationItem(
   item: Record<string, unknown>,
 ): ConversationItem | null {
@@ -186,6 +292,26 @@ export function buildConversationItem(
       output: asString(item.result ?? item.error ?? ""),
     };
   }
+  if (type === "dynamicToolCall") {
+    const imageGeneration = buildImageGenerationFromDynamicToolCall(item);
+    if (imageGeneration) {
+      return imageGeneration;
+    }
+    const namespace = asString(item.namespace ?? "");
+    const tool = asString(item.tool ?? "");
+    const args = item.arguments ? JSON.stringify(item.arguments, null, 2) : "";
+    const contentItems = getContentItems(item);
+    const output = firstContentText(contentItems) || asString(item.error ?? "");
+    return {
+      id,
+      kind: "tool",
+      toolType: type,
+      title: `Tool: ${namespace}${tool ? ` / ${tool}` : ""}`,
+      detail: args,
+      status: asString(item.status ?? ""),
+      output,
+    };
+  }
   if (type === "collabToolCall" || type === "collabAgentToolCall") {
     return parseCollabToolCallItem(item);
   }
@@ -210,6 +336,24 @@ export function buildConversationItem(
       detail: asString(item.path ?? ""),
       status: "",
       output: "",
+    };
+  }
+  if (type === "imageGeneration") {
+    const result = asString(item.result ?? "");
+    const savedPath = asString(item.savedPath ?? item.saved_path ?? "");
+    return {
+      id,
+      kind: "imageGeneration",
+      status: normalizeImageGenerationStatus(item.status),
+      prompt: asString(item.prompt ?? ""),
+      revisedPrompt: asString(item.revisedPrompt ?? item.revised_prompt) || null,
+      model: asString(item.model ?? ""),
+      size: asString(item.size ?? ""),
+      assetId: asString(item.assetId ?? item.asset_id) || null,
+      savedPath: savedPath || null,
+      imageSrc: result || savedPath || null,
+      error: asString(item.error ?? "") || null,
+      createdAt: getMessageCreatedAt(item),
     };
   }
   if (type === "contextCompaction") {

@@ -230,11 +230,11 @@ Supported server requests:
 - `item/commandExecution/requestApproval`
 - `item/fileChange/requestApproval`
 - `item/permissions/requestApproval`
+- `item/tool/call`
 - `item/tool/requestUserInput`
 
 Missing server requests:
 
-- `item/tool/call`
 - `account/chatgptAuthTokens/refresh`
 - `mcpServer/elicitation/request`
 

@@ -638,6 +638,8 @@ export function scrollKeyForItems(items: ConversationItem[]) {
       return `${last.id}-${last.status}-${last.entries.length}`;
     case "tool":
       return `${last.id}-${last.status ?? ""}-${last.output?.length ?? 0}`;
+    case "imageGeneration":
+      return `${last.id}-${last.status}-${last.imageSrc ?? ""}-${last.error ?? ""}`;
     case "diff":
       return `${last.id}-${last.status ?? ""}-${last.diff.length}`;
     case "review":

@@ -539,4 +539,54 @@ describe("useAppServerEvents", () => {
       root.unmount();
     });
   });
+
+  it("routes dynamic tool calls to a dedicated handler", async () => {
+    const handlers = {
+      onDynamicToolCall: vi.fn(),
+    } as Handlers & {
+      onDynamicToolCall: ReturnType<typeof vi.fn>;
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "item/tool/call",
+          id: 77,
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            callId: "call-1",
+            namespace: "codex_monitor",
+            tool: "generate_image",
+            arguments: {
+              prompt: "A small blue rocket icon",
+              size: "1024x1024",
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onDynamicToolCall).toHaveBeenCalledWith({
+      workspace_id: "ws-1",
+      request_id: 77,
+      params: {
+        thread_id: "thread-1",
+        turn_id: "turn-1",
+        call_id: "call-1",
+        namespace: "codex_monitor",
+        tool: "generate_image",
+        arguments: {
+          prompt: "A small blue rocket icon",
+          size: "1024x1024",
+        },
+      },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
 });

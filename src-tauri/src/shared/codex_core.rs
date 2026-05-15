@@ -275,13 +275,35 @@ pub(crate) async fn start_thread_core(
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
     let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = json!({
-        "cwd": workspace_path,
-        "approvalPolicy": "on-request"
-    });
+    let params = build_thread_start_params(workspace_path);
     session
         .send_request_for_workspace(&workspace_id, "thread/start", params)
         .await
+}
+
+pub(crate) fn build_thread_start_params(workspace_path: String) -> Value {
+    json!({
+        "cwd": workspace_path,
+        "approvalPolicy": "on-request",
+        "dynamicTools": [image_generation_dynamic_tool()]
+    })
+}
+
+fn image_generation_dynamic_tool() -> Value {
+    json!({
+        "namespace": "codex_monitor",
+        "name": "generate_image",
+        "description": "Generate an image from a text prompt. Use this when the user asks to create, draw, design, or generate an image, icon, illustration, background, poster, or visual asset.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string" },
+                "size": { "type": "string", "enum": ["1024x1024"] }
+            },
+            "required": ["prompt"],
+            "additionalProperties": false
+        }
+    })
 }
 
 pub(crate) async fn resume_thread_core(
@@ -1112,6 +1134,26 @@ mod tests {
         assert_eq!(params.get("limit"), Some(&json!(50)));
         assert_eq!(params.get("sortKey"), Some(&json!("updatedAt")));
         assert_eq!(params.get("modelProviders"), Some(&json!([])));
-        assert_eq!(params.get("sourceKinds"), Some(&json!(THREAD_LIST_SOURCE_KINDS)));
+        assert_eq!(
+            params.get("sourceKinds"),
+            Some(&json!(THREAD_LIST_SOURCE_KINDS))
+        );
+    }
+
+    #[test]
+    fn thread_start_params_include_image_generation_dynamic_tool() {
+        let params = build_thread_start_params("/tmp/workspace".to_string());
+        let tool = params
+            .get("dynamicTools")
+            .and_then(Value::as_array)
+            .and_then(|tools| tools.first())
+            .expect("dynamic tool should be present");
+
+        assert_eq!(tool.get("namespace"), Some(&json!("codex_monitor")));
+        assert_eq!(tool.get("name"), Some(&json!("generate_image")));
+        assert_eq!(
+            tool.pointer("/inputSchema/properties/size/enum/0"),
+            Some(&json!("1024x1024"))
+        );
     }
 }

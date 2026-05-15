@@ -1767,4 +1767,39 @@ describe("Messages", () => {
       screen.queryByText("Compacting conversation context to fit token limits."),
     ).toBeNull();
   });
+
+  it("renders completed image generation cards", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "image-1",
+        kind: "imageGeneration",
+        status: "completed",
+        prompt: "A small blue rocket icon",
+        revisedPrompt: null,
+        model: "gpt-image-2",
+        size: "1024x1024",
+        assetId: "asset-1",
+        savedPath: "/tmp/generated-images/asset-1.png",
+        imageSrc: "data:image/png;base64,AAA",
+        error: null,
+      } as ConversationItem,
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("Image generated")).toBeTruthy();
+    expect(screen.getByText("gpt-image-2")).toBeTruthy();
+    expect(screen.getByText("1024x1024")).toBeTruthy();
+    expect(screen.getByAltText("Generated image")).toBeTruthy();
+    expect(screen.getByText("A small blue rocket icon")).toBeTruthy();
+  });
 });

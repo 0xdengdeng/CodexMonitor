@@ -5,8 +5,10 @@ import type {
   AppSettings,
   CodexUpdateResult,
   CodexDoctorResult,
+  DynamicToolCallResponse,
   EnterpriseAiLoginResult,
   EnterpriseAiUsageSnapshot,
+  GeneratedImageAsset,
   LocalUsageSnapshot,
   RuntimeApiKeyStatus,
   TcpDaemonStatus,
@@ -547,6 +549,47 @@ export async function respondToUserInputRequest(
     workspaceId,
     requestId,
     result: { answers },
+  });
+}
+
+export async function respondToDynamicToolCallRequest(
+  workspaceId: string,
+  requestId: number | string,
+  response: DynamicToolCallResponse,
+) {
+  return invoke("respond_to_server_request", {
+    workspaceId,
+    requestId,
+    result: response,
+  });
+}
+
+export async function generateImage({
+  workspaceId,
+  threadId,
+  prompt,
+  size,
+}: {
+  workspaceId?: string | null;
+  threadId?: string | null;
+  prompt: string;
+  size?: string | null;
+}): Promise<GeneratedImageAsset> {
+  return invoke<GeneratedImageAsset>("generate_image", {
+    workspaceId,
+    threadId,
+    prompt,
+    size,
+  });
+}
+
+export async function listGeneratedImages(filters?: {
+  workspaceId?: string | null;
+  threadId?: string | null;
+}): Promise<GeneratedImageAsset[]> {
+  return invoke<GeneratedImageAsset[]>("list_generated_images", {
+    workspaceId: filters?.workspaceId ?? null,
+    threadId: filters?.threadId ?? null,
   });
 }
 

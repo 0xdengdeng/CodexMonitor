@@ -140,7 +140,60 @@ export type ConversationItem =
       collabReceiver?: CollabAgentRef;
       collabReceivers?: CollabAgentRef[];
       collabStatuses?: CollabAgentStatus[];
+    }
+  | {
+      id: string;
+      kind: "imageGeneration";
+      status: "in_progress" | "completed" | "failed";
+      prompt: string;
+      revisedPrompt: string | null;
+      model: string;
+      size: string;
+      assetId: string | null;
+      savedPath: string | null;
+      imageSrc: string | null;
+      error: string | null;
+      createdAt?: number;
     };
+
+export type DynamicToolCallRequest = {
+  workspace_id: string;
+  request_id: string | number;
+  params: {
+    thread_id: string;
+    turn_id: string;
+    call_id: string;
+    namespace: string | null;
+    tool: string;
+    arguments: Record<string, unknown>;
+  };
+};
+
+export type DynamicToolCallOutputContentItem =
+  | { type: "inputText"; text: string }
+  | { type: "inputImage"; imageUrl: string };
+
+export type DynamicToolCallResponse = {
+  contentItems: DynamicToolCallOutputContentItem[];
+  success: boolean;
+};
+
+export type GeneratedImageAsset = {
+  id: string;
+  workspaceId: string | null;
+  threadId: string | null;
+  source: "adg" | string;
+  model: string;
+  prompt: string;
+  revisedPrompt: string | null;
+  size: string;
+  localPath: string;
+  modelVisibleImageUrl: string | null;
+  mimeType: string;
+  createdAtMs: number;
+  requestId: string | null;
+  status: "completed" | string;
+};
 
 export type ThreadSummary = {
   id: string;

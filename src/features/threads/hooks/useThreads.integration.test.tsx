@@ -6,10 +6,12 @@ import type { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { useThreadRows } from "@app/hooks/useThreadRows";
 import {
   archiveThread,
+  generateImage,
   interruptTurn,
   listThreads,
   readThread,
   resumeThread,
+  respondToDynamicToolCallRequest,
   sendUserMessage as sendUserMessageService,
   setThreadName,
   startThread,
@@ -32,8 +34,10 @@ vi.mock("@app/hooks/useAppServerEvents", () => ({
 
 vi.mock("@services/tauri", () => ({
   respondToServerRequest: vi.fn(),
+  respondToDynamicToolCallRequest: vi.fn(),
   respondToUserInputRequest: vi.fn(),
   rememberApprovalRule: vi.fn(),
+  generateImage: vi.fn(),
   sendUserMessage: vi.fn(),
   steerTurn: vi.fn(),
   startReview: vi.fn(),
@@ -1864,6 +1868,74 @@ describe("useThreads UX integration", () => {
 
     expect(result.current.threadParentById["thread-parent"]).toBeUndefined();
     expect(localStorage.getItem(STORAGE_KEY_DETACHED_REVIEW_LINKS)).toBeNull();
+  });
+
+  it("returns only model-visible image URLs from dynamic image generation", async () => {
+    vi.mocked(generateImage).mockResolvedValue({
+      id: "asset-1",
+      workspaceId: "ws-1",
+      threadId: "thread-image",
+      source: "adg",
+      model: "gpt-image-2",
+      prompt: "A small blue rocket icon",
+      revisedPrompt: null,
+      size: "1024x1024",
+      localPath: "/Users/example/generated-images/asset-1.png",
+      modelVisibleImageUrl: "data:image/png;base64,AAA",
+      mimeType: "image/png",
+      createdAtMs: 123,
+      requestId: "req-1",
+      status: "completed",
+    });
+
+    renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      handlers?.onDynamicToolCall?.({
+        workspace_id: "ws-1",
+        request_id: 404,
+        params: {
+          thread_id: "thread-image",
+          turn_id: "turn-1",
+          call_id: "call-1",
+          namespace: "codex_monitor",
+          tool: "generate_image",
+          arguments: {
+            prompt: "A small blue rocket icon",
+            size: "1024x1024",
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(respondToDynamicToolCallRequest).toHaveBeenCalledWith(
+        "ws-1",
+        404,
+        expect.objectContaining({
+          success: true,
+          contentItems: expect.arrayContaining([
+            { type: "inputImage", imageUrl: "data:image/png;base64,AAA" },
+          ]),
+        }),
+      );
+    });
+    expect(respondToDynamicToolCallRequest).not.toHaveBeenCalledWith(
+      "ws-1",
+      404,
+      expect.objectContaining({
+        contentItems: expect.arrayContaining([
+          expect.objectContaining({
+            imageUrl: "/Users/example/generated-images/asset-1.png",
+          }),
+        ]),
+      }),
+    );
   });
 
   it("orders thread lists, applies custom names, and keeps pin ordering stable", async () => {

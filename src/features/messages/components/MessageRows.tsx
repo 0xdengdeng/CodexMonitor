@@ -93,6 +93,10 @@ type ToolRowProps = MarkdownFileLinkProps & {
   onRequestAutoScroll?: () => void;
 };
 
+type ImageGenerationRowProps = {
+  item: Extract<ConversationItem, { kind: "imageGeneration" }>;
+};
+
 type ExploreRowProps = {
   item: Extract<ConversationItem, { kind: "explore" }>;
 };
@@ -981,6 +985,87 @@ export const ToolRow = memo(function ToolRow({
           </div>
         )}
       </div>
+    </div>
+  );
+});
+
+export const ImageGenerationRow = memo(function ImageGenerationRow({
+  item,
+}: ImageGenerationRowProps) {
+  const { t } = useI18n();
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const imageSrc = item.imageSrc ? normalizeMessageImageSrc(item.imageSrc) : "";
+  const tone =
+    item.status === "failed"
+      ? "failed"
+      : item.status === "completed"
+        ? "completed"
+        : "processing";
+  const title =
+    item.status === "failed"
+      ? t("messages.imageGenerationFailed")
+      : item.status === "completed"
+        ? t("messages.imageGenerated")
+        : t("messages.imageGenerating");
+  const image: MessageImage | null = imageSrc
+    ? { src: imageSrc, label: t("messages.generatedImageAlt") }
+    : null;
+
+  const copyPrompt = useCallback(() => {
+    if (!item.prompt) {
+      return;
+    }
+    void navigator.clipboard?.writeText(item.prompt).catch(() => undefined);
+  }, [item.prompt]);
+
+  return (
+    <div className={`image-generation-card image-generation-card--${tone}`}>
+      <div className="image-generation-header">
+        <div className="image-generation-title">
+          {item.status === "in_progress" ? (
+            <span className="working-spinner" aria-hidden />
+          ) : (
+            <Image size={16} aria-hidden />
+          )}
+          <span>{title}</span>
+        </div>
+        <div className="image-generation-meta">
+          {item.model && <span>{item.model}</span>}
+          {item.size && <span>{item.size}</span>}
+        </div>
+      </div>
+      {image && item.status === "completed" && (
+        <button
+          type="button"
+          className="image-generation-preview"
+          onClick={() => setLightboxOpen(true)}
+          aria-label={t("messages.openGeneratedImage")}
+        >
+          <img src={image.src} alt={image.label} loading="lazy" />
+        </button>
+      )}
+      {item.error && <div className="image-generation-error">{item.error}</div>}
+      {item.prompt && (
+        <div className="image-generation-prompt">
+          <span>{item.prompt}</span>
+          <button
+            type="button"
+            className="ghost message-action-button"
+            onClick={copyPrompt}
+            aria-label={t("messages.copyPrompt")}
+            title={t("messages.copyPrompt")}
+          >
+            <Copy size={14} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
+      )}
+      {lightboxOpen && image && (
+        <ImageLightbox
+          images={[image]}
+          activeIndex={0}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 });

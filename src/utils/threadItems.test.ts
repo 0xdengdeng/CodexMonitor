@@ -959,6 +959,66 @@ describe("threadItems", () => {
     }
   });
 
+  it("builds upstream image generation items", () => {
+    const item = buildConversationItem({
+      type: "imageGeneration",
+      id: "image-1",
+      status: "completed",
+      revisedPrompt: "A polished blue rocket icon",
+      result: "/tmp/generated-images/rocket.png",
+      savedPath: "/tmp/generated-images/rocket.png",
+    });
+
+    expect(item).toEqual({
+      id: "image-1",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "",
+      revisedPrompt: "A polished blue rocket icon",
+      model: "",
+      size: "",
+      assetId: null,
+      savedPath: "/tmp/generated-images/rocket.png",
+      imageSrc: "/tmp/generated-images/rocket.png",
+      error: null,
+      createdAt: undefined,
+    });
+  });
+
+  it("normalizes AgentDesk image dynamic tool calls into image generation items", () => {
+    const item = buildConversationItem({
+      type: "dynamicToolCall",
+      id: "call-1",
+      namespace: "codex_monitor",
+      tool: "generate_image",
+      status: "completed",
+      arguments: {
+        prompt: "A small blue rocket icon",
+        size: "1024x1024",
+      },
+      contentItems: [
+        { type: "inputText", text: "{\"assetId\":\"asset-1\",\"model\":\"gpt-image-2\"}" },
+        { type: "inputImage", imageUrl: "/tmp/generated-images/asset-1.png" },
+      ],
+      success: true,
+    });
+
+    expect(item).toEqual({
+      id: "call-1",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A small blue rocket icon",
+      revisedPrompt: null,
+      model: "gpt-image-2",
+      size: "1024x1024",
+      assetId: "asset-1",
+      savedPath: "/tmp/generated-images/asset-1.png",
+      imageSrc: "/tmp/generated-images/asset-1.png",
+      error: null,
+      createdAt: undefined,
+    });
+  });
+
   it("parses ISO timestamps for thread updates", () => {
     const timestamp = getThreadTimestamp({ updated_at: "2025-01-01T00:00:00Z" });
     expect(timestamp).toBe(Date.parse("2025-01-01T00:00:00Z"));

@@ -38,7 +38,7 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
-fn service_base_url() -> String {
+pub(crate) fn service_base_url() -> String {
     std::env::var("CODEXMONITOR_ENTERPRISE_AI_BASE_URL")
         .or_else(|_| std::env::var("AI_DEVELOPMENT_GATEWAY_URL"))
         .ok()

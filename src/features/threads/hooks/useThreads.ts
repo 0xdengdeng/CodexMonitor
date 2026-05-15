@@ -4,6 +4,8 @@ import type {
   CollabAgentRef,
   CustomPromptOption,
   DebugEntry,
+  DynamicToolCallRequest,
+  DynamicToolCallOutputContentItem,
   InterfaceLanguagePreference,
   ServiceTier,
   ThreadListSortKey,
@@ -27,7 +29,9 @@ import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
 import { useDetachedReviewTracking } from "./useDetachedReviewTracking";
 import {
   archiveThread as archiveThreadService,
+  generateImage,
   readThread as readThreadService,
+  respondToDynamicToolCallRequest,
   setThreadName as setThreadNameService,
 } from "@services/tauri";
 import {
@@ -539,9 +543,134 @@ export function useThreads({
     [threadHandlers],
   );
 
+  const handleDynamicToolCall = useCallback(
+    (request: DynamicToolCallRequest) => {
+      void (async () => {
+        const { workspace_id, request_id, params } = request;
+        const args = params.arguments ?? {};
+        const prompt =
+          typeof args.prompt === "string" ? args.prompt.trim() : "";
+        const size =
+          typeof args.size === "string" && args.size.trim()
+            ? args.size.trim()
+            : "1024x1024";
+        const isImageTool =
+          params.namespace === "codex_monitor" && params.tool === "generate_image";
+        if (!isImageTool || !prompt) {
+          await respondToDynamicToolCallRequest(workspace_id, request_id, {
+            success: false,
+            contentItems: [
+              {
+                type: "inputText",
+                text: JSON.stringify({
+                  error: prompt
+                    ? "Unsupported dynamic tool."
+                    : "Image prompt is required.",
+                }),
+              },
+            ],
+          });
+          return;
+        }
+
+        dispatch({
+          type: "upsertItem",
+          workspaceId: workspace_id,
+          threadId: params.thread_id,
+          item: {
+            id: params.call_id,
+            kind: "imageGeneration",
+            status: "in_progress",
+            prompt,
+            revisedPrompt: null,
+            model: "gpt-image-2",
+            size,
+            assetId: null,
+            savedPath: null,
+            imageSrc: null,
+            error: null,
+            createdAt: Date.now(),
+          },
+          hasCustomName: Boolean(getCustomName(workspace_id, params.thread_id)),
+        });
+
+        try {
+          const asset = await generateImage({
+            workspaceId: workspace_id,
+            threadId: params.thread_id,
+            prompt,
+            size,
+          });
+          const imageUrl = asset.modelVisibleImageUrl?.trim() ?? "";
+          const contentItems: DynamicToolCallOutputContentItem[] = [
+            {
+              type: "inputText" as const,
+              text: JSON.stringify({
+                assetId: asset.id,
+                model: asset.model,
+                size: asset.size,
+                savedPath: asset.localPath,
+                localPath: asset.localPath,
+                requestId: asset.requestId,
+              }),
+            },
+          ];
+          if (imageUrl) {
+            contentItems.push({ type: "inputImage" as const, imageUrl });
+          }
+          await respondToDynamicToolCallRequest(workspace_id, request_id, {
+            success: true,
+            contentItems,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          dispatch({
+            type: "upsertItem",
+            workspaceId: workspace_id,
+            threadId: params.thread_id,
+            item: {
+              id: params.call_id,
+              kind: "imageGeneration",
+              status: "failed",
+              prompt,
+              revisedPrompt: null,
+              model: "gpt-image-2",
+              size,
+              assetId: null,
+              savedPath: null,
+              imageSrc: null,
+              error: message,
+              createdAt: Date.now(),
+            },
+            hasCustomName: Boolean(getCustomName(workspace_id, params.thread_id)),
+          });
+          await respondToDynamicToolCallRequest(workspace_id, request_id, {
+            success: false,
+            contentItems: [
+              {
+                type: "inputText",
+                text: JSON.stringify({ error: message }),
+              },
+            ],
+          });
+        }
+      })().catch((error) => {
+        onDebug?.({
+          id: `${Date.now()}-client-dynamic-tool-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "item/tool/call error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      });
+    },
+    [dispatch, getCustomName, onDebug],
+  );
+
   const handlers = useMemo(
     () => ({
       ...threadHandlers,
+      onDynamicToolCall: handleDynamicToolCall,
       onThreadStarted: handleThreadStarted,
       onThreadArchived: handleThreadArchived,
       onThreadUnarchived: handleThreadUnarchived,
@@ -553,6 +682,7 @@ export function useThreads({
       handleThreadStarted,
       handleThreadArchived,
       handleThreadUnarchived,
+      handleDynamicToolCall,
       handleAccountUpdated,
       handleAccountLoginCompleted,
     ],

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type {
   AppServerEvent,
   ApprovalRequest,
+  DynamicToolCallRequest,
   RequestUserInputRequest,
 } from "../../../types";
 import { subscribeAppServerEvents } from "../../../services/events";
@@ -57,6 +58,7 @@ type AppServerEventHandlers = {
   ) => void;
   onApprovalRequest?: (request: ApprovalRequest) => void;
   onRequestUserInput?: (request: RequestUserInputRequest) => void;
+  onDynamicToolCall?: (request: DynamicToolCallRequest) => void;
   onAgentMessageDelta?: (event: AgentDelta) => void;
   onAgentMessageCompleted?: (event: AgentCompleted) => void;
   onAppServerEvent?: (event: AppServerEvent) => void;
@@ -126,6 +128,7 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "item/reasoning/summaryTextDelta",
   "item/reasoning/textDelta",
   "item/started",
+  "item/tool/call",
   "item/tool/requestUserInput",
   "thread/archived",
   "thread/closed",
@@ -244,6 +247,38 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
             questions,
           },
         });
+        return;
+      }
+
+      if (method === "item/tool/call" && hasRequestId) {
+        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+        const turnId = String(params.turnId ?? params.turn_id ?? "").trim();
+        const callId = String(params.callId ?? params.call_id ?? "").trim();
+        const namespaceRaw = params.namespace;
+        const namespace =
+          typeof namespaceRaw === "string" && namespaceRaw.trim().length > 0
+            ? namespaceRaw.trim()
+            : null;
+        const tool = String(params.tool ?? "").trim();
+        const argsRaw = params.arguments;
+        const args =
+          argsRaw && typeof argsRaw === "object" && !Array.isArray(argsRaw)
+            ? (argsRaw as Record<string, unknown>)
+            : {};
+        if (threadId && turnId && callId && tool) {
+          currentHandlers.onDynamicToolCall?.({
+            workspace_id,
+            request_id: requestId as string | number,
+            params: {
+              thread_id: threadId,
+              turn_id: turnId,
+              call_id: callId,
+              namespace,
+              tool,
+              arguments: args,
+            },
+          });
+        }
         return;
       }
 
