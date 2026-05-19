@@ -11,9 +11,13 @@ button {
   font-weight: 650;
   cursor: pointer;
   letter-spacing: 0;
-  transition: transform 0.12s ease, box-shadow 0.12s ease,
-    background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
-    filter 0.15s ease;
+  transition:
+    transform var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    background-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    filter var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
   -webkit-app-region: no-drag;
 }
 

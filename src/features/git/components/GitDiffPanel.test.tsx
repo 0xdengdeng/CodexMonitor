@@ -68,19 +68,46 @@ const baseProps = {
 };
 
 describe("GitDiffPanel", () => {
-  it("shows an initialize git button when the repo is missing", () => {
+  it("shows a version records button when the repo is missing", () => {
     const onInitGitRepo = vi.fn();
     const { container } = render(
       <GitDiffPanel
         {...baseProps}
         error="not a git repository"
         onInitGitRepo={onInitGitRepo}
+        onScanGitRoots={vi.fn()}
+        onPickGitRoot={vi.fn()}
       />,
     );
 
-    const initButton = within(container).getByRole("button", { name: "Initialize Git" });
+    const initButton = within(container).getByRole("button", {
+      name: "Turn on version records",
+    });
+    expect(
+      within(container).queryByRole("button", { name: "Scan workspace" }),
+    ).toBeNull();
+    expect(
+      within(container).queryByRole("button", { name: "Pick folder" }),
+    ).toBeNull();
     fireEvent.click(initButton);
     expect(onInitGitRepo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show the raw missing repository error as a sidebar error", () => {
+    const rawError =
+      "could not find repository at 'D:\\qihang'; class=Repository (6); code=NotFound (-3)";
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        error={rawError}
+        onInitGitRepo={vi.fn()}
+      />,
+    );
+
+    expect(
+      within(container).getByRole("button", { name: "Turn on version records" }),
+    ).toBeTruthy();
+    expect(within(container).queryByText(rawError)).toBeNull();
   });
 
   it("does not show initialize git when the git root path is invalid", () => {
@@ -92,7 +119,9 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    expect(within(container).queryByRole("button", { name: "Initialize Git" })).toBeNull();
+    expect(
+      within(container).queryByRole("button", { name: "Turn on version records" }),
+    ).toBeNull();
   });
 
   it("enables commit when message exists and only unstaged changes", () => {
@@ -288,7 +317,11 @@ describe("GitDiffPanel", () => {
   });
 
   it("shows Agent edits option in mode selector", () => {
-    render(<GitDiffPanel {...baseProps} />);
+    const { container } = render(<GitDiffPanel {...baseProps} />);
+    expect(container.querySelector("select")).toBeNull();
+
+    fireEvent.click(within(container).getByRole("combobox", { name: "Git panel view" }));
+
     const options = screen.getAllByRole("option", { name: "Agent edits" });
     expect(options.length).toBeGreaterThan(0);
   });

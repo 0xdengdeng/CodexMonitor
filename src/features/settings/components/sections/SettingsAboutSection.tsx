@@ -11,6 +11,7 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 
 type SettingsAboutSectionProps = {
@@ -99,42 +100,44 @@ export function SettingsAboutSection({
         <label className="settings-field-label" htmlFor="theme-select">
           {t("settings.display.theme")}
         </label>
-        <select
+        <SelectMenu
           id="theme-select"
           className="settings-select"
           value={appSettings.theme}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              theme: event.target.value as AppSettings["theme"],
+              theme: nextValue as AppSettings["theme"],
             })
           }
-        >
-          <option value="system">{t("settings.display.theme.system")}</option>
-          <option value="light">{t("settings.display.theme.light")}</option>
-          <option value="dark">{t("settings.display.theme.dark")}</option>
-          <option value="dim">{t("settings.display.theme.dim")}</option>
-        </select>
+          options={[
+            { value: "system", label: t("settings.display.theme.system") },
+            { value: "light", label: t("settings.display.theme.light") },
+            { value: "dark", label: t("settings.display.theme.dark") },
+            { value: "dim", label: t("settings.display.theme.dim") },
+          ]}
+        />
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="interface-language-select">
           {t("settings.display.interfaceLanguage.label")}
         </label>
-        <select
+        <SelectMenu
           id="interface-language-select"
           className="settings-select"
           value={appSettings.interfaceLanguage}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              interfaceLanguage: event.target.value as AppSettings["interfaceLanguage"],
+              interfaceLanguage: nextValue as AppSettings["interfaceLanguage"],
             })
           }
-        >
-          <option value="system">{t("settings.display.interfaceLanguage.system")}</option>
-          <option value="zh-Hans">{t("settings.display.interfaceLanguage.chinese")}</option>
-          <option value="en">{t("settings.display.interfaceLanguage.english")}</option>
-        </select>
+          options={[
+            { value: "system", label: t("settings.display.interfaceLanguage.system") },
+            { value: "zh-Hans", label: t("settings.display.interfaceLanguage.chinese") },
+            { value: "en", label: t("settings.display.interfaceLanguage.english") },
+          ]}
+        />
       </div>
       <div className="settings-field">
         <div className="settings-help">

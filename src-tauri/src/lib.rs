@@ -132,6 +132,12 @@ pub fn run() {
                     let _ = main_window.hide_menu();
                 }
             }
+            #[cfg(all(desktop, debug_assertions))]
+            {
+                if let Some(main_window) = app.get_webview_window("main") {
+                    let _ = main_window.set_title("启航AI智慧平台 Dev");
+                }
+            }
             #[cfg(desktop)]
             {
                 let app_handle = app.handle().clone();
@@ -186,6 +192,8 @@ pub fn run() {
             settings::get_app_settings,
             settings::update_app_settings,
             settings::runtime_api_key_status,
+            settings::runtime_model_list,
+            settings::runtime_image_model_list,
             settings::runtime_api_key_set,
             settings::runtime_api_key_clear,
             settings::get_codex_config_path,
@@ -243,6 +251,7 @@ pub fn run() {
             codex::set_thread_name,
             codex::collaboration_mode_list,
             workspaces::connect_workspace,
+            git::get_git_runtime_info,
             git::get_git_status,
             git::init_git_repo,
             git::create_github_repo,

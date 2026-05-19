@@ -25,6 +25,41 @@ function mergeUserInputQuestions(
   return [...merged, ...missingExisting];
 }
 
+function hasText(value: string | null | undefined) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function mergeImageGenerationItem(
+  existing: Extract<ConversationItem, { kind: "imageGeneration" }>,
+  incoming: Extract<ConversationItem, { kind: "imageGeneration" }>,
+): Extract<ConversationItem, { kind: "imageGeneration" }> {
+  const incomingStatus =
+    existing.status === "completed" && incoming.status === "in_progress"
+      ? existing.status
+      : incoming.status;
+  return {
+    ...existing,
+    ...incoming,
+    status: incomingStatus,
+    prompt: hasText(incoming.prompt) ? incoming.prompt : existing.prompt,
+    revisedPrompt: hasText(incoming.revisedPrompt)
+      ? incoming.revisedPrompt
+      : existing.revisedPrompt,
+    model: hasText(incoming.model) ? incoming.model : existing.model,
+    size: hasText(incoming.size) ? incoming.size : existing.size,
+    assetId: hasText(incoming.assetId) ? incoming.assetId : existing.assetId,
+    savedPath: hasText(incoming.savedPath) ? incoming.savedPath : existing.savedPath,
+    imageSrc: hasText(incoming.imageSrc) ? incoming.imageSrc : existing.imageSrc,
+    error:
+      incoming.status === "completed"
+        ? null
+        : hasText(incoming.error)
+          ? incoming.error
+          : existing.error,
+    createdAt: incoming.createdAt ?? existing.createdAt,
+  };
+}
+
 export function upsertItem(list: ConversationItem[], item: ConversationItem) {
   const index = list.findIndex((entry) => entry.id === item.id);
   if (index === -1) {
@@ -96,6 +131,11 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
       durationMs:
         typeof item.durationMs === "number" ? item.durationMs : existing.durationMs,
     };
+    return next;
+  }
+
+  if (existing.kind === "imageGeneration" && item.kind === "imageGeneration") {
+    next[index] = mergeImageGenerationItem(existing, item);
     return next;
   }
 
@@ -197,6 +237,9 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
           ? remote.collabStatuses
           : local.collabStatuses,
     };
+  }
+  if (remote.kind === "imageGeneration" && local.kind === "imageGeneration") {
+    return mergeImageGenerationItem(local, remote);
   }
   if (remote.kind === "diff" && local.kind === "diff") {
     const useLocal = local.diff.length > remote.diff.length;

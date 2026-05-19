@@ -11,6 +11,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 type UseThreadItemEventsOptions = {
   activeThreadId: string | null;
   dispatch: Dispatch<ThreadAction>;
+  imageGenerationModel?: string | null;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
   markReviewing: (threadId: string, isReviewing: boolean) => void;
@@ -40,6 +41,7 @@ type UseThreadItemEventsOptions = {
 export function useThreadItemEvents({
   activeThreadId,
   dispatch,
+  imageGenerationModel,
   getCustomName,
   markProcessing,
   markReviewing,
@@ -73,7 +75,12 @@ export function useThreadItemEvents({
         }
       }
       const itemForDisplay = buildItemForDisplay(item, shouldMarkProcessing);
-      const converted = buildConversationItem(itemForDisplay);
+      const conversionOptions = imageGenerationModel
+        ? { imageGenerationModel }
+        : undefined;
+      const converted = conversionOptions
+        ? buildConversationItem(itemForDisplay, conversionOptions)
+        : buildConversationItem(itemForDisplay);
       handleConvertedItemEffects({
         converted,
         workspaceId,
@@ -100,6 +107,7 @@ export function useThreadItemEvents({
       applyCollabThreadLinks,
       dispatch,
       getCustomName,
+      imageGenerationModel,
       markProcessing,
       markReviewing,
       onReviewExited,

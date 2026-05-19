@@ -96,6 +96,26 @@ describe("threadReducer", () => {
     });
   });
 
+  it("ignores empty assistant completion messages", () => {
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [] },
+      },
+      {
+        type: "completeAgentMessage",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-empty",
+        text: "   ",
+        timestamp: 1234,
+        hasCustomName: false,
+      },
+    );
+
+    expect(next.itemsByThread["thread-1"]).toEqual([]);
+  });
+
   it("updates thread timestamp when newer activity arrives", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1000 },

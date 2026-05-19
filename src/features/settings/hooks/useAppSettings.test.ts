@@ -5,6 +5,7 @@ import type { AppSettings, CodexDoctorResult } from "@/types";
 import { useAppSettings } from "./useAppSettings";
 import {
   getAppSettings,
+  getRuntimeImageModelList,
   runCodexDoctor,
   updateAppSettings,
 } from "@services/tauri";
@@ -12,11 +13,13 @@ import { UI_SCALE_DEFAULT, UI_SCALE_MAX } from "@utils/uiScale";
 
 vi.mock("@services/tauri", () => ({
   getAppSettings: vi.fn(),
+  getRuntimeImageModelList: vi.fn(),
   updateAppSettings: vi.fn(),
   runCodexDoctor: vi.fn(),
 }));
 
 const getAppSettingsMock = vi.mocked(getAppSettings);
+const getRuntimeImageModelListMock = vi.mocked(getRuntimeImageModelList);
 const updateAppSettingsMock = vi.mocked(updateAppSettings);
 const runCodexDoctorMock = vi.mocked(runCodexDoctor);
 
@@ -41,6 +44,7 @@ describe("useAppSettings", () => {
           enabled: true,
           baseUrl: " https://runtime.example/v1 ",
           model: "  ",
+          imageModel: " adg-image-pro ",
         },
         enterpriseAi: {
           tenantDomain: " acme ",
@@ -74,6 +78,8 @@ describe("useAppSettings", () => {
       enabled: true,
       baseUrl: "https://runtime.example/v1",
       model: null,
+      imageModel: "adg-image-pro",
+      nativeImageGeneration: true,
     });
     expect(result.current.settings.enterpriseAi).toEqual({
       tenantDomain: "acme",
@@ -147,6 +153,62 @@ describe("useAppSettings", () => {
     expect(returned).toEqual(saved);
     expect(result.current.settings.theme).toBe("dark");
     expect(result.current.settings.uiScale).toBe(2.4);
+  });
+
+  it("reconciles the saved image model with the ADG image catalog after loading settings", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      managedRuntime: {
+        enabled: true,
+        baseUrl: "https://adg-uat.zhaozhunai.com/v1",
+        model: "qihang-ultra-5.5",
+        imageModel: "adg-image",
+        nativeImageGeneration: true,
+      },
+    } as AppSettings);
+    getRuntimeImageModelListMock.mockResolvedValue({
+      object: "list",
+      data: [{ id: "gpt-image-2", object: "model" }],
+    });
+    updateAppSettingsMock.mockImplementation(async (settings: AppSettings) => settings);
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() =>
+      expect(updateAppSettingsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          managedRuntime: expect.objectContaining({
+            imageModel: "gpt-image-2",
+          }),
+        }),
+      ),
+    );
+
+    expect(result.current.settings.managedRuntime.imageModel).toBe("gpt-image-2");
+  });
+
+  it("keeps the saved image model when it is present in the ADG image catalog", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      managedRuntime: {
+        enabled: true,
+        baseUrl: "https://adg-uat.zhaozhunai.com/v1",
+        model: "qihang-ultra-5.5",
+        imageModel: "gpt-image-2",
+        nativeImageGeneration: true,
+      },
+    } as AppSettings);
+    getRuntimeImageModelListMock.mockResolvedValue({
+      object: "list",
+      data: [{ id: "gpt-image-2", object: "model" }],
+    });
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(getRuntimeImageModelListMock).toHaveBeenCalled());
+
+    expect(updateAppSettingsMock).not.toHaveBeenCalled();
+    expect(result.current.settings.managedRuntime.imageModel).toBe("gpt-image-2");
   });
 
   it("optimistically updates settings while save is pending", async () => {

@@ -554,6 +554,44 @@ describe("threadItems", () => {
     }
   });
 
+  it("keeps local generated image fields when remote thread data is partial", () => {
+    const remote: ConversationItem = {
+      id: "image-remote-partial",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "adg-image",
+      size: "1024x1536",
+      assetId: null,
+      savedPath: null,
+      imageSrc: null,
+      error: null,
+    };
+    const local: ConversationItem = {
+      id: "image-remote-partial",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "adg-image",
+      size: "1024x1536",
+      assetId: "asset-1",
+      savedPath: "/tmp/generated-images/asset-1.png",
+      imageSrc: "/tmp/generated-images/asset-1.png",
+      error: null,
+    };
+
+    const merged = mergeThreadItems([remote], [local]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].kind).toBe("imageGeneration");
+    if (merged[0].kind === "imageGeneration") {
+      expect(merged[0].assetId).toBe("asset-1");
+      expect(merged[0].savedPath).toBe("/tmp/generated-images/asset-1.png");
+      expect(merged[0].imageSrc).toBe("/tmp/generated-images/asset-1.png");
+    }
+  });
+
   it("preserves streamed plan output when completion item has empty output", () => {
     const existing: ConversationItem = {
       id: "plan-1",
@@ -668,6 +706,44 @@ describe("threadItems", () => {
     expect(next[0].kind).toBe("userInput");
     if (next[0].kind === "userInput") {
       expect(next[0].questions[0]?.answers).toEqual(["Yes"]);
+    }
+  });
+
+  it("preserves existing generated image fields during partial upserts", () => {
+    const existing: ConversationItem = {
+      id: "image-upsert-partial",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "adg-image",
+      size: "1024x1536",
+      assetId: "asset-1",
+      savedPath: "/tmp/generated-images/asset-1.png",
+      imageSrc: "/tmp/generated-images/asset-1.png",
+      error: null,
+    };
+    const incoming: ConversationItem = {
+      id: "image-upsert-partial",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "adg-image",
+      size: "1024x1536",
+      assetId: null,
+      savedPath: null,
+      imageSrc: null,
+      error: null,
+    };
+
+    const next = upsertItem([existing], incoming);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("imageGeneration");
+    if (next[0].kind === "imageGeneration") {
+      expect(next[0].assetId).toBe("asset-1");
+      expect(next[0].savedPath).toBe("/tmp/generated-images/asset-1.png");
+      expect(next[0].imageSrc).toBe("/tmp/generated-images/asset-1.png");
     }
   });
 
@@ -823,6 +899,16 @@ describe("threadItems", () => {
     }
   });
 
+  it("drops empty assistant messages from thread history", () => {
+    const item = buildConversationItemFromThreadItem({
+      type: "agentMessage",
+      id: "msg-empty-assistant",
+      text: "   ",
+    });
+
+    expect(item).toBeNull();
+  });
+
   it("uses the turn timestamp for history messages without item timestamps", () => {
     const items = buildItemsFromThread({
       turns: [
@@ -964,6 +1050,8 @@ describe("threadItems", () => {
       type: "imageGeneration",
       id: "image-1",
       status: "completed",
+      model: "gpt-image-2",
+      size: "1024x1536",
       revisedPrompt: "A polished blue rocket icon",
       result: "/tmp/generated-images/rocket.png",
       savedPath: "/tmp/generated-images/rocket.png",
@@ -975,13 +1063,161 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "",
       revisedPrompt: "A polished blue rocket icon",
-      model: "",
-      size: "",
+      model: "gpt-image-2",
+      size: "1024x1536",
       assetId: null,
       savedPath: "/tmp/generated-images/rocket.png",
       imageSrc: "/tmp/generated-images/rocket.png",
       error: null,
       createdAt: undefined,
+    });
+  });
+
+  it("uses the configured image model for upstream image generation items", () => {
+    const item = buildConversationItem(
+      {
+        type: "imageGeneration",
+        id: "image-native-1",
+        status: "generating",
+        model: "qihang-ultra-5.5",
+        size: "1024x1536",
+      },
+      { imageGenerationModel: "gpt-image-2" },
+    );
+
+    expect(item).toMatchObject({
+      id: "image-native-1",
+      kind: "imageGeneration",
+      model: "gpt-image-2",
+      size: "1024x1536",
+    });
+  });
+
+  it("completes upstream image generation items when the end payload has a saved image", () => {
+    const item = buildConversationItem({
+      type: "imageGeneration",
+      id: "ig-native-1",
+      status: "generating",
+      revisedPrompt: "A polished original short-video cover",
+      result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
+      savedPath: "/tmp/generated-images/ig-native-1.png",
+    });
+
+    expect(item).toEqual({
+      id: "ig-native-1",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "",
+      revisedPrompt: "A polished original short-video cover",
+      model: "",
+      size: "",
+      assetId: null,
+      savedPath: "/tmp/generated-images/ig-native-1.png",
+      imageSrc: "/tmp/generated-images/ig-native-1.png",
+      error: null,
+      createdAt: undefined,
+    });
+  });
+
+  it("normalizes raw image_generation_call response items during thread replay", () => {
+    const result =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
+    const item = buildConversationItem(
+      {
+        type: "image_generation_call",
+        id: "ig-native-raw",
+        status: "generating",
+        model: "qihang-ultra-5.5",
+        size: "1024x1536",
+        revised_prompt: "A tokusatsu-inspired original light hero in space",
+        result,
+      },
+      { imageGenerationModel: "gpt-image-2" },
+    );
+
+    expect(item).toEqual({
+      id: "ig-native-raw",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "",
+      revisedPrompt: "A tokusatsu-inspired original light hero in space",
+      model: "gpt-image-2",
+      size: "1024x1536",
+      assetId: null,
+      savedPath: null,
+      imageSrc: `data:image/png;base64,${result}`,
+      error: null,
+      createdAt: undefined,
+    });
+  });
+
+  it("coalesces duplicate image generation records during thread replay", () => {
+    const result =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
+    const items = buildItemsFromThread(
+      {
+        turns: [
+          {
+            items: [
+              {
+                type: "imageGeneration",
+                id: "ig-native-dupe",
+                status: "completed",
+                size: "1024x1536",
+                savedPath: "/tmp/generated-images/ig-native-dupe.png",
+              },
+              {
+                type: "image_generation_call",
+                id: "ig-native-dupe",
+                status: "generating",
+                model: "qihang-ultra-5.5",
+                size: "1024x1536",
+                revised_prompt: "A tokusatsu-inspired original light hero in space",
+                result,
+              },
+            ],
+          },
+        ],
+      },
+      { imageGenerationModel: "gpt-image-2" },
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "ig-native-dupe",
+      kind: "imageGeneration",
+      status: "completed",
+      model: "gpt-image-2",
+      size: "1024x1536",
+      savedPath: "/tmp/generated-images/ig-native-dupe.png",
+    });
+  });
+
+  it("uses the configured image model during thread replay", () => {
+    const items = buildItemsFromThread(
+      {
+        turns: [
+          {
+            items: [
+              {
+                type: "imageGeneration",
+                id: "ig-native-replay",
+                status: "generating",
+                model: "qihang-ultra-5.5",
+                size: "1024x1536",
+              },
+            ],
+          },
+        ],
+      },
+      { imageGenerationModel: "gpt-image-2" },
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "ig-native-replay",
+      kind: "imageGeneration",
+      model: "gpt-image-2",
     });
   });
 
@@ -997,7 +1233,7 @@ describe("threadItems", () => {
         size: "1024x1024",
       },
       contentItems: [
-        { type: "inputText", text: "{\"assetId\":\"asset-1\",\"model\":\"gpt-image-2\"}" },
+        { type: "inputText", text: "{\"assetId\":\"asset-1\",\"model\":\"adg-image\"}" },
         { type: "inputImage", imageUrl: "/tmp/generated-images/asset-1.png" },
       ],
       success: true,
@@ -1009,7 +1245,7 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "A small blue rocket icon",
       revisedPrompt: null,
-      model: "gpt-image-2",
+      model: "adg-image",
       size: "1024x1024",
       assetId: "asset-1",
       savedPath: "/tmp/generated-images/asset-1.png",
@@ -1017,6 +1253,65 @@ describe("threadItems", () => {
       error: null,
       createdAt: undefined,
     });
+  });
+
+  it("normalizes raw response function calls into image generation items during thread replay", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          items: [
+            {
+              type: "function_call",
+              call_id: "call-1",
+              namespace: "codex_monitor",
+              name: "generate_image",
+              arguments: JSON.stringify({
+                prompt: "A seaside portrait",
+                size: "1024x1536",
+              }),
+            },
+            {
+              type: "function_call_output",
+              call_id: "call-1",
+              output: [
+                {
+                  type: "input_text",
+                  text: JSON.stringify({
+                    assetId: "asset-1",
+                    model: "adg-image",
+                    size: "1024x1536",
+                    savedPath: "/tmp/generated-images/asset-1.png",
+                    localPath: "/tmp/generated-images/asset-1.png",
+                  }),
+                },
+                {
+                  type: "input_image",
+                  image_url: "data:image/png;base64,AAA",
+                  detail: "high",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items).toEqual([
+      {
+        id: "call-1",
+        kind: "imageGeneration",
+        status: "completed",
+        prompt: "A seaside portrait",
+        revisedPrompt: null,
+        model: "adg-image",
+        size: "1024x1536",
+        assetId: "asset-1",
+        savedPath: "/tmp/generated-images/asset-1.png",
+        imageSrc: "data:image/png;base64,AAA",
+        error: null,
+        createdAt: undefined,
+      },
+    ]);
   });
 
   it("parses ISO timestamps for thread updates", () => {

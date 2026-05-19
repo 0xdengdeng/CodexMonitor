@@ -689,9 +689,7 @@ pub(crate) fn build_codex_command_with_bin(
     Ok(command)
 }
 
-pub(crate) async fn check_codex_installation(
-    codex_bin: String,
-) -> Result<Option<String>, String> {
+pub(crate) async fn check_codex_installation(codex_bin: String) -> Result<Option<String>, String> {
     let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());

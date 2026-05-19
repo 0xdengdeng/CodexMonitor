@@ -16,6 +16,7 @@ import {
 } from "../homeFormatters";
 import type { HomeStatCard, UsageMetric, UsageWorkspaceOption } from "../homeTypes";
 import { buildHomeUsageViewModel, type HomeUsageCopy } from "../homeUsageViewModel";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 
 type HomeUsageSectionProps = {
@@ -231,19 +232,20 @@ export function HomeUsageSection({
         <div className="home-usage-control-group">
           <span className="home-usage-control-label">{t("home.usage.workspace")}</span>
           <div className="home-usage-select-wrap">
-            <select
+            <SelectMenu
               className="home-usage-select"
+              aria-label={t("home.usage.workspace")}
               value={usageWorkspaceId ?? ""}
-              onChange={(event) => onUsageWorkspaceChange(event.target.value || null)}
+              onValueChange={(nextValue) => onUsageWorkspaceChange(nextValue || null)}
               disabled={usageWorkspaceOptions.length === 0}
-            >
-              <option value="">{t("home.usage.allWorkspaces")}</option>
-              {usageWorkspaceOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: t("home.usage.allWorkspaces") },
+                ...usageWorkspaceOptions.map((option) => ({
+                  value: option.id,
+                  label: option.label,
+                })),
+              ]}
+            />
           </div>
         </div>
         <div className="home-usage-control-group">

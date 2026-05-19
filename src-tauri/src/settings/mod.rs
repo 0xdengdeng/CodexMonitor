@@ -1,8 +1,9 @@
-use serde_json::json;
+use serde_json::{json, Value};
 use tauri::{AppHandle, State, Window};
 
 use crate::managed_runtime;
 use crate::remote_backend;
+use crate::shared::runtime_models_core;
 use crate::shared::runtime_secret_core;
 use crate::shared::settings_core::{
     clear_managed_runtime_account_core, get_app_settings_core, get_codex_config_path_core,
@@ -60,6 +61,33 @@ pub(crate) async fn runtime_api_key_status(
     Ok(RuntimeApiKeyStatus {
         has_api_key: runtime_secret_core::runtime_api_key_exists()?,
     })
+}
+
+#[tauri::command]
+pub(crate) async fn runtime_model_list(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(&*state, app, "runtime_model_list", json!({})).await;
+    }
+
+    let settings = state.app_settings.lock().await.clone();
+    runtime_models_core::runtime_model_list_core(&settings.managed_runtime).await
+}
+
+#[tauri::command]
+pub(crate) async fn runtime_image_model_list(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(&*state, app, "runtime_image_model_list", json!({}))
+            .await;
+    }
+
+    let settings = state.app_settings.lock().await.clone();
+    runtime_models_core::runtime_image_model_list_core(&settings.managed_runtime).await
 }
 
 #[tauri::command]

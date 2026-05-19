@@ -13,6 +13,7 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 
 type AddRemoteBackendDraft = {
@@ -205,20 +206,21 @@ export function SettingsServerSection({
           <label className="settings-field-label" htmlFor="backend-mode">
             {t("settings.server.backendMode")}
           </label>
-          <select
+          <SelectMenu
             id="backend-mode"
             className="settings-select"
             value={appSettings.backendMode}
-            onChange={(event) =>
+            onValueChange={(nextValue) =>
               void onUpdateAppSettings({
                 ...appSettings,
-                backendMode: event.target.value as AppSettings["backendMode"],
+                backendMode: nextValue as AppSettings["backendMode"],
               })
             }
-          >
-            <option value="local">{t("settings.server.localDefault")}</option>
-            <option value="remote">{t("settings.server.remoteDaemon")}</option>
-          </select>
+            options={[
+              { value: "local", label: t("settings.server.localDefault") },
+              { value: "remote", label: t("settings.server.remoteDaemon") },
+            ]}
+          />
           <div className="settings-help">
             {t("settings.server.backendModeHelp")}
           </div>

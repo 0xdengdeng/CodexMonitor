@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent, SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
 import Brain from "lucide-react/dist/esm/icons/brain";
 import Check from "lucide-react/dist/esm/icons/check";
@@ -38,10 +38,15 @@ import {
 import { Markdown } from "./Markdown";
 import { isStandaloneMarkdownTable } from "./Markdown";
 import { useI18n } from "@/features/i18n/i18n";
+import { normalizePublicImageModel } from "@/utils/imageModels";
 
 type MarkdownFileLinkProps = {
   showMessageFilePath?: boolean;
   workspacePath?: string | null;
+  onPreviewFileLink?: (
+    event: MouseEvent,
+    path: ParsedFileLocation,
+  ) => boolean;
   onOpenFileLink?: (path: ParsedFileLocation) => void;
   onOpenFileLinkMenu?: (event: MouseEvent, path: ParsedFileLocation) => void;
   onOpenThreadLink?: (threadId: string) => void;
@@ -104,6 +109,35 @@ type ExploreRowProps = {
 type CommandOutputProps = {
   output: string;
 };
+
+type ImagePreviewMetrics = {
+  width: number;
+  height: number;
+};
+
+function parseImagePreviewMetrics(size: string | null | undefined): ImagePreviewMetrics | null {
+  const match = size?.trim().match(/^([1-9]\d*)x([1-9]\d*)$/i);
+  if (!match) {
+    return null;
+  }
+  const width = Number.parseInt(match[1], 10);
+  const height = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return { width, height };
+}
+
+function imagePreviewVariant(metrics: ImagePreviewMetrics) {
+  const ratio = metrics.width / metrics.height;
+  if (ratio >= 1.15) {
+    return "landscape";
+  }
+  if (ratio <= 0.85) {
+    return "portrait";
+  }
+  return "square";
+}
 
 const MessageImageGrid = memo(function MessageImageGrid({
   images,
@@ -395,6 +429,7 @@ export const MessageRow = memo(function MessageRow({
   codeBlockCopyUseModifier,
   showMessageFilePath,
   workspacePath,
+  onPreviewFileLink,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
@@ -490,6 +525,7 @@ export const MessageRow = memo(function MessageRow({
               codeBlockCopyUseModifier={codeBlockCopyUseModifier}
               showFilePath={showMessageFilePath}
               workspacePath={workspacePath}
+              onPreviewFileLink={onPreviewFileLink}
               onOpenFileLink={onOpenFileLink}
               onOpenFileLinkMenu={onOpenFileLinkMenu}
               onOpenThreadLink={onOpenThreadLink}
@@ -504,14 +540,6 @@ export const MessageRow = memo(function MessageRow({
           )}
         </div>
         <div className="message-meta">
-          {messageTime && item.createdAt && (
-            <time
-              className="message-time"
-              dateTime={new Date(item.createdAt).toISOString()}
-            >
-              {messageTime}
-            </time>
-          )}
           <div className="message-actions">
             <button
               type="button"
@@ -544,6 +572,14 @@ export const MessageRow = memo(function MessageRow({
               </button>
             )}
           </div>
+          {messageTime && item.createdAt && (
+            <time
+              className="message-time"
+              dateTime={new Date(item.createdAt).toISOString()}
+            >
+              {messageTime}
+            </time>
+          )}
         </div>
       </div>
     </div>
@@ -557,6 +593,7 @@ export const ReasoningRow = memo(function ReasoningRow({
   onToggle,
   showMessageFilePath,
   workspacePath,
+  onPreviewFileLink,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
@@ -599,6 +636,7 @@ export const ReasoningRow = memo(function ReasoningRow({
             }`}
             showFilePath={showMessageFilePath}
             workspacePath={workspacePath}
+            onPreviewFileLink={onPreviewFileLink}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
             onOpenThreadLink={onOpenThreadLink}
@@ -613,6 +651,7 @@ export const ReviewRow = memo(function ReviewRow({
   item,
   showMessageFilePath,
   workspacePath,
+  onPreviewFileLink,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
@@ -638,6 +677,7 @@ export const ReviewRow = memo(function ReviewRow({
           className="item-text markdown"
           showFilePath={showMessageFilePath}
           workspacePath={workspacePath}
+          onPreviewFileLink={onPreviewFileLink}
           onOpenFileLink={onOpenFileLink}
           onOpenFileLinkMenu={onOpenFileLinkMenu}
           onOpenThreadLink={onOpenThreadLink}
@@ -747,6 +787,7 @@ export const ToolRow = memo(function ToolRow({
   onToggle,
   showMessageFilePath,
   workspacePath,
+  onPreviewFileLink,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
@@ -954,6 +995,7 @@ export const ToolRow = memo(function ToolRow({
             className="item-text markdown"
             showFilePath={showMessageFilePath}
             workspacePath={workspacePath}
+            onPreviewFileLink={onPreviewFileLink}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
             onOpenThreadLink={onOpenThreadLink}
@@ -967,6 +1009,7 @@ export const ToolRow = memo(function ToolRow({
             codeBlock={item.toolType !== "plan"}
             showFilePath={showMessageFilePath}
             workspacePath={workspacePath}
+            onPreviewFileLink={onPreviewFileLink}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
             onOpenThreadLink={onOpenThreadLink}
@@ -994,7 +1037,31 @@ export const ImageGenerationRow = memo(function ImageGenerationRow({
 }: ImageGenerationRowProps) {
   const { t } = useI18n();
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [promptVisible, setPromptVisible] = useState(false);
+  const [naturalMetrics, setNaturalMetrics] = useState<ImagePreviewMetrics | null>(
+    null,
+  );
   const imageSrc = item.imageSrc ? normalizeMessageImageSrc(item.imageSrc) : "";
+  const requestedMetrics = useMemo(
+    () => parseImagePreviewMetrics(item.size),
+    [item.size],
+  );
+  const previewMetrics = requestedMetrics ?? naturalMetrics;
+  const previewVariant = previewMetrics
+    ? imagePreviewVariant(previewMetrics)
+    : "thumbnail";
+  const previewStyle: CSSProperties | undefined = previewMetrics
+    ? {
+        aspectRatio: `${previewMetrics.width} / ${previewMetrics.height}`,
+      }
+    : undefined;
+  const skeletonMetrics = requestedMetrics ?? { width: 1, height: 1 };
+  const skeletonVariant = requestedMetrics
+    ? imagePreviewVariant(requestedMetrics)
+    : "square";
+  const skeletonStyle: CSSProperties = {
+    aspectRatio: `${skeletonMetrics.width} / ${skeletonMetrics.height}`,
+  };
   const tone =
     item.status === "failed"
       ? "failed"
@@ -1010,6 +1077,7 @@ export const ImageGenerationRow = memo(function ImageGenerationRow({
   const image: MessageImage | null = imageSrc
     ? { src: imageSrc, label: t("messages.generatedImageAlt") }
     : null;
+  const displayModel = item.model ? normalizePublicImageModel(item.model) : "";
 
   const copyPrompt = useCallback(() => {
     if (!item.prompt) {
@@ -1017,6 +1085,23 @@ export const ImageGenerationRow = memo(function ImageGenerationRow({
     }
     void navigator.clipboard?.writeText(item.prompt).catch(() => undefined);
   }, [item.prompt]);
+
+  const handlePreviewImageLoad = useCallback(
+    (event: SyntheticEvent<HTMLImageElement>) => {
+      if (requestedMetrics) {
+        return;
+      }
+      const { naturalWidth, naturalHeight } = event.currentTarget;
+      if (naturalWidth > 0 && naturalHeight > 0) {
+        setNaturalMetrics({ width: naturalWidth, height: naturalHeight });
+      }
+    },
+    [requestedMetrics],
+  );
+
+  useEffect(() => {
+    setNaturalMetrics(null);
+  }, [imageSrc, item.size]);
 
   return (
     <div className={`image-generation-card image-generation-card--${tone}`}>
@@ -1030,33 +1115,64 @@ export const ImageGenerationRow = memo(function ImageGenerationRow({
           <span>{title}</span>
         </div>
         <div className="image-generation-meta">
-          {item.model && <span>{item.model}</span>}
+          {displayModel && <span>{displayModel}</span>}
           {item.size && <span>{item.size}</span>}
         </div>
       </div>
       {image && item.status === "completed" && (
         <button
           type="button"
-          className="image-generation-preview"
+          className={`image-generation-preview image-generation-preview--${previewVariant}`}
+          style={previewStyle}
           onClick={() => setLightboxOpen(true)}
           aria-label={t("messages.openGeneratedImage")}
         >
-          <img src={image.src} alt={image.label} loading="lazy" />
+          <img
+            src={image.src}
+            alt={image.label}
+            loading="lazy"
+            onLoad={handlePreviewImageLoad}
+          />
         </button>
+      )}
+      {item.status === "in_progress" && !image && (
+        <div
+          className={`image-generation-preview image-generation-preview--skeleton image-generation-preview--${skeletonVariant}`}
+          style={skeletonStyle}
+          role="img"
+          aria-label={t("messages.imageGenerationPreviewLoading")}
+        >
+          <span className="image-generation-skeleton-glow" aria-hidden />
+          <span className="image-generation-skeleton-grid" aria-hidden />
+        </div>
       )}
       {item.error && <div className="image-generation-error">{item.error}</div>}
       {item.prompt && (
-        <div className="image-generation-prompt">
-          <span>{item.prompt}</span>
+        <div className="image-generation-prompt-controls">
           <button
             type="button"
-            className="ghost message-action-button"
-            onClick={copyPrompt}
-            aria-label={t("messages.copyPrompt")}
-            title={t("messages.copyPrompt")}
+            className="ghost image-generation-prompt-toggle"
+            onClick={() => setPromptVisible((value) => !value)}
+            aria-expanded={promptVisible}
           >
-            <Copy size={14} strokeWidth={2} aria-hidden />
+            {promptVisible
+              ? t("messages.hideImagePrompt")
+              : t("messages.showImagePrompt")}
           </button>
+          {promptVisible && (
+            <div className="image-generation-prompt">
+              <span>{item.prompt}</span>
+              <button
+                type="button"
+                className="ghost message-action-button"
+                onClick={copyPrompt}
+                aria-label={t("messages.copyPrompt")}
+                title={t("messages.copyPrompt")}
+              >
+                <Copy size={14} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+          )}
         </div>
       )}
       {lightboxOpen && image && (

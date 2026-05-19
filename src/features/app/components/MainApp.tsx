@@ -515,6 +515,12 @@ export default function MainApp() {
     chatHistoryScrollbackItems: appSettingsLoading
       ? null
       : appSettings.chatHistoryScrollbackItems,
+    nativeImageGenerationEnabled:
+      appSettings.managedRuntime.nativeImageGeneration !== false,
+    imageGenerationModel:
+      appSettings.managedRuntime.nativeImageGeneration !== false
+        ? appSettings.managedRuntime.imageModel
+        : null,
     customPrompts: prompts,
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
@@ -1792,6 +1798,7 @@ export default function MainApp() {
     handleComposerSendWithDraftStart,
     interruptTurn,
     terminalOpen,
+    openTerminalWithFocus,
     debugOpen,
     debugEntries,
     terminalTabs,
@@ -1854,13 +1861,11 @@ export default function MainApp() {
     () => ({
       ...appModalsProps,
       enterpriseAiLoginOpen,
-      enterpriseAiLoginTenantDomain: appSettings.enterpriseAi.tenantDomain,
       onCloseEnterpriseAiLogin: closeEnterpriseAiLogin,
       onEnterpriseAiLoginSuccess: handleEnterpriseAiLoginSuccess,
     }),
     [
       appModalsProps,
-      appSettings.enterpriseAi.tenantDomain,
       closeEnterpriseAiLogin,
       enterpriseAiLoginOpen,
       handleEnterpriseAiLoginSuccess,

@@ -383,6 +383,14 @@ pub(crate) struct ManagedRuntimeConfig {
     pub(crate) base_url: Option<String>,
     #[serde(default)]
     pub(crate) model: Option<String>,
+    #[serde(default, rename = "imageModel")]
+    pub(crate) image_model: Option<String>,
+    #[serde(default = "default_true", rename = "nativeImageGeneration")]
+    pub(crate) native_image_generation: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for ManagedRuntimeConfig {
@@ -391,6 +399,8 @@ impl Default for ManagedRuntimeConfig {
             enabled: false,
             base_url: None,
             model: None,
+            image_model: None,
+            native_image_generation: true,
         }
     }
 }
@@ -612,6 +622,11 @@ pub(crate) struct AppSettings {
         rename = "gitDiffIgnoreWhitespaceChanges"
     )]
     pub(crate) git_diff_ignore_whitespace_changes: bool,
+    #[serde(
+        default = "default_git_runtime_preference",
+        rename = "gitRuntimePreference"
+    )]
+    pub(crate) git_runtime_preference: String,
     #[serde(
         default = "default_commit_message_prompt",
         rename = "commitMessagePrompt"
@@ -996,6 +1011,10 @@ fn default_git_diff_ignore_whitespace_changes() -> bool {
     false
 }
 
+fn default_git_runtime_preference() -> String {
+    "auto".to_string()
+}
+
 fn default_commit_message_prompt() -> String {
     "Generate a concise git commit message for the following changes. \
 Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
@@ -1258,6 +1277,7 @@ impl Default for AppSettings {
             split_chat_diff_view: default_split_chat_diff_view(),
             preload_git_diffs: default_preload_git_diffs(),
             git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
+            git_runtime_preference: default_git_runtime_preference(),
             commit_message_prompt: default_commit_message_prompt(),
             commit_message_model_id: None,
             collaboration_modes_enabled: true,

@@ -8,13 +8,21 @@ use crate::shared::config_toml_core;
 use crate::shared::runtime_config_core;
 use crate::storage::write_settings;
 use crate::types::{AppSettings, EnterpriseAiConfig};
-use crate::utils::normalize_windows_namespace_path;
+use crate::utils::{normalize_windows_namespace_path, set_git_runtime_preference};
 
 fn normalize_personality(value: &str) -> Option<&'static str> {
     match value.trim() {
         "friendly" => Some("friendly"),
         "pragmatic" => Some("pragmatic"),
         _ => None,
+    }
+}
+
+fn normalize_git_runtime_preference(value: &str) -> String {
+    match value.trim() {
+        "bundled" => "bundled".to_string(),
+        "system" => "system".to_string(),
+        _ => "auto".to_string(),
     }
 }
 
@@ -80,6 +88,7 @@ pub(crate) fn managed_runtime_config_changed(
     previous.enabled != updated.enabled
         || previous.base_url != updated.base_url
         || previous.model != updated.model
+        || previous.image_model != updated.image_model
 }
 
 async fn update_app_settings_core_inner(
@@ -93,6 +102,8 @@ async fn update_app_settings_core_inner(
     settings.global_worktrees_folder = settings
         .global_worktrees_folder
         .map(|path| normalize_windows_namespace_path(&path));
+    settings.git_runtime_preference =
+        normalize_git_runtime_preference(&settings.git_runtime_preference);
     settings.managed_runtime =
         runtime_config_core::normalize_managed_runtime_config(&settings.managed_runtime);
     if preserve_managed_runtime
@@ -104,6 +115,7 @@ async fn update_app_settings_core_inner(
         settings.enterprise_ai = previous.enterprise_ai;
     }
     sync_codex_config_from_settings(&settings)?;
+    set_git_runtime_preference(&settings.git_runtime_preference);
     write_settings(settings_path, &settings)?;
     *current = settings.clone();
     Ok(settings)
@@ -162,7 +174,10 @@ pub(crate) fn get_codex_config_path_core() -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{sync_codex_config_document_from_settings, update_app_settings_core};
+    use super::{
+        managed_runtime_config_changed, sync_codex_config_document_from_settings,
+        update_app_settings_core,
+    };
     use crate::shared::runtime_config_core::MANAGED_RUNTIME_PROVIDER_ID;
     use crate::types::{AppSettings, EnterpriseAiConfig, EnterpriseAiStatus, ManagedRuntimeConfig};
     use tokio::sync::Mutex;
@@ -180,6 +195,8 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: None,
+            image_model: Some("adg-image".to_string()),
+            native_image_generation: true,
         };
         let mut document = toml_edit::Document::new();
 
@@ -198,6 +215,23 @@ mod tests {
     }
 
     #[test]
+    fn managed_runtime_config_changed_detects_image_model_changes() {
+        let mut previous = AppSettings::default();
+        previous.managed_runtime = ManagedRuntimeConfig {
+            enabled: true,
+            base_url: Some("https://runtime.example.com/v1".to_string()),
+            model: Some("qihang-ultra-5.5".to_string()),
+            image_model: Some("adg-image".to_string()),
+            native_image_generation: true,
+        };
+
+        let mut updated = previous.clone();
+        updated.managed_runtime.image_model = Some("adg-image-pro".to_string());
+
+        assert!(managed_runtime_config_changed(&previous, &updated));
+    }
+
+    #[test]
     fn update_settings_preserves_runtime_account_when_stale_payload_clears_it() {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let mut current = AppSettings::default();
@@ -206,6 +240,8 @@ mod tests {
                 enabled: true,
                 base_url: Some("https://runtime.example.com/v1".to_string()),
                 model: None,
+                image_model: Some("adg-image".to_string()),
+                native_image_generation: true,
             };
             current.enterprise_ai = EnterpriseAiConfig {
                 tenant_domain: Some("company1".to_string()),

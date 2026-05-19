@@ -20,8 +20,10 @@ import { useSettingsServerSection } from "./useSettingsServerSection";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
 import { COMPOSER_PRESET_CONFIGS } from "@settings/components/settingsViewConstants";
 import { useI18n } from "@/features/i18n/i18n";
+import type { CodexSection } from "@settings/components/settingsTypes";
 
 type UseSettingsViewOrchestrationArgs = {
+  activeSection: CodexSection;
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: GroupedWorkspaces;
   ungroupedLabel: string;
@@ -55,6 +57,7 @@ type UseSettingsViewOrchestrationArgs = {
 };
 
 export function useSettingsViewOrchestration({
+  activeSection,
   workspaceGroups,
   groupedWorkspaces,
   ungroupedLabel,
@@ -181,6 +184,7 @@ export function useSettingsViewOrchestration({
     appSettings,
     onUpdateAppSettings,
     models: codexSectionProps.defaultModels,
+    enabled: activeSection === "version",
   });
 
   const featuresSectionProps = useSettingsFeaturesSection({

@@ -32,6 +32,7 @@ export const SUPPORTED_APP_SERVER_METHODS = [
   "thread/unarchived",
   "turn/completed",
   "turn/diff/updated",
+  "turn/error",
   "turn/plan/updated",
   "turn/started",
 ] as const;

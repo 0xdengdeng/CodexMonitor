@@ -10,6 +10,7 @@ use crate::types::{
     GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
 };
+use crate::utils;
 
 fn git_remote_params<T: Serialize>(request: &T) -> Result<Value, String> {
     git_rpc::to_params(request)
@@ -76,6 +77,19 @@ macro_rules! try_remote_unit {
             return Ok(());
         }
     };
+}
+
+#[tauri::command]
+pub(crate) async fn get_git_runtime_info() -> utils::GitRuntimeInfo {
+    tauri::async_runtime::spawn_blocking(utils::git_runtime_info)
+        .await
+        .unwrap_or_else(|error| utils::GitRuntimeInfo {
+            available: false,
+            source: None,
+            path: None,
+            version: None,
+            error: Some(format!("Failed to inspect Git runtime: {error}")),
+        })
 }
 
 #[tauri::command]

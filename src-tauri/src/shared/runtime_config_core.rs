@@ -10,6 +10,7 @@ pub(crate) const MANAGED_RUNTIME_PROVIDER_ID: &str = "agentdesk_managed";
 pub(crate) const MANAGED_RUNTIME_ENV_KEY: &str = runtime_secret_core::RUNTIME_API_KEY_ENV_KEY;
 
 const MANAGED_RUNTIME_PROVIDER_NAME: &str = "agentDesk Managed Runtime";
+const MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS: i64 = 300_000;
 
 fn normalized_optional(value: Option<&str>) -> Option<String> {
     let trimmed = value?.trim();
@@ -27,6 +28,8 @@ pub(crate) fn normalize_managed_runtime_config(
         enabled: config.enabled,
         base_url: normalized_optional(config.base_url.as_deref()),
         model: normalized_optional(config.model.as_deref()),
+        image_model: normalized_optional(config.image_model.as_deref()),
+        native_image_generation: config.native_image_generation,
     }
 }
 
@@ -100,6 +103,13 @@ pub(crate) fn apply_managed_runtime_config_to_document(
     provider["wire_api"] = value("responses");
     provider["env_key"] = value(MANAGED_RUNTIME_ENV_KEY);
     provider["requires_openai_auth"] = value(false);
+    provider["supports_websockets"] = value(true);
+    provider["stream_idle_timeout_ms"] = value(MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS);
+    if let Some(image_model) = config.image_model.as_deref() {
+        let mut http_headers = Table::new();
+        http_headers["X-ADG-Image-Model"] = value(image_model);
+        provider["http_headers"] = Item::Table(http_headers);
+    }
     providers[MANAGED_RUNTIME_PROVIDER_ID] = Item::Table(provider);
 
     Ok(())
@@ -143,6 +153,8 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("gpt-5.4".to_string()),
+            image_model: Some("adg-image".to_string()),
+            native_image_generation: true,
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -158,7 +170,53 @@ mod tests {
         assert!(contents.contains("wire_api = \"responses\""));
         assert!(contents.contains(&format!("env_key = \"{MANAGED_RUNTIME_ENV_KEY}\"")));
         assert!(contents.contains("requires_openai_auth = false"));
+        assert!(contents.contains("supports_websockets = true"));
+        assert!(contents.contains("stream_idle_timeout_ms = 300000"));
         assert!(!contents.contains("sk-secret"));
+    }
+
+    #[test]
+    fn sync_managed_runtime_config_writes_image_model_header() {
+        let codex_home =
+            std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
+        fs::create_dir_all(&codex_home).expect("create temp codex home");
+
+        let settings = ManagedRuntimeConfig {
+            enabled: true,
+            base_url: Some("https://runtime.example.com/v1".to_string()),
+            model: Some("qihang-ultra-5.5".to_string()),
+            image_model: Some("adg-image-pro".to_string()),
+            native_image_generation: true,
+        };
+
+        sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
+
+        let contents =
+            fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
+        assert!(contents.contains("[model_providers.agentdesk_managed.http_headers]"));
+        assert!(contents.contains("X-ADG-Image-Model = \"adg-image-pro\""));
+    }
+
+    #[test]
+    fn sync_managed_runtime_config_omits_image_model_header_when_unset() {
+        let codex_home =
+            std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
+        fs::create_dir_all(&codex_home).expect("create temp codex home");
+
+        let settings = ManagedRuntimeConfig {
+            enabled: true,
+            base_url: Some("https://runtime.example.com/v1".to_string()),
+            model: Some("qihang-ultra-5.5".to_string()),
+            image_model: None,
+            native_image_generation: true,
+        };
+
+        sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
+
+        let contents =
+            fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
+        assert!(!contents.contains("[model_providers.agentdesk_managed.http_headers]"));
+        assert!(!contents.contains("X-ADG-Image-Model"));
     }
 
     #[test]
@@ -171,6 +229,8 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: None,
+            image_model: Some("adg-image".to_string()),
+            native_image_generation: true,
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -191,6 +251,8 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("gpt-5.4".to_string()),
+            image_model: Some("adg-image".to_string()),
+            native_image_generation: true,
         };
         assert_eq!(
             build_managed_runtime_env(&enabled, Some("sk-secret".to_string())),

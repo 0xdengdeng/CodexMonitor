@@ -14,6 +14,7 @@ import {
   getExperimentalFeatureList,
   getGitHubIssues,
   getGitLog,
+  getGitRuntimeInfo,
   getGitStatus,
   getOpenAppIcon,
   listThreads,
@@ -25,8 +26,8 @@ import {
   openWorkspaceIn,
   readAgentMd,
   stageGitAll,
-  respondToDynamicToolCallRequest,
   respondToServerRequest,
+  respondToDynamicToolCallRequest,
   respondToUserInputRequest,
   generateImage,
   listGeneratedImages,
@@ -56,6 +57,8 @@ import {
   enterpriseAiValidate,
   isDeveloperModeEnabled,
   getRuntimeApiKeyStatus,
+  getRuntimeImageModelList,
+  getRuntimeModelList,
   setRuntimeApiKey,
   updateAgent,
   deleteAgent,
@@ -208,6 +211,21 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_git_status", {
       workspaceId: "ws-1",
     });
+  });
+
+  it("invokes git runtime info command", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      available: true,
+      source: "bundled",
+      path: "/app/git",
+      version: "git version 2.39.5",
+      error: null,
+    });
+
+    await getGitRuntimeInfo();
+
+    expect(invokeMock).toHaveBeenCalledWith("get_git_runtime_info");
   });
 
   it("maps args for createGitHubRepo", async () => {
@@ -520,17 +538,34 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("is_developer_mode_enabled");
   });
 
+  it("invokes runtime model list wrapper", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({ data: [] });
+
+    await getRuntimeModelList();
+
+    expect(invokeMock).toHaveBeenCalledWith("runtime_model_list");
+  });
+
+  it("invokes runtime image model list wrapper", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({ data: [] });
+
+    await getRuntimeImageModelList();
+
+    expect(invokeMock).toHaveBeenCalledWith("runtime_image_model_list");
+  });
+
   it("invokes enterprise ai wrappers", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValue({});
 
-    await enterpriseAiLogin("acme", "sk-test");
+    await enterpriseAiLogin("sk-test");
     await enterpriseAiValidate();
     await enterpriseAiUsage();
     await enterpriseAiLogout();
 
     expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_login", {
-      tenantDomain: "acme",
       apiKey: "sk-test",
     });
     expect(invokeMock).toHaveBeenCalledWith("enterprise_ai_validate");
@@ -1077,6 +1112,7 @@ describe("tauri invoke wrappers", () => {
       threadId: "thread-1",
       prompt: "A small blue rocket icon",
       size: "1024x1024",
+      referenceImageIds: ["asset-source"],
     });
 
     expect(invokeMock).toHaveBeenCalledWith("generate_image", {
@@ -1084,6 +1120,7 @@ describe("tauri invoke wrappers", () => {
       threadId: "thread-1",
       prompt: "A small blue rocket icon",
       size: "1024x1024",
+      referenceImageIds: ["asset-source"],
     });
   });
 

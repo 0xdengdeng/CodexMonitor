@@ -7,6 +7,8 @@ Related docs:
 - Setup/build/release: `README.md`
 - Composer slash commands: `docs/slash-commands.md`
 - iOS remote over Tailscale (TCP): `docs/mobile-ios-tailscale-blueprint.md`
+- Native Codex image generation/edit/follow-up flow:
+  `docs/codex-native-image-flow.md`
 
 ## Start Here: How Changes Flow
 

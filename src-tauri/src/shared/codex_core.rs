@@ -272,33 +272,51 @@ pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
+    native_image_generation: bool,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
     let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_thread_start_params(workspace_path);
+    let params = build_thread_start_params(workspace_path, native_image_generation);
     session
         .send_request_for_workspace(&workspace_id, "thread/start", params)
         .await
 }
 
-pub(crate) fn build_thread_start_params(workspace_path: String) -> Value {
-    json!({
+pub(crate) fn build_thread_start_params(
+    workspace_path: String,
+    native_image_generation: bool,
+) -> Value {
+    let mut params = json!({
         "cwd": workspace_path,
-        "approvalPolicy": "on-request",
-        "dynamicTools": [image_generation_dynamic_tool()]
-    })
+        "approvalPolicy": "on-request"
+    });
+    if !native_image_generation {
+        params["dynamicTools"] = json!([image_generation_dynamic_tool()]);
+    }
+    params
 }
 
 fn image_generation_dynamic_tool() -> Value {
     json!({
         "namespace": "codex_monitor",
         "name": "generate_image",
-        "description": "Generate an image from a text prompt. Use this when the user asks to create, draw, design, or generate an image, icon, illustration, background, poster, or visual asset.",
+        "description": "Generate a new image from text, or edit a previously generated image when referenceImageIds are provided. Use referenceImageIds when the user asks to modify, restyle, or base the result on a previous generated image.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "prompt": { "type": "string" },
-                "size": { "type": "string", "enum": ["1024x1024"] }
+                "prompt": {
+                    "type": "string",
+                    "description": "Full prompt to send to the image model. Preserve user-provided constraints verbatim. For edits, describe exactly what should change and what should remain from the reference images."
+                },
+                "referenceImageIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Optional reference IDs from previous generated image results in this conversation. Use ADG assetId values such as asset-* or native image_generation_call IDs such as ig_* when the user says to modify, edit, use this image, keep this background, or base the result on a previous image."
+                },
+                "size": {
+                    "type": "string",
+                    "description": "Optional. Use auto, or WIDTHxHEIGHT when the user asks for a specific aspect ratio or resolution. For the configured ADG image model, width and height must be multiples of 16, max edge <= 3840, aspect ratio <= 3:1, and total pixels between 655360 and 8294400. Examples: 1024x1024 square, 1536x1024 landscape, 1024x1536 portrait, 3840x2160 4K landscape, 2160x3840 4K portrait."
+                }
             },
             "required": ["prompt"],
             "additionalProperties": false
@@ -1142,7 +1160,7 @@ mod tests {
 
     #[test]
     fn thread_start_params_include_image_generation_dynamic_tool() {
-        let params = build_thread_start_params("/tmp/workspace".to_string());
+        let params = build_thread_start_params("/tmp/workspace".to_string(), false);
         let tool = params
             .get("dynamicTools")
             .and_then(Value::as_array)
@@ -1151,9 +1169,56 @@ mod tests {
 
         assert_eq!(tool.get("namespace"), Some(&json!("codex_monitor")));
         assert_eq!(tool.get("name"), Some(&json!("generate_image")));
+        let tool_description = tool
+            .get("description")
+            .and_then(Value::as_str)
+            .expect("tool should describe its image generation scope");
+        assert!(tool_description.contains("referenceImageIds"));
+        assert!(tool_description.contains("previous generated image"));
+        let prompt_description = tool
+            .pointer("/inputSchema/properties/prompt/description")
+            .and_then(Value::as_str)
+            .expect("prompt should guide model-generated image prompts");
+        assert!(prompt_description.contains("verbatim"));
+        assert!(prompt_description.contains("reference images"));
         assert_eq!(
-            tool.pointer("/inputSchema/properties/size/enum/0"),
-            Some(&json!("1024x1024"))
+            tool.pointer("/inputSchema/properties/referenceImageIds/type"),
+            Some(&json!("array"))
         );
+        let reference_description = tool
+            .pointer("/inputSchema/properties/referenceImageIds/description")
+            .and_then(Value::as_str)
+            .expect("referenceImageIds should explain edit behavior");
+        assert!(reference_description.contains("assetId"));
+        assert!(reference_description.contains("image_generation_call"));
+        assert!(reference_description.contains("ig_"));
+        assert!(reference_description.contains("previous"));
+        assert_eq!(
+            tool.pointer("/inputSchema/properties/size/type"),
+            Some(&json!("string"))
+        );
+        assert!(tool.pointer("/inputSchema/properties/size/enum").is_none());
+        let description = tool
+            .pointer("/inputSchema/properties/size/description")
+            .and_then(Value::as_str)
+            .expect("size should guide model-generated dimensions");
+        assert!(description.contains("auto"));
+        assert!(description.contains("WIDTHxHEIGHT"));
+        assert!(description.contains("3840"));
+    }
+
+    #[test]
+    fn thread_start_params_omit_dynamic_image_tool_when_native_image_generation_enabled() {
+        let params = build_thread_start_params("/tmp/workspace".to_string(), true);
+
+        assert_eq!(params.get("cwd"), Some(&json!("/tmp/workspace")));
+        assert!(params.get("dynamicTools").is_none());
+    }
+
+    #[test]
+    fn thread_start_params_keep_skills_enabled_by_default() {
+        let params = build_thread_start_params("/tmp/workspace".to_string(), true);
+
+        assert!(params.pointer("/config/skills.config").is_none());
     }
 }

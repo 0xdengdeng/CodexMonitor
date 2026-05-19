@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App";
+import { applyAppDocumentTitle, applyAppWindowTitle } from "./utils/appTitle";
 import { isMobilePlatform } from "./utils/platformPaths";
 
 const sentryDsn =
@@ -13,6 +14,9 @@ Sentry.init({
   enabled: Boolean(sentryDsn),
   release: __APP_VERSION__,
 });
+
+applyAppDocumentTitle(__APP_IS_DEV_BUILD__);
+void applyAppWindowTitle(__APP_IS_DEV_BUILD__);
 
 Sentry.metrics.count("app_open", 1, {
   attributes: {

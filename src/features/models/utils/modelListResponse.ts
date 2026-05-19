@@ -72,6 +72,30 @@ function parseReasoningEfforts(item: Record<string, unknown>): ModelOption["supp
   return [];
 }
 
+function parseCapabilities(value: unknown): Record<string, boolean> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const capabilities: Record<string, boolean> = {};
+  for (const [key, enabled] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof enabled === "boolean") {
+      capabilities[key] = enabled;
+    }
+  }
+  return Object.keys(capabilities).length > 0 ? capabilities : undefined;
+}
+
+function parseSupportedEndpoints(item: Record<string, unknown>): string[] | undefined {
+  const endpoints = item.supportedEndpoints ?? item.supported_endpoints;
+  if (!Array.isArray(endpoints)) {
+    return undefined;
+  }
+  const normalized = endpoints
+    .map((endpoint) => (typeof endpoint === "string" ? endpoint.trim() : ""))
+    .filter((endpoint) => endpoint.length > 0);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 export function parseModelListResponse(response: unknown): ModelOption[] {
   const items = extractModelItems(response);
 
@@ -84,7 +108,8 @@ export function parseModelListResponse(response: unknown): ModelOption[] {
       const modelSlug = String(record.model ?? record.id ?? "");
       const rawDisplayName = String(record.displayName || record.display_name || "");
       const displayName = rawDisplayName.trim().length > 0 ? rawDisplayName : modelSlug;
-      return {
+      const rawType = typeof record.type === "string" ? record.type.trim() : "";
+      const model: ModelOption = {
         id: String(record.id ?? record.model ?? ""),
         model: modelSlug,
         displayName,
@@ -94,7 +119,17 @@ export function parseModelListResponse(response: unknown): ModelOption[] {
           record.defaultReasoningEffort ?? record.default_reasoning_effort,
         ),
         isDefault: Boolean(record.isDefault ?? record.is_default ?? false),
-      } satisfies ModelOption;
+        type: rawType.length > 0 ? rawType : null,
+      };
+      const capabilities = parseCapabilities(record.capabilities);
+      if (capabilities) {
+        model.capabilities = capabilities;
+      }
+      const supportedEndpoints = parseSupportedEndpoints(record);
+      if (supportedEndpoints) {
+        model.supportedEndpoints = supportedEndpoints;
+      }
+      return model;
     })
     .filter((model): model is ModelOption => model !== null);
 }

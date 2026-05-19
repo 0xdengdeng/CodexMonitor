@@ -1,0 +1,24 @@
+{
+  "productName": "启航AI智慧平台 Dev",
+  "identifier": "com.agentdesk.app.dev",
+  "app": {
+    "windows": [
+      {
+        "title": "启航AI智慧平台 Dev",
+        "width": 1200,
+        "height": 700,
+        "minWidth": 360,
+        "minHeight": 600,
+        "dragDropEnabled": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 19,
+          "y": 24
+        },
+        "transparent": false,
+        "devtools": true
+      }
+    ]
+  }
+}

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelOption, WorkspaceInfo } from "@/types";
-import { connectWorkspace, getConfigModel, getModelList } from "@services/tauri";
+import {
+  connectWorkspace,
+  getConfigModel,
+  getModelList,
+  getRuntimeModelList,
+} from "@services/tauri";
 import { parseModelListResponse } from "@/features/models/utils/modelListResponse";
 import { useI18n } from "@/features/i18n/i18n";
 
@@ -17,6 +22,8 @@ const EMPTY_STATE: SettingsDefaultModelsState = {
   error: null,
   connectedWorkspaceCount: 0,
 };
+
+const MODEL_REFRESH_INTERVAL_MS = 60_000;
 
 const parseGptVersionScore = (slug: string): number | null => {
   const match = /^gpt-(\d+)(?:\.(\d+))?(?:\.(\d+))?/i.exec(slug.trim());
@@ -69,19 +76,43 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
   const refresh = useCallback(async () => {
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
-    if (!sourceWorkspaceId || !sourceWorkspaceName) {
-      setState(EMPTY_STATE);
-      return;
-    }
     setState((prev) => ({
       ...prev,
       isLoading: true,
       error: null,
-      connectedWorkspaceCount: 1,
+      connectedWorkspaceCount: sourceWorkspaceId ? 1 : 0,
     }));
 
     try {
       const errors: string[] = [];
+      try {
+        const runtimeResponse = await getRuntimeModelList();
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        const runtimeModels = parseModelListResponse(runtimeResponse);
+        setState({
+          models: runtimeModels,
+          isLoading: false,
+          error: null,
+          connectedWorkspaceCount: 1,
+        });
+        return;
+      } catch {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        if (!sourceWorkspaceId || !sourceWorkspaceName) {
+          setState(EMPTY_STATE);
+          return;
+        }
+      }
+
+      if (!sourceWorkspaceId || !sourceWorkspaceName) {
+        setState(EMPTY_STATE);
+        return;
+      }
+
       let canReadModelList = sourceWorkspaceConnected;
       if (!canReadModelList) {
         try {
@@ -168,6 +199,15 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refresh();
+    }, MODEL_REFRESH_INTERVAL_MS);
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [refresh]);
 
   return {

@@ -71,10 +71,15 @@ Phase 1 request:
 {
   "model": "gpt-image-2",
   "prompt": "A small blue rocket icon on a clean white background",
-  "size": "1024x1024",
+  "size": "auto",
   "n": 1
 }
 ```
+
+`size` defaults to `auto`. The model may also provide any `WIDTHxHEIGHT`
+dimension that satisfies the current `gpt-image-2` constraints: maximum edge
+`<= 3840px`, both edges multiples of `16px`, long-to-short ratio `<= 3:1`, and
+total pixels between `655,360` and `8,294,400`.
 
 The backend must accept both common response shapes:
 
@@ -121,7 +126,10 @@ starting new threads:
     type: "object",
     properties: {
       prompt: { type: "string" },
-      size: { type: "string", enum: ["1024x1024"] }
+      size: {
+        type: "string",
+        description: "Optional. Use auto, or WIDTHxHEIGHT when the user asks for a specific aspect ratio or resolution. For gpt-image-2, width and height must be multiples of 16, max edge <= 3840, aspect ratio <= 3:1, and total pixels between 655360 and 8294400."
+      }
     },
     required: ["prompt"],
     additionalProperties: false
@@ -335,7 +343,7 @@ In scope:
 - Text-to-image only.
 - ADG `/v1/images/generations`.
 - `model = "gpt-image-2"`.
-- `size = "1024x1024"`.
+- `size = "auto"` by default, or any valid `gpt-image-2` `WIDTHxHEIGHT`.
 - `n = 1`.
 - Response compatibility for `url` and `b64_json`.
 - App-managed generated-image cache and metadata.
@@ -346,7 +354,7 @@ Out of scope:
 
 - `/v1/images/edits`.
 - Multiple generated candidates.
-- Custom size picker.
+- User-operated custom size picker.
 - Prompt template gallery.
 - Background removal, masks, or image-to-image editing.
 - Cloud sync for generated assets.

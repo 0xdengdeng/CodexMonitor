@@ -52,7 +52,12 @@ function isThreadActivityMethod(method: string) {
 }
 
 function extractThreadId(method: string, params: Record<string, unknown>): string | null {
-  if (method === "turn/started" || method === "turn/completed" || method === "error") {
+  if (
+    method === "turn/started" ||
+    method === "turn/completed" ||
+    method === "turn/error" ||
+    method === "error"
+  ) {
     const turn = (params.turn as Record<string, unknown> | undefined) ?? {};
     const fromTurn = String(turn.threadId ?? turn.thread_id ?? "").trim();
     if (fromTurn) {

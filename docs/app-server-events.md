@@ -115,6 +115,21 @@ CodexMonitor status:
 - It renders/stores `contextCompaction` items via the normal item lifecycle.
 - It no longer routes deprecated `thread/compacted`.
 
+## Image Generation Item Metadata
+
+For the complete native image generation, image edit, and follow-up chat flow,
+use `docs/codex-native-image-flow.md`.
+
+CodexMonitor consumes native `item/started` and `item/completed` image
+generation items through the normal item lifecycle. `ThreadItem::ImageGeneration`
+may include optional `model` and `size` fields; when present, these populate the
+generated-image card header instead of relying on AgentDesk dynamic-tool
+metadata.
+
+Thread replay also normalizes raw rollout `image_generation_call` response
+items into the same generated-image card model so live lifecycle updates and
+history hydration reconcile by item id instead of rendering separate cards.
+
 ## Missing Events (Codex v2 Notifications)
 
 Compared against Codex app-server protocol v2 notifications, the following

@@ -32,6 +32,10 @@ describe("effectiveCommitMessageModelId", () => {
     expect(effectiveCommitMessageModelId(MODELS, "gpt-5.1")).toBe("gpt-5.1");
   });
 
+  it("resolves a saved model option id to the request model", () => {
+    expect(effectiveCommitMessageModelId(MODELS, "m-1")).toBe("gpt-5.1");
+  });
+
   it("falls back to null when saved model is unavailable in the workspace", () => {
     expect(effectiveCommitMessageModelId(MODELS, "gpt-4.1")).toBeNull();
   });

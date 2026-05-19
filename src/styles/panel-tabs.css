@@ -9,6 +9,7 @@
   max-width: 100%;
   overflow-x: auto;
   scrollbar-width: none;
+  box-shadow: var(--cm-edge-highlight);
 }
 
 .ds-panel-header .panel-tabs {
@@ -34,7 +35,9 @@
   font-weight: 650;
   white-space: nowrap;
   box-shadow: none;
-  transition: background 160ms ease, color 160ms ease;
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .panel-tab:hover:not(:disabled) {

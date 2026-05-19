@@ -23,6 +23,10 @@ type MarkdownProps = {
   codeBlockCopyUseModifier?: boolean;
   showFilePath?: boolean;
   workspacePath?: string | null;
+  onPreviewFileLink?: (
+    event: React.MouseEvent,
+    path: ParsedFileLocation,
+  ) => boolean;
   onOpenFileLink?: (path: ParsedFileLocation) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: ParsedFileLocation) => void;
   onOpenThreadLink?: (threadId: string) => void;
@@ -344,7 +348,9 @@ function FileReferenceLink({
       <span className="message-file-link-name">{fileName}</span>
       {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
       {showFilePath && parentPath ? (
-        <span className="message-file-link-path">{parentPath}</span>
+        <span className="message-file-link-path-popover" aria-hidden="true">
+          {parentPath}
+        </span>
       ) : null}
     </a>
   );
@@ -438,6 +444,7 @@ export function Markdown({
   codeBlockCopyUseModifier = false,
   showFilePath = true,
   workspacePath = null,
+  onPreviewFileLink,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
@@ -451,6 +458,9 @@ export function Markdown({
   const handleFileLinkClick = (event: React.MouseEvent, path: ParsedFileLocation) => {
     event.preventDefault();
     event.stopPropagation();
+    if (onPreviewFileLink?.(event, path)) {
+      return;
+    }
     onOpenFileLink?.(path);
   };
   const handleLocalLinkClick = (event: React.MouseEvent) => {

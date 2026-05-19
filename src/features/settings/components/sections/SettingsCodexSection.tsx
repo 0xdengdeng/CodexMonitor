@@ -13,8 +13,10 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
 import { useI18n } from "@/features/i18n/i18n";
+import { normalizePublicImageModel } from "@/utils/imageModels";
 
 type SettingsCodexSectionProps = {
   appSettings: AppSettings;
@@ -24,6 +26,10 @@ type SettingsCodexSectionProps = {
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
+  imageModels: ModelOption[];
+  imageModelsLoading: boolean;
+  imageModelsError: string | null;
+  onRefreshImageModels: () => void;
   codexArgsDraft: string;
   codexDirty: boolean;
   isSavingSettings: boolean;
@@ -49,7 +55,6 @@ type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  enterpriseTenantDomainDraft: string;
   enterpriseApiKeyDraft: string;
   enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
   enterpriseAiLoading: boolean;
@@ -61,7 +66,6 @@ type SettingsCodexSectionProps = {
   developerRuntimeSaving: boolean;
   developerRuntimeError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
-  onSetEnterpriseTenantDomainDraft: Dispatch<SetStateAction<string>>;
   onSetEnterpriseApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetDeveloperBaseUrlDraft: Dispatch<SetStateAction<string>>;
   onSetDeveloperApiKeyDraft: Dispatch<SetStateAction<string>>;
@@ -98,17 +102,17 @@ const normalizeEffortValue = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed.toLowerCase() : null;
 };
 
-function coerceSavedModelSlug(value: string | null, models: ModelOption[]): string | null {
+function coerceSavedModelId(value: string | null, models: ModelOption[]): string | null {
   const trimmed = (value ?? "").trim();
   if (!trimmed) {
     return null;
   }
-  const bySlug = models.find((model) => model.model === trimmed);
-  if (bySlug) {
-    return bySlug.model;
-  }
   const byId = models.find((model) => model.id === trimmed);
-  return byId ? byId.model : null;
+  if (byId) {
+    return byId.id;
+  }
+  const bySlug = models.find((model) => model.model === trimmed);
+  return bySlug ? bySlug.id : null;
 }
 
 const getReasoningSupport = (model: ModelOption | null): boolean => {
@@ -140,6 +144,10 @@ export function SettingsCodexSection({
   defaultModelsError,
   defaultModelsConnectedWorkspaceCount,
   onRefreshDefaultModels,
+  imageModels,
+  imageModelsLoading,
+  imageModelsError,
+  onRefreshImageModels,
   codexArgsDraft,
   codexDirty,
   isSavingSettings,
@@ -159,7 +167,6 @@ export function SettingsCodexSection({
   globalConfigRefreshDisabled,
   globalConfigSaveDisabled,
   globalConfigSaveLabel,
-  enterpriseTenantDomainDraft,
   enterpriseApiKeyDraft,
   enterpriseAiUsage,
   enterpriseAiLoading,
@@ -171,7 +178,6 @@ export function SettingsCodexSection({
   developerRuntimeSaving,
   developerRuntimeError,
   onSetCodexArgsDraft,
-  onSetEnterpriseTenantDomainDraft,
   onSetEnterpriseApiKeyDraft,
   onSetDeveloperBaseUrlDraft,
   onSetDeveloperApiKeyDraft,
@@ -193,16 +199,30 @@ export function SettingsCodexSection({
   const { t } = useI18n();
   const enterpriseAi = appSettings.enterpriseAi;
   const isEnterpriseConnected = enterpriseAi.status === "connected";
-  const latestModelSlug = defaultModels[0]?.model ?? null;
-  const savedModelSlug = useMemo(
-    () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
+  const latestModelId = defaultModels[0]?.id ?? null;
+  const savedModelId = useMemo(
+    () => coerceSavedModelId(appSettings.lastComposerModelId, defaultModels),
     [appSettings.lastComposerModelId, defaultModels],
   );
-  const selectedModelSlug = savedModelSlug ?? latestModelSlug ?? "";
+  const selectedModelId = savedModelId ?? latestModelId ?? "";
   const selectedModel = useMemo(
-    () => defaultModels.find((model) => model.model === selectedModelSlug) ?? null,
-    [defaultModels, selectedModelSlug],
+    () => defaultModels.find((model) => model.id === selectedModelId) ?? null,
+    [defaultModels, selectedModelId],
   );
+  const savedImageModelId = useMemo(
+    () => {
+      const saved = normalizePublicImageModel(appSettings.managedRuntime.imageModel);
+      return imageModels.find((model) => model.model === saved)?.model ?? null;
+    },
+    [appSettings.managedRuntime.imageModel, imageModels],
+  );
+  const configuredImageModelId = normalizePublicImageModel(
+    appSettings.managedRuntime.imageModel,
+  );
+  const selectedImageModelId =
+    savedImageModelId ??
+    imageModels[0]?.model ??
+    configuredImageModelId;
   const reasoningSupported = useMemo(
     () => getReasoningSupport(selectedModel),
     [selectedModel],
@@ -243,7 +263,7 @@ export function SettingsCodexSection({
     }
     const savedRawModel = (appSettings.lastComposerModelId ?? "").trim();
     const savedRawEffort = (appSettings.lastComposerReasoningEffort ?? "").trim();
-    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelSlug === null;
+    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelId === null;
     const shouldNormalizeEffort =
       reasoningSupported &&
       (savedRawEffort.length === 0 ||
@@ -256,7 +276,7 @@ export function SettingsCodexSection({
 
     const next: AppSettings = {
       ...appSettings,
-      lastComposerModelId: shouldNormalizeModel ? selectedModelSlug : appSettings.lastComposerModelId,
+      lastComposerModelId: shouldNormalizeModel ? selectedModelId : appSettings.lastComposerModelId,
       lastComposerReasoningEffort: shouldNormalizeEffort
         ? selectedEffort
         : appSettings.lastComposerReasoningEffort,
@@ -270,8 +290,8 @@ export function SettingsCodexSection({
     reasoningOptions,
     reasoningSupported,
     savedEffort,
-    savedModelSlug,
-    selectedModelSlug,
+    savedModelId,
+    selectedModelId,
     selectedEffort,
   ]);
 
@@ -300,16 +320,6 @@ export function SettingsCodexSection({
         >
           <SettingsToggleSwitch pressed={isEnterpriseConnected} onClick={onEnterpriseAiValidate} />
         </SettingsToggleRow>
-        <label className="settings-field-label" htmlFor="enterprise-ai-tenant-domain">
-          {t("settings.codex.enterpriseTenantDomain")}
-        </label>
-        <input
-          id="enterprise-ai-tenant-domain"
-          className="settings-input"
-          value={enterpriseTenantDomainDraft}
-          placeholder={t("settings.codex.enterpriseTenantPlaceholder")}
-          onChange={(event) => onSetEnterpriseTenantDomainDraft(event.target.value)}
-        />
         <label className="settings-field-label" htmlFor="enterprise-ai-api-key">
           {t("settings.codex.managedRuntimeApiKey")}
         </label>
@@ -344,7 +354,7 @@ export function SettingsCodexSection({
           <button
             type="button"
             className="ghost settings-button-compact"
-            disabled={enterpriseAiLoading || !enterpriseAi.tenantDomain}
+            disabled={enterpriseAiLoading || !isEnterpriseConnected}
             onClick={() => {
               void onEnterpriseAiValidate();
             }}
@@ -354,7 +364,7 @@ export function SettingsCodexSection({
           <button
             type="button"
             className="ghost settings-button-compact"
-            disabled={enterpriseAiSaving || !enterpriseAi.tenantDomain}
+            disabled={enterpriseAiSaving || !isEnterpriseConnected}
             onClick={() => {
               void onEnterpriseAiLogout();
             }}
@@ -604,30 +614,78 @@ export function SettingsCodexSection({
         }
       >
         <div className="settings-field-row">
-          <select
+          <SelectMenu
             id="default-model"
             className="settings-select"
-            value={selectedModelSlug}
+            value={selectedModelId}
             disabled={!defaultModels.length || defaultModelsLoading}
-            onChange={(event) =>
+            onValueChange={(nextValue) =>
               void onUpdateAppSettings({
                 ...appSettings,
-                lastComposerModelId: event.target.value,
+                lastComposerModelId: nextValue,
               })
             }
             aria-label={t("settings.codex.model")}
-          >
-            {defaultModels.map((model) => (
-              <option key={model.model} value={model.model}>
-                {model.displayName?.trim() || model.model}
-              </option>
-            ))}
-          </select>
+            options={defaultModels.map((model) => ({
+              value: model.id,
+              label: model.displayName?.trim() || model.model,
+            }))}
+            placeholder={selectedModelId}
+          />
           <button
             type="button"
             className="ghost"
             onClick={onRefreshDefaultModels}
             disabled={defaultModelsLoading || defaultModelsConnectedWorkspaceCount === 0}
+          >
+            {t("settings.codex.refresh")}
+          </button>
+        </div>
+      </SettingsToggleRow>
+
+      <SettingsToggleRow
+        title={
+          <label htmlFor="default-image-model">
+            {t("settings.codex.imageModel")}
+          </label>
+        }
+        subtitle={
+          imageModelsLoading
+            ? t("settings.codex.imageModelLoading")
+            : imageModelsError
+              ? t("settings.codex.imageModelLoadFailed", { error: imageModelsError })
+              : imageModels.length === 0
+                ? t("settings.codex.imageModelFallback")
+                : t("settings.codex.imageModelHelp")
+        }
+      >
+        <div className="settings-field-row">
+          <SelectMenu
+            id="default-image-model"
+            className="settings-select"
+            value={selectedImageModelId}
+            disabled={imageModels.length === 0}
+            onValueChange={(nextValue) =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                managedRuntime: {
+                  ...appSettings.managedRuntime,
+                  imageModel: normalizePublicImageModel(nextValue),
+                },
+              })
+            }
+            aria-label={t("settings.codex.imageModel")}
+            options={imageModels.map((model) => ({
+              value: normalizePublicImageModel(model.model),
+              label: model.displayName?.trim() || model.model,
+            }))}
+            placeholder={selectedImageModelId || t("settings.codex.imageModelUnavailable")}
+          />
+          <button
+            type="button"
+            className="ghost"
+            onClick={onRefreshImageModels}
+            disabled={imageModelsLoading}
           >
             {t("settings.codex.refresh")}
           </button>
@@ -646,28 +704,27 @@ export function SettingsCodexSection({
             : t("settings.codex.reasoningUnsupported")
         }
       >
-        <select
+        <SelectMenu
           id="default-effort"
           className="settings-select"
           value={selectedEffort}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              lastComposerReasoningEffort: event.target.value,
+              lastComposerReasoningEffort: nextValue,
             })
           }
           aria-label={t("settings.codex.reasoningEffort")}
           disabled={!reasoningSupported}
-        >
-          {!reasoningSupported && (
-            <option value="">{t("settings.codex.notSupported")}</option>
-          )}
-          {reasoningOptions.map((effort) => (
-            <option key={effort} value={effort}>
-              {effort}
-            </option>
-          ))}
-        </select>
+          options={
+            !reasoningSupported
+              ? [{ value: "", label: t("settings.codex.notSupported"), disabled: true }]
+              : reasoningOptions.map((effort) => ({
+                  value: effort,
+                  label: effort,
+                }))
+          }
+        />
       </SettingsToggleRow>
 
       <SettingsToggleRow
@@ -678,40 +735,42 @@ export function SettingsCodexSection({
         }
         subtitle={t("settings.codex.defaultOverrideHelp")}
       >
-        <select
+        <SelectMenu
           id="default-access"
           className="settings-select"
           value={appSettings.defaultAccessMode}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              defaultAccessMode: event.target.value as AppSettings["defaultAccessMode"],
+              defaultAccessMode: nextValue as AppSettings["defaultAccessMode"],
             })
           }
-        >
-          <option value="read-only">{t("settings.codex.accessReadOnly")}</option>
-          <option value="current">{t("settings.codex.accessOnRequest")}</option>
-          <option value="full-access">{t("settings.codex.accessFull")}</option>
-        </select>
+          options={[
+            { value: "read-only", label: t("settings.codex.accessReadOnly") },
+            { value: "current", label: t("settings.codex.accessOnRequest") },
+            { value: "full-access", label: t("settings.codex.accessFull") },
+          ]}
+        />
       </SettingsToggleRow>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="review-delivery">
           {t("settings.codex.reviewMode")}
         </label>
-        <select
+        <SelectMenu
           id="review-delivery"
           className="settings-select"
           value={appSettings.reviewDeliveryMode}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              reviewDeliveryMode: event.target.value as AppSettings["reviewDeliveryMode"],
+              reviewDeliveryMode: nextValue as AppSettings["reviewDeliveryMode"],
             })
           }
-        >
-          <option value="inline">{t("settings.codex.reviewInline")}</option>
-          <option value="detached">{t("settings.codex.reviewDetached")}</option>
-        </select>
+          options={[
+            { value: "inline", label: t("settings.codex.reviewInline") },
+            { value: "detached", label: t("settings.codex.reviewDetached") },
+          ]}
+        />
         <div className="settings-help">
           {t("settings.codex.reviewHelp")}
         </div>

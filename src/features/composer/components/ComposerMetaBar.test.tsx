@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/features/i18n/i18n";
 import type { ThreadTokenUsage } from "@/types";
@@ -13,18 +15,21 @@ const emptyBreakdown = {
   reasoningOutputTokens: 0,
 };
 
-function renderMetaBar(contextUsage: ThreadTokenUsage | null) {
+function renderMetaBar(contextUsage: ThreadTokenUsage | null, overrides = {}) {
   return render(
     <I18nProvider languagePreference="en">
       <ComposerMetaBar
         disabled={false}
-        collaborationModes={[]}
+        collaborationModes={[{ id: "default", label: "Default" }]}
         selectedCollaborationModeId={null}
         onSelectCollaborationMode={vi.fn()}
-        models={[]}
+        models={[
+          { id: "gpt-5", displayName: "GPT-5", model: "gpt-5" },
+          { id: "gpt-5.5", displayName: "GPT-5.5", model: "gpt-5.5" },
+        ]}
         selectedModelId={null}
         onSelectModel={vi.fn()}
-        reasoningOptions={[]}
+        reasoningOptions={["medium", "high"]}
         selectedEffort={null}
         onSelectEffort={vi.fn()}
         selectedServiceTier={null}
@@ -32,6 +37,7 @@ function renderMetaBar(contextUsage: ThreadTokenUsage | null) {
         accessMode="current"
         onSelectAccessMode={vi.fn()}
         contextUsage={contextUsage}
+        {...overrides}
       />
     </I18nProvider>,
   );
@@ -65,5 +71,118 @@ describe("ComposerMetaBar", () => {
     expect(meter.getAttribute("aria-valuetext")).toBe(
       "Context 33% used, 42.8k of 128k",
     );
+  });
+
+  it("uses custom combobox controls for model selection", () => {
+    const onSelectModel = vi.fn();
+    const { container } = renderMetaBar(null, {
+      selectedModelId: "gpt-5",
+      onSelectModel,
+    });
+
+    expect(container.querySelector("select")).toBeNull();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Model" }));
+    fireEvent.click(screen.getByRole("option", { name: "GPT-5.5" }));
+
+    expect(onSelectModel).toHaveBeenCalledWith("gpt-5.5");
+  });
+
+  it("marks every composer meta control for shared sizing", () => {
+    const { container } = renderMetaBar(null, {
+      collaborationModes: [
+        { id: "default", label: "Default" },
+        { id: "plan", label: "Plan" },
+      ],
+      selectedCollaborationModeId: "plan",
+    });
+
+    const controls = Array.from(container.querySelectorAll(".composer-select-wrap"));
+    expect(controls.length).toBeGreaterThanOrEqual(4);
+    expect(
+      controls.every((control) => control.classList.contains("composer-meta-control")),
+    ).toBe(true);
+  });
+
+  it("keeps composer meta controls compact and type-consistent", () => {
+    const { container } = renderMetaBar(null, {
+      collaborationModes: [
+        { id: "default", label: "Default" },
+        { id: "plan", label: "Plan" },
+      ],
+      selectedCollaborationModeId: "plan",
+    });
+    const css = readFileSync(resolve(process.cwd(), "src/styles/composer.css"), "utf8");
+    const planControl = container.querySelector(".composer-plan-toggle-wrap");
+    const metaControlBlock = css.match(
+      /\.composer-meta-control\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+    const planBlock = css.match(
+      /\.composer-plan-toggle-wrap\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+    const selectBlock = css.match(/\.composer-select\s*\{(?<body>[^}]*)\}/)?.groups
+      ?.body;
+    const scopedSelectBlock = css.match(
+      /\.composer-select-wrap \.composer-select\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+    const modelBlock = css.match(/\.composer-select--model\s*\{(?<body>[^}]*)\}/)
+      ?.groups?.body;
+    const effortBlock = css.match(/\.composer-select--effort\s*\{(?<body>[^}]*)\}/)
+      ?.groups?.body;
+    const approvalBlock = css.match(
+      /\.composer-select--approval\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+
+    expect(planControl?.classList.contains("composer-meta-control")).toBe(true);
+    expect(metaControlBlock).toContain("height: 30px");
+    expect(planBlock).toContain("min-width: 78px");
+    expect(selectBlock).toContain("font-size: 11px");
+    expect(scopedSelectBlock).toContain("font-size: 11px");
+    expect(scopedSelectBlock).toContain("gap: 5px");
+    expect(modelBlock).toContain("width: 66px");
+    expect(effortBlock).toContain("width: 58px");
+    expect(approvalBlock).toContain("width: 78px");
+  });
+
+  it("does not clip composer dropdown popovers from the meta row", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/styles/composer.css"), "utf8");
+    const composerMetaBlocks = Array.from(
+      css.matchAll(/(?:^|\n)[^{\n]*\.composer-meta\s*\{(?<body>[^}]*)\}/g),
+      (match) => match.groups?.body ?? "",
+    );
+
+    expect(composerMetaBlocks.length).toBeGreaterThan(0);
+    for (const block of composerMetaBlocks) {
+      expect(block).not.toMatch(/overflow(?:-[xy])?\s*:\s*(auto|hidden|scroll|clip)/);
+    }
+  });
+
+  it("keeps composer dropdowns anchored and visually lightweight", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/styles/composer.css"), "utf8");
+    const selectRootBlock = css.match(
+      /\.composer-select-wrap \.ds-select\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+    const popoverBlock = css.match(
+      /\.composer-select-popover\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+    const alignedPopoverBlock = css.match(
+      /\.composer-select-popover\[data-align="end"\]\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+    const topPlacementBlock = css.match(
+      /\.composer-select-popover\[data-placement="top"\]\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+    const expandedBlock = css.match(
+      /\.composer-select-wrap:has\(\.composer-select\[aria-expanded="true"\]\)\s*\{(?<body>[^}]*)\}/,
+    )?.groups?.body;
+
+    expect(selectRootBlock).toContain("position: static");
+    expect(popoverBlock).toBeTruthy();
+    expect(alignedPopoverBlock).toContain("left: 0");
+    expect(alignedPopoverBlock).toContain("right: auto");
+    expect(topPlacementBlock).toBeTruthy();
+    expect(expandedBlock).toBeTruthy();
+    expect(popoverBlock).toContain("--ds-popover-shadow");
+    expect(topPlacementBlock).toContain("bottom: calc(100% + 4px)");
+    expect(expandedBlock).not.toContain("--cm-control-focus-ring");
   });
 });

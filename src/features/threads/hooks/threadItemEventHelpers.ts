@@ -7,7 +7,12 @@ export function buildItemForDisplay(
   shouldMarkProcessing: boolean,
 ) {
   const itemType = asString(item?.type ?? "");
-  if (itemType !== "contextCompaction" && itemType !== "webSearch") {
+  if (
+    itemType !== "contextCompaction" &&
+    itemType !== "webSearch" &&
+    itemType !== "imageGeneration" &&
+    itemType !== "image_generation_call"
+  ) {
     return item;
   }
 

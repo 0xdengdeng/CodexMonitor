@@ -139,9 +139,107 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "thread/unarchived",
   "turn/completed",
   "turn/diff/updated",
+  "turn/error",
   "turn/plan/updated",
   "turn/started",
 ] as const satisfies readonly SupportedAppServerMethod[];
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function readFirstString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+  return "";
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") {
+    return error.trim();
+  }
+  const record = asRecord(error);
+  if (!record) {
+    return "";
+  }
+  return readFirstString(
+    record.message,
+    record.error,
+    asRecord(record.error)?.message,
+    record.details,
+    record.additionalDetails,
+    record.additional_details,
+  );
+}
+
+function turnErrorKey(workspaceId: string, threadId: string, turnId: string): string | null {
+  if (!threadId || !turnId) {
+    return null;
+  }
+  return `${workspaceId}:${threadId}:${turnId}`;
+}
+
+function parseTurnErrorParams(params: Record<string, unknown>) {
+  const turn = asRecord(params.turn);
+  const threadId = readFirstString(
+    params.threadId,
+    params.thread_id,
+    turn?.threadId,
+    turn?.thread_id,
+  );
+  const turnId = readFirstString(
+    turn?.id,
+    turn?.turnId,
+    turn?.turn_id,
+    params.turnId,
+    params.turn_id,
+  );
+  const message = readFirstString(
+    extractErrorMessage(params.error),
+    extractErrorMessage(turn?.error),
+    params.message,
+  );
+  return {
+    threadId,
+    turnId,
+    message,
+    willRetry: Boolean(params.willRetry ?? params.will_retry),
+  };
+}
+
+function parseTurnCompletionError(
+  params: Record<string, unknown>,
+  threadId: string,
+  turnId: string,
+) {
+  const turn = asRecord(params.turn);
+  const message = readFirstString(
+    extractErrorMessage(turn?.error),
+    extractErrorMessage(params.error),
+  );
+  const status = readFirstString(turn?.status, params.status)
+    .toLowerCase()
+    .replace(/_/g, "");
+  const failed = Boolean(message) || status === "failed" || status === "error";
+  if (!failed) {
+    return null;
+  }
+  return {
+    threadId,
+    turnId,
+    message,
+    willRetry: false,
+  };
+}
 
 function parseHookEvent(
   workspaceId: string,
@@ -171,6 +269,7 @@ function parseHookEvent(
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
   // Use ref to keep handlers current without triggering re-subscription
   const handlersRef = useRef(handlers);
+  const reportedTurnErrorsRef = useRef(new Set<string>());
   
   // Update ref on every render to always have latest handlers
   useEffect(() => {
@@ -402,17 +501,24 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         return;
       }
 
-      if (method === "error") {
-        const threadId = String(params.threadId ?? params.thread_id ?? "");
-        const turnId = String(params.turnId ?? params.turn_id ?? "");
-        const error = (params.error as Record<string, unknown> | undefined) ?? {};
-        const messageText = String(error.message ?? "");
-        const willRetry = Boolean(params.willRetry ?? params.will_retry);
-        if (threadId) {
-          currentHandlers.onTurnError?.(workspace_id, threadId, turnId, {
-            message: messageText,
-            willRetry,
-          });
+      if (method === "error" || method === "turn/error") {
+        const turnError = parseTurnErrorParams(params);
+        if (turnError.threadId) {
+          const key = turnError.willRetry
+            ? null
+            : turnErrorKey(workspace_id, turnError.threadId, turnError.turnId);
+          if (key) {
+            reportedTurnErrorsRef.current.add(key);
+          }
+          currentHandlers.onTurnError?.(
+            workspace_id,
+            turnError.threadId,
+            turnError.turnId,
+            {
+              message: turnError.message,
+              willRetry: turnError.willRetry,
+            },
+          );
         }
         return;
       }
@@ -424,6 +530,19 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         );
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         if (threadId) {
+          const completionError = parseTurnCompletionError(params, threadId, turnId);
+          if (completionError) {
+            const key = turnErrorKey(workspace_id, threadId, turnId);
+            if (!key || !reportedTurnErrorsRef.current.has(key)) {
+              if (key) {
+                reportedTurnErrorsRef.current.add(key);
+              }
+              currentHandlers.onTurnError?.(workspace_id, threadId, turnId, {
+                message: completionError.message,
+                willRetry: false,
+              });
+            }
+          }
           currentHandlers.onTurnCompleted?.(workspace_id, threadId, turnId);
         }
         return;
@@ -508,7 +627,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         if (threadId && item?.type === "agentMessage") {
           const itemId = String(item.id ?? "");
           const text = String(item.text ?? "");
-          if (itemId) {
+          if (itemId && text.trim().length > 0) {
             currentHandlers.onAgentMessageCompleted?.({
               workspaceId: workspace_id,
               threadId,

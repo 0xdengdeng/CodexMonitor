@@ -20,7 +20,10 @@
   min-height: 0;
   overflow: hidden;
   position: relative;
-  transition: opacity 200ms ease, transform 200ms ease, padding-top 180ms ease;
+  transition:
+    opacity var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease),
+    padding-top var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .sidebar-drag-strip {
@@ -57,7 +60,7 @@
   backdrop-filter: none;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .workspace-drop-overlay.is-active {
@@ -137,7 +140,9 @@
   font-size: 15px;
   font-weight: 700;
   color: var(--text-strong);
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .sidebar-title-button:hover,
@@ -161,7 +166,11 @@
   border-radius: var(--sidebar-control-radius);
   box-shadow: none;
   transform: none;
-  transition: background-color 120ms ease, color 120ms ease;
+  box-shadow: var(--cm-edge-highlight);
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
   flex-shrink: 0;
 }
 
@@ -200,6 +209,9 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .sidebar-sort-toggle svg {
@@ -230,6 +242,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  box-shadow: var(--cm-shadow-panel);
+  animation: sidebar-popover-enter var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease) both;
 }
 
 .sidebar-sort-section-label {
@@ -258,6 +272,9 @@
   padding: 6px 8px;
   font-size: 12px;
   text-align: left;
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .sidebar-sort-option svg {
@@ -285,6 +302,10 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .sidebar-refresh-toggle {
@@ -297,6 +318,9 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .sidebar-refresh-toggle svg {
@@ -326,6 +350,28 @@
   }
 }
 
+@keyframes sidebar-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sidebar-popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .sidebar-search-toggle svg {
   width: 14px;
   height: 14px;
@@ -350,6 +396,7 @@
   top: 0;
   z-index: 4;
   padding: 6px 4px 10px;
+  animation: sidebar-panel-enter var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease) both;
 }
 
 .sidebar.search-open .sidebar-header {
@@ -379,6 +426,11 @@
   color: var(--text-strong);
   font-size: 13px;
   outline: none;
+  box-shadow: var(--cm-edge-highlight);
+  transition:
+    background-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .sidebar-search-input::placeholder {
@@ -652,10 +704,10 @@
   opacity: 1;
   transform: translateY(0);
   transition:
-    grid-template-rows 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    margin-top 0.2s ease;
+    grid-template-rows var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease),
+    opacity var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    margin-top var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease);
 }
 
 .workspace-group-content {
@@ -685,7 +737,9 @@
   padding: 0 2px;
   -webkit-app-region: no-drag;
   opacity: 0.45;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition:
+    opacity var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .group-toggle:hover {
@@ -699,7 +753,7 @@
 
 .group-toggle-icon {
   display: inline-block;
-  transition: transform 0.15s ease;
+  transition: transform var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .group-toggle.expanded .group-toggle-icon {
@@ -719,9 +773,9 @@
   opacity: 1;
   transform: translateY(0);
   transition:
-    grid-template-rows 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    grid-template-rows var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease),
+    opacity var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .workspace-card-content-inner {
@@ -769,9 +823,9 @@
   border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent);
   box-shadow: none;
   transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
   z-index: -1;
 }
 
@@ -786,13 +840,15 @@
 .workspace-row:hover::before {
   background: var(--surface-hover);
   border-color: var(--border-subtle);
-  box-shadow: none;
+  box-shadow: var(--cm-edge-highlight);
 }
 
 .workspace-row.active::before {
   background: var(--surface-active);
   border-color: var(--border-accent-soft);
-  box-shadow: inset 3px 0 0 var(--text-accent);
+  box-shadow:
+    inset 3px 0 0 var(--text-accent),
+    var(--cm-edge-highlight);
 }
 
 .workspace-row.active .workspace-name {
@@ -855,9 +911,10 @@
   flex-shrink: 0;
   opacity: 1;
   transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    color 0.15s ease;
+    opacity var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .workspace-add span:first-child {
@@ -925,10 +982,10 @@
   -webkit-app-region: no-drag;
   opacity: 0.52;
   transition:
-    opacity 0.15s ease,
-    color 0.15s ease,
-    background-color 0.15s ease,
-    border-color 0.15s ease;
+    opacity var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .workspace-toggle:hover {
@@ -939,7 +996,7 @@
 
 .workspace-toggle-icon {
   display: inline-block;
-  transition: transform 0.15s ease;
+  transition: transform var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .workspace-toggle.expanded .workspace-toggle-icon {
@@ -961,6 +1018,8 @@
   gap: 4px;
   min-width: 160px;
   z-index: 9999;
+  box-shadow: var(--cm-shadow-panel);
+  animation: sidebar-popover-enter var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease) both;
 }
 
 .all-threads-add-menu {
@@ -977,6 +1036,9 @@
   padding: 6px 8px;
   border-radius: var(--sidebar-small-radius);
   cursor: pointer;
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .workspace-add-option:hover {
@@ -1075,10 +1137,11 @@
   position: relative;
   box-shadow: none;
   transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
+    background-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .thread-row::before {
@@ -1088,6 +1151,7 @@
   border-radius: inherit;
   pointer-events: none;
   box-shadow: none;
+  transition: box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .thread-row.is-pinned {
@@ -1154,7 +1218,7 @@
   background: var(--surface-hover);
   border-color: var(--border-subtle);
   color: var(--text-strong);
-  box-shadow: none;
+  box-shadow: var(--cm-edge-highlight);
   transform: none;
 }
 
@@ -1162,7 +1226,9 @@
   background: var(--surface-active);
   border-color: var(--border-accent-soft);
   color: var(--text-strong);
-  box-shadow: inset 3px 0 0 var(--text-accent);
+  box-shadow:
+    inset 3px 0 0 var(--text-accent),
+    var(--cm-edge-highlight);
 }
 
 .thread-content {

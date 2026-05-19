@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n/i18n";
 import type { DebugEntry, ModelOption, WorkspaceInfo } from "../../../types";
-import { getConfigModel, getModelList } from "../../../services/tauri";
+import {
+  getConfigModel,
+  getModelList,
+  getRuntimeModelList,
+} from "../../../services/tauri";
 import {
   normalizeEffortValue,
   parseModelListResponse,
@@ -14,6 +18,8 @@ type UseModelsOptions = {
   preferredEffort?: string | null;
   selectionKey?: string | null;
 };
+
+const MODEL_REFRESH_INTERVAL_MS = 60_000;
 
 const findModelByIdOrModel = (
   models: ModelOption[],
@@ -145,21 +151,115 @@ export function useModels({
   );
 
   const refreshModels = useCallback(async () => {
-    if (!workspaceId || !isConnected) {
-      return;
-    }
     if (inFlight.current) {
       return;
     }
     inFlight.current = true;
-    onDebug?.({
-      id: `${Date.now()}-client-model-list`,
-      timestamp: Date.now(),
-      source: "client",
-      label: "model/list",
-      payload: { workspaceId },
-    });
+    const applyModels = (
+      dataFromServer: ModelOption[],
+      configModelFromConfig: string | null,
+    ) => {
+      setConfigModel(configModelFromConfig);
+      const data = (() => {
+        if (!configModelFromConfig) {
+          return dataFromServer;
+        }
+        const hasConfigModel = dataFromServer.some(
+          (model) => model.model === configModelFromConfig,
+        );
+        if (hasConfigModel) {
+          return dataFromServer;
+        }
+        const configOption: ModelOption = {
+          id: configModelFromConfig,
+          model: configModelFromConfig,
+          displayName: `${configModelFromConfig} (config)`,
+          description: t("models.configDescription"),
+          supportedReasoningEfforts: [],
+          defaultReasoningEffort: null,
+          isDefault: false,
+        };
+        return [configOption, ...dataFromServer];
+      })();
+      setModels(data);
+      lastFetchedWorkspaceId.current = workspaceId;
+      if (data.length === 0) {
+        hasUserSelectedModel.current = false;
+        hasUserSelectedEffort.current = false;
+        if (selectedModelId !== null) {
+          setSelectedModelIdState(null);
+        }
+        if (selectedEffort !== null) {
+          setSelectedEffortState(null);
+        }
+        return;
+      }
+      const defaultModel = pickDefaultModel(data, configModelFromConfig);
+      const existingSelection = findModelByIdOrModel(data, selectedModelId);
+      if (selectedModelId && !existingSelection) {
+        hasUserSelectedModel.current = false;
+      }
+      const preferredSelection = findModelByIdOrModel(data, preferredModelId);
+      const shouldKeepExisting =
+        hasUserSelectedModel.current && existingSelection !== null;
+      const nextSelection =
+        (shouldKeepExisting ? existingSelection : null) ??
+        preferredSelection ??
+        defaultModel ??
+        existingSelection;
+      if (nextSelection) {
+        if (nextSelection.id !== selectedModelId) {
+          setSelectedModelIdState(nextSelection.id);
+        }
+        const nextEffort = resolveEffort(
+          nextSelection,
+          hasUserSelectedEffort.current,
+        );
+        if (nextEffort !== selectedEffort) {
+          setSelectedEffortState(nextEffort);
+        }
+      }
+    };
     try {
+      try {
+        onDebug?.({
+          id: `${Date.now()}-client-runtime-model-list`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "runtime model/list",
+          payload: {},
+        });
+        const runtimeResponse = await getRuntimeModelList();
+        const runtimeModels = parseModelListResponse(runtimeResponse);
+        onDebug?.({
+          id: `${Date.now()}-server-runtime-model-list`,
+          timestamp: Date.now(),
+          source: "server",
+          label: "runtime model/list response",
+          payload: runtimeResponse,
+        });
+        applyModels(runtimeModels, null);
+        return;
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-runtime-model-list-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "runtime model/list error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      if (!workspaceId || !isConnected) {
+        return;
+      }
+      onDebug?.({
+        id: `${Date.now()}-client-model-list`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "model/list",
+        payload: { workspaceId },
+      });
       const [modelListResult, configModelResult] = await Promise.allSettled([
         getModelList(workspaceId),
         getConfigModel(workspaceId),
@@ -201,56 +301,8 @@ export function useModels({
         label: "model/list response",
         payload: response,
       });
-      setConfigModel(configModelFromConfig);
       const dataFromServer: ModelOption[] = parseModelListResponse(response);
-      const data = (() => {
-        if (!configModelFromConfig) {
-          return dataFromServer;
-        }
-        const hasConfigModel = dataFromServer.some(
-          (model) => model.model === configModelFromConfig,
-        );
-        if (hasConfigModel) {
-          return dataFromServer;
-        }
-        const configOption: ModelOption = {
-          id: configModelFromConfig,
-          model: configModelFromConfig,
-          displayName: `${configModelFromConfig} (config)`,
-          description: t("models.configDescription"),
-          supportedReasoningEfforts: [],
-          defaultReasoningEffort: null,
-          isDefault: false,
-        };
-        return [configOption, ...dataFromServer];
-      })();
-      setModels(data);
-      lastFetchedWorkspaceId.current = workspaceId;
-      const defaultModel = pickDefaultModel(data, configModelFromConfig);
-      const existingSelection = findModelByIdOrModel(data, selectedModelId);
-      if (selectedModelId && !existingSelection) {
-        hasUserSelectedModel.current = false;
-      }
-      const preferredSelection = findModelByIdOrModel(data, preferredModelId);
-      const shouldKeepExisting =
-        hasUserSelectedModel.current && existingSelection !== null;
-      const nextSelection =
-        (shouldKeepExisting ? existingSelection : null) ??
-        preferredSelection ??
-        defaultModel ??
-        existingSelection;
-      if (nextSelection) {
-        if (nextSelection.id !== selectedModelId) {
-          setSelectedModelIdState(nextSelection.id);
-        }
-        const nextEffort = resolveEffort(
-          nextSelection,
-          hasUserSelectedEffort.current,
-        );
-        if (nextEffort !== selectedEffort) {
-          setSelectedEffortState(nextEffort);
-        }
-      }
+      applyModels(dataFromServer, configModelFromConfig);
     } finally {
       inFlight.current = false;
     }
@@ -266,14 +318,20 @@ export function useModels({
   ]);
 
   useEffect(() => {
-    if (!workspaceId || !isConnected) {
-      return;
-    }
     if (lastFetchedWorkspaceId.current === workspaceId && models.length > 0) {
       return;
     }
     refreshModels();
   }, [isConnected, models.length, refreshModels, workspaceId]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refreshModels();
+    }, MODEL_REFRESH_INTERVAL_MS);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [refreshModels]);
 
   useEffect(() => {
     if (!selectedModel) {

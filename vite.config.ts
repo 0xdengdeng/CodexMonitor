@@ -61,7 +61,7 @@ const appBuildDate = resolveBuildDate();
 const appGitBranch = resolveGitBranch();
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ command }) => ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -81,6 +81,7 @@ export default defineConfig(async () => ({
     __APP_COMMIT_HASH__: JSON.stringify(appCommitHash),
     __APP_BUILD_DATE__: JSON.stringify(appBuildDate),
     __APP_GIT_BRANCH__: JSON.stringify(appGitBranch),
+    __APP_IS_DEV_BUILD__: JSON.stringify(command === "serve"),
   },
   test: {
     environment: "node",

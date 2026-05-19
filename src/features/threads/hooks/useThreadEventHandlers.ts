@@ -19,6 +19,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 type ThreadEventHandlersOptions = {
   activeThreadId: string | null;
   dispatch: Dispatch<ThreadAction>;
+  imageGenerationModel?: string | null;
   getItemsForThread: (threadId: string) => ConversationItem[];
   planByThreadRef: MutableRefObject<Record<string, TurnPlan | null>>;
   getCurrentRateLimits?: (workspaceId: string) => RateLimitSnapshot | null;
@@ -60,6 +61,7 @@ type ThreadEventHandlersOptions = {
 export function useThreadEventHandlers({
   activeThreadId,
   dispatch,
+  imageGenerationModel,
   getItemsForThread,
   planByThreadRef,
   getCurrentRateLimits,
@@ -143,6 +145,7 @@ export function useThreadEventHandlers({
   } = useThreadItemEvents({
     activeThreadId,
     dispatch,
+    imageGenerationModel,
     getCustomName,
     markProcessing,
     markReviewing,

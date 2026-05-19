@@ -245,6 +245,8 @@ pub(super) async fn try_handle(
             )
         }
         "runtime_api_key_status" => Some(serialize_result(state.runtime_api_key_status()).await),
+        "runtime_image_model_list" => Some(state.runtime_image_model_list().await),
+        "runtime_model_list" => Some(state.runtime_model_list().await),
         "runtime_api_key_set" => {
             let api_key = match parse_string(params, "apiKey") {
                 Ok(value) => value,

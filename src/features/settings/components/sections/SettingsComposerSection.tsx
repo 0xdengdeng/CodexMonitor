@@ -4,6 +4,7 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 
 type ComposerPreset = AppSettings["composerEditorPreset"];
@@ -115,26 +116,23 @@ export function SettingsComposerSection({
         <label className="settings-field-label" htmlFor="composer-preset">
           {t("settings.composer.preset")}
         </label>
-        <select
+        <SelectMenu
           id="composer-preset"
           className="settings-select"
           value={appSettings.composerEditorPreset}
-          onChange={(event) =>
-            onComposerPresetChange(event.target.value as ComposerPreset)
-          }
-        >
-          {Object.entries(composerPresetLabels).map(([preset, label]) => (
-            <option key={preset} value={preset}>
-              {preset === "default"
+          onValueChange={(nextValue) => onComposerPresetChange(nextValue as ComposerPreset)}
+          options={Object.entries(composerPresetLabels).map(([preset, label]) => ({
+            value: preset,
+            label:
+              preset === "default"
                 ? t("settings.composer.presetDefault")
                 : preset === "helpful"
                   ? t("settings.composer.presetHelpful")
                   : preset === "smart"
                     ? t("settings.composer.presetSmart")
-                    : label}
-            </option>
-          ))}
-        </select>
+                    : label,
+          }))}
+        />
         <div className="settings-help">
           {t("settings.composer.presetHelp")}
         </div>

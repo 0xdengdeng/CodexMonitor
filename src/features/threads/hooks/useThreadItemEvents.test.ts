@@ -13,6 +13,7 @@ type ItemPayload = Record<string, unknown>;
 type SetupOverrides = {
   activeThreadId?: string | null;
   getCustomName?: (workspaceId: string, threadId: string) => string | undefined;
+  imageGenerationModel?: string | null;
   onUserMessageCreated?: (workspaceId: string, threadId: string, text: string) => void;
   onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
@@ -32,6 +33,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
       activeThreadId: overrides.activeThreadId ?? null,
       dispatch,
       getCustomName,
+      imageGenerationModel: overrides.imageGenerationModel,
       markProcessing,
       markReviewing,
       safeMessageActivity,
@@ -194,6 +196,88 @@ describe("useThreadItemEvents", () => {
         id: "search-1",
         status: "completed",
       }),
+    );
+  });
+
+  it("adds lifecycle status for image generation items", () => {
+    const { result } = makeOptions();
+    const item: ItemPayload = { type: "imageGeneration", id: "image-1", result: "" };
+
+    act(() => {
+      result.current.onItemStarted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "imageGeneration",
+        id: "image-1",
+        status: "inProgress",
+      }),
+    );
+
+    act(() => {
+      result.current.onItemCompleted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "imageGeneration",
+        id: "image-1",
+        status: "completed",
+      }),
+    );
+  });
+
+  it("adds lifecycle status for raw image generation response items", () => {
+    const { result } = makeOptions();
+    const item: ItemPayload = {
+      type: "image_generation_call",
+      id: "image-raw-1",
+      result: "",
+    };
+
+    act(() => {
+      result.current.onItemStarted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "image_generation_call",
+        id: "image-raw-1",
+        status: "inProgress",
+      }),
+    );
+
+    act(() => {
+      result.current.onItemCompleted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "image_generation_call",
+        id: "image-raw-1",
+        status: "completed",
+      }),
+    );
+  });
+
+  it("passes the configured image model for native image generation items", () => {
+    const { result } = makeOptions({ imageGenerationModel: "gpt-image-2" });
+    const item: ItemPayload = {
+      type: "imageGeneration",
+      id: "image-1",
+      model: "qihang-ultra-5.5",
+      result: "",
+    };
+
+    act(() => {
+      result.current.onItemStarted("ws-1", "thread-1", item);
+    });
+
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "imageGeneration",
+        id: "image-1",
+        model: "qihang-ultra-5.5",
+        status: "inProgress",
+      }),
+      { imageGenerationModel: "gpt-image-2" },
     );
   });
 

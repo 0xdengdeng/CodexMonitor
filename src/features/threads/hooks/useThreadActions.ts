@@ -43,6 +43,11 @@ const THREAD_LIST_MAX_PAGES_OLDER = 6;
 const THREAD_LIST_MAX_PAGES_DEFAULT = 6;
 const THREAD_LIST_CURSOR_PAGE_START = "__codex_monitor_page_start__";
 
+type StartThreadOptions = {
+  activate?: boolean;
+  nativeImageGeneration?: boolean;
+};
+
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
@@ -53,6 +58,7 @@ type UseThreadActionsOptions = {
   threadListCursorByWorkspace: ThreadState["threadListCursorByWorkspace"];
   threadStatusById: ThreadState["threadStatusById"];
   threadSortKey: ThreadListSortKey;
+  imageGenerationModel?: string | null;
   onDebug?: (entry: DebugEntry) => void;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   threadActivityRef: MutableRefObject<Record<string, Record<string, number>>>;
@@ -82,6 +88,7 @@ export function useThreadActions({
   threadListCursorByWorkspace,
   threadStatusById,
   threadSortKey,
+  imageGenerationModel,
   onDebug,
   getCustomName,
   threadActivityRef,
@@ -145,7 +152,7 @@ export function useThreadActions({
   );
 
   const startThreadForWorkspace = useCallback(
-    async (workspaceId: string, options?: { activate?: boolean }) => {
+    async (workspaceId: string, options?: StartThreadOptions) => {
       const shouldActivate = options?.activate !== false;
       onDebug?.({
         id: `${Date.now()}-client-thread-start`,
@@ -155,7 +162,12 @@ export function useThreadActions({
         payload: { workspaceId },
       });
       try {
-        const response = await startThreadService(workspaceId);
+        const response =
+          options?.nativeImageGeneration != null
+            ? await startThreadService(workspaceId, {
+                nativeImageGeneration: options.nativeImageGeneration,
+              })
+            : await startThreadService(workspaceId);
         onDebug?.({
           id: `${Date.now()}-server-thread-start`,
           timestamp: Date.now(),
@@ -258,6 +270,7 @@ export function useThreadActions({
             localStatus: threadStatusByIdRef.current[threadId],
             localActiveTurnId: activeTurnIdByThreadRef.current[threadId] ?? null,
             getCustomName,
+            imageGenerationModel,
           });
           if (!hydrationPlan.shouldHydrate) {
             loadedThreadsRef.current[threadId] = true;
@@ -344,6 +357,7 @@ export function useThreadActions({
       dispatchPreviewMessage,
       dispatch,
       getCustomName,
+      imageGenerationModel,
       itemsByThread,
       loadedThreadsRef,
       onDebug,

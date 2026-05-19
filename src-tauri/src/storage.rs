@@ -110,12 +110,19 @@ where
 fn normalize_app_settings(settings: AppSettings) -> (AppSettings, bool) {
     let (global_worktrees_folder, changed) =
         normalize_optional_windows_namespace_path(settings.global_worktrees_folder.clone());
+    let git_runtime_preference = match settings.git_runtime_preference.trim() {
+        "bundled" => "bundled".to_string(),
+        "system" => "system".to_string(),
+        _ => "auto".to_string(),
+    };
+    let git_runtime_preference_changed = git_runtime_preference != settings.git_runtime_preference;
     (
         AppSettings {
             global_worktrees_folder,
+            git_runtime_preference,
             ..settings
         },
-        changed,
+        changed || git_runtime_preference_changed,
     )
 }
 

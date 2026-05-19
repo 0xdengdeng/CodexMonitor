@@ -6,6 +6,7 @@ import {
 import Download from "lucide-react/dist/esm/icons/download";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import Upload from "lucide-react/dist/esm/icons/upload";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 import { CommitButton, DiffSection, type DiffFile } from "./GitDiffPanelShared";
 import {
@@ -135,6 +136,7 @@ export function GitDiffModeContent({
   const missingRepo = isMissingRepo(error);
   const gitRootNotFound = isGitRootNotFound(error);
   const showInitGitRepo = Boolean(onInitGitRepo) && missingRepo && !gitRootNotFound;
+  const showGitRootLocationControls = !missingRepo && !gitRootNotFound;
   const gitRootTitle = gitRootNotFound
     ? t("git.rootNotFound")
     : missingRepo
@@ -164,68 +166,69 @@ export function GitDiffModeContent({
               </button>
             </div>
           )}
-          <div className="git-root-actions">
-            <button
-              type="button"
-              className="ghost git-root-button"
-              onClick={onScanGitRoots}
-              disabled={!onScanGitRoots || gitRootScanLoading || initGitRepoLoading}
-            >
-              {t("git.scanWorkspace")}
-            </button>
-            <label className="git-root-depth">
-              <span>{t("git.depth")}</span>
-              <select
-                className="git-root-select"
-                value={gitRootScanDepth}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  if (!Number.isNaN(value)) {
-                    onGitRootScanDepthChange?.(value);
-                  }
-                }}
-                disabled={gitRootScanLoading || initGitRepoLoading}
-              >
-                {DEPTH_OPTIONS.map((depth) => (
-                  <option key={depth} value={depth}>
-                    {depth}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {onPickGitRoot && (
+          {showGitRootLocationControls && (
+            <div className="git-root-actions">
               <button
                 type="button"
                 className="ghost git-root-button"
-                onClick={() => {
-                  void onPickGitRoot();
-                }}
-                disabled={gitRootScanLoading || initGitRepoLoading}
+                onClick={onScanGitRoots}
+                disabled={!onScanGitRoots || gitRootScanLoading || initGitRepoLoading}
               >
-                {t("git.pickFolder")}
+                {t("git.scanWorkspace")}
               </button>
-            )}
-            {hasGitRoot && onClearGitRoot && (
-              <button
-                type="button"
-                className="ghost git-root-button"
-                onClick={onClearGitRoot}
-                disabled={gitRootScanLoading || initGitRepoLoading}
-              >
-                {t("git.useWorkspaceRoot")}
-              </button>
-            )}
-          </div>
-          {gitRootScanLoading && (
+              <label className="git-root-depth">
+                <span>{t("git.depth")}</span>
+                <SelectMenu
+                  className="git-root-select"
+                  value={String(gitRootScanDepth)}
+                  onValueChange={(nextValue) => {
+                    const value = Number(nextValue);
+                    if (!Number.isNaN(value)) {
+                      onGitRootScanDepthChange?.(value);
+                    }
+                  }}
+                  disabled={gitRootScanLoading || initGitRepoLoading}
+                  options={DEPTH_OPTIONS.map((depth) => ({
+                    value: String(depth),
+                    label: String(depth),
+                  }))}
+                />
+              </label>
+              {onPickGitRoot && (
+                <button
+                  type="button"
+                  className="ghost git-root-button"
+                  onClick={() => {
+                    void onPickGitRoot();
+                  }}
+                  disabled={gitRootScanLoading || initGitRepoLoading}
+                >
+                  {t("git.pickFolder")}
+                </button>
+              )}
+              {hasGitRoot && onClearGitRoot && (
+                <button
+                  type="button"
+                  className="ghost git-root-button"
+                  onClick={onClearGitRoot}
+                  disabled={gitRootScanLoading || initGitRepoLoading}
+                >
+                  {t("git.useWorkspaceRoot")}
+                </button>
+              )}
+            </div>
+          )}
+          {showGitRootLocationControls && gitRootScanLoading && (
             <div className="diff-empty">{t("git.scanningRepos")}</div>
           )}
-          {!gitRootScanLoading &&
+          {showGitRootLocationControls &&
+            !gitRootScanLoading &&
             !gitRootScanError &&
             gitRootScanHasScanned &&
             gitRootCandidates.length === 0 && (
               <div className="diff-empty">{t("git.noReposFound")}</div>
             )}
-          {gitRootCandidates.length > 0 && (
+          {showGitRootLocationControls && gitRootCandidates.length > 0 && (
             <div className="git-root-list">
               {gitRootCandidates.map((path) => {
                 const normalizedPath = normalizeRootPath(path);

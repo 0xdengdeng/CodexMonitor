@@ -13,6 +13,7 @@ import {
   PanelMeta,
   PanelSearchField,
 } from "../../design-system/components/panel/PanelPrimitives";
+import { SelectMenu } from "../../design-system/components/select/SelectMenu";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -454,19 +455,20 @@ export function PromptPanel({
               </label>
               <label className="prompt-editor-label">
                 {t("prompts.scope")}
-                <select
+                <SelectMenu
                   className="prompt-scope-select"
                   value={editor.scope}
-                  onChange={(event) =>
+                  onValueChange={(nextValue) =>
                     updateEditor({
-                      scope: event.target.value as PromptEditorState["scope"],
+                      scope: nextValue as PromptEditorState["scope"],
                     })
                   }
                   disabled={editor.mode === "edit"}
-                >
-                  <option value="workspace">{t("prompts.scopeWorkspace")}</option>
-                  <option value="global">{t("prompts.scopeGeneral")}</option>
-                </select>
+                  options={[
+                    { value: "workspace", label: t("prompts.scopeWorkspace") },
+                    { value: "global", label: t("prompts.scopeGeneral") },
+                  ]}
+                />
               </label>
             </div>
             <div className="prompt-editor-row">

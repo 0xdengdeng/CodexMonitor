@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { BrainCog, SlidersHorizontal, Zap } from "lucide-react";
 import type { AccessMode, ServiceTier, ThreadTokenUsage } from "../../../types";
 import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
+import { SelectMenu } from "../../design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 
 type ComposerMetaBarProps = {
@@ -196,7 +197,7 @@ export function ComposerMetaBar({
       <div className="composer-meta">
         {collaborationModes.length > 0 && (
           canUsePlanToggle ? (
-            <div className="composer-select-wrap composer-plan-toggle-wrap">
+            <div className="composer-select-wrap composer-plan-toggle-wrap composer-meta-control">
               <label className="composer-plan-toggle" aria-label={t("composer.planMode")}>
                 <input
                   className="composer-plan-toggle-input"
@@ -228,7 +229,7 @@ export function ComposerMetaBar({
               </label>
             </div>
           ) : (
-            <div className="composer-select-wrap">
+            <div className="composer-select-wrap composer-meta-control">
             <span className="composer-icon" aria-hidden>
               <svg viewBox="0 0 24 24" fill="none">
                 <path
@@ -240,25 +241,24 @@ export function ComposerMetaBar({
                 />
               </svg>
             </span>
-              <select
+              <SelectMenu
                 className="composer-select composer-select--model composer-select--collab"
                 aria-label={t("composer.collaborationMode")}
                 value={selectedCollaborationModeId ?? ""}
-                onChange={(event) =>
-                  onSelectCollaborationMode(event.target.value || null)
-                }
+                onValueChange={(nextValue) => onSelectCollaborationMode(nextValue || null)}
                 disabled={disabled}
-              >
-                {collaborationModes.map((mode) => (
-                  <option key={mode.id} value={mode.id}>
-                    {formatCollaborationModeLabel(mode)}
-                  </option>
-                ))}
-              </select>
+                options={collaborationModes.map((mode) => ({
+                  value: mode.id,
+                  label: formatCollaborationModeLabel(mode),
+                }))}
+                popoverClassName="composer-select-popover"
+                popoverAlign="end"
+                popoverPlacement="top"
+              />
             </div>
           )
         )}
-        <div className="composer-select-wrap composer-select-wrap--model">
+        <div className="composer-select-wrap composer-select-wrap--model composer-meta-control">
           <span className="composer-icon composer-icon--model" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none">
               <path
@@ -289,21 +289,25 @@ export function ComposerMetaBar({
               />
             </svg>
           </span>
-          <select
+          <SelectMenu
             className="composer-select composer-select--model"
             aria-label={t("composer.model")}
             value={selectedModelId ?? ""}
-            onChange={(event) => onSelectModel(event.target.value)}
             disabled={disabled}
             style={modelSelectStyle}
-          >
-            {models.length === 0 && <option value="">{t("composer.noModels")}</option>}
-            {models.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.displayName || model.model}
-              </option>
-            ))}
-          </select>
+            onValueChange={onSelectModel}
+            options={
+              models.length === 0
+                ? [{ value: "", label: t("composer.noModels"), disabled: true }]
+                : models.map((model) => ({
+                    value: model.id,
+                    label: model.displayName || model.model,
+                  }))
+            }
+            popoverClassName="composer-select-popover composer-select-popover--model"
+            popoverAlign="end"
+            popoverPlacement="top"
+          />
           {selectedServiceTier === "fast" && (
             <span
               className="composer-fast-indicator"
@@ -315,48 +319,53 @@ export function ComposerMetaBar({
             </span>
           )}
         </div>
-        <div className="composer-select-wrap composer-select-wrap--effort">
+        <div className="composer-select-wrap composer-select-wrap--effort composer-meta-control">
           <span className="composer-icon composer-icon--effort" aria-hidden>
             <BrainCog size={14} strokeWidth={1.8} />
           </span>
-          <select
+          <SelectMenu
             className="composer-select composer-select--effort"
             aria-label={t("composer.thinkingMode")}
             value={selectedEffort ?? ""}
-            onChange={(event) => onSelectEffort(event.target.value)}
             disabled={disabled || !reasoningSupported}
-          >
-            {reasoningOptions.length === 0 && <option value="">{t("composer.default")}</option>}
-            {reasoningOptions.map((effort) => (
-              <option key={effort} value={effort}>
-                {formatReasoningEffortLabel(effort)}
-              </option>
-            ))}
-          </select>
+            onValueChange={onSelectEffort}
+            options={
+              reasoningOptions.length === 0
+                ? [{ value: "", label: t("composer.default"), disabled: true }]
+                : reasoningOptions.map((effort) => ({
+                    value: effort,
+                    label: formatReasoningEffortLabel(effort),
+                  }))
+            }
+            popoverClassName="composer-select-popover"
+            popoverAlign="end"
+            popoverPlacement="top"
+          />
         </div>
         {codexArgsOptions.length > 1 && onSelectCodexArgsOverride && (
-          <div className="composer-select-wrap">
+          <div className="composer-select-wrap composer-meta-control">
             <span className="composer-icon" aria-hidden>
               <SlidersHorizontal size={14} strokeWidth={1.8} />
             </span>
-            <select
+            <SelectMenu
               className="composer-select composer-select--approval"
               aria-label={t("composer.codexArgsProfile")}
               disabled={disabled}
               value={selectedCodexArgsOverride ?? ""}
-              onChange={(event) =>
-                onSelectCodexArgsOverride(event.target.value || null)
+              onValueChange={(nextValue) =>
+                onSelectCodexArgsOverride(nextValue || null)
               }
-            >
-              {codexArgsOptions.map((option) => (
-                <option key={option.value || "default"} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={codexArgsOptions.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              popoverClassName="composer-select-popover"
+              popoverAlign="end"
+              popoverPlacement="top"
+            />
           </div>
         )}
-        <div className="composer-select-wrap">
+        <div className="composer-select-wrap composer-meta-control">
           <span className="composer-icon" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none">
               <path
@@ -374,19 +383,21 @@ export function ComposerMetaBar({
               />
             </svg>
           </span>
-          <select
+          <SelectMenu
             className="composer-select composer-select--approval"
             aria-label={t("settings.codex.accessMode")}
             disabled={disabled}
             value={accessMode}
-            onChange={(event) =>
-              onSelectAccessMode(event.target.value as AccessMode)
-            }
-          >
-            <option value="read-only">{t("settings.codex.accessReadOnly")}</option>
-            <option value="current">{t("settings.codex.accessOnRequest")}</option>
-            <option value="full-access">{t("settings.codex.accessFull")}</option>
-          </select>
+            onValueChange={(nextValue) => onSelectAccessMode(nextValue as AccessMode)}
+            options={[
+              { value: "read-only", label: t("settings.codex.accessReadOnly") },
+              { value: "current", label: t("settings.codex.accessOnRequest") },
+              { value: "full-access", label: t("settings.codex.accessFull") },
+            ]}
+            popoverClassName="composer-select-popover"
+            popoverAlign="end"
+            popoverPlacement="top"
+          />
         </div>
       </div>
       <div className="composer-context">

@@ -3,6 +3,7 @@ import type { LayoutNodesOptions } from "@/features/layout/hooks/layoutNodes/typ
 
 export function buildShellSurface({
   activePlan,
+  activeItems,
   composerWorkspaceState,
   gitState,
   terminalOpen,
@@ -18,13 +19,27 @@ export function buildShellSurface({
   onCopyDebug,
   onResizeDebug,
   onResizeTerminal,
+  openTerminalWithFocus,
   isPhone,
   setActiveTab,
 }: MainAppLayoutSurfacesContext): LayoutNodesOptions["secondary"] {
+  const backgroundTasks = terminalTabs.map((tab) => ({
+    id: tab.id,
+    title: tab.title,
+    status: tab.id === activeTerminalId && terminalOpen ? "active" as const : "running" as const,
+  }));
+  const generatedImages = activeItems.filter((item) => item.kind === "imageGeneration");
+
   return {
     planPanelProps: {
       plan: activePlan,
       isProcessing: composerWorkspaceState.isProcessing,
+      backgroundTasks,
+      generatedImages,
+      onOpenBackgroundTask: (taskId) => {
+        onSelectTerminal(taskId);
+        openTerminalWithFocus();
+      },
     },
     terminalDockProps: {
       isOpen: terminalOpen,

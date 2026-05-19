@@ -58,6 +58,16 @@ export type WorkspaceInfo = {
   settings: WorkspaceSettings;
 };
 
+export type GitRuntimeInfo = {
+  available: boolean;
+  source: "bundled" | "PATH" | "fallback" | string | null;
+  path: string | null;
+  version: string | null;
+  error: string | null;
+};
+
+export type GitRuntimePreference = "auto" | "bundled" | "system";
+
 export type AppServerEvent = {
   workspace_id: string;
   message: Record<string, unknown>;
@@ -192,6 +202,7 @@ export type GeneratedImageAsset = {
   mimeType: string;
   createdAtMs: number;
   requestId: string | null;
+  referenceImageIds?: string[];
   status: "completed" | string;
 };
 
@@ -263,6 +274,8 @@ export type ManagedRuntimeConfig = {
   enabled: boolean;
   baseUrl: string | null;
   model: string | null;
+  imageModel: string | null;
+  nativeImageGeneration: boolean;
 };
 export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
 export type EnterpriseAiConfig = {
@@ -371,6 +384,7 @@ export type AppSettings = {
   splitChatDiffView: boolean;
   preloadGitDiffs: boolean;
   gitDiffIgnoreWhitespaceChanges: boolean;
+  gitRuntimePreference: GitRuntimePreference;
   commitMessagePrompt: string;
   commitMessageModelId: string | null;
   collaborationModesEnabled: boolean;
@@ -713,6 +727,9 @@ export type ModelOption = {
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
   defaultReasoningEffort: string | null;
   isDefault: boolean;
+  type?: string | null;
+  capabilities?: Record<string, boolean>;
+  supportedEndpoints?: string[];
 };
 
 export type CollaborationModeOption = {
@@ -763,4 +780,3 @@ export type DebugEntry = {
 };
 
 export type TerminalStatus = "idle" | "connecting" | "ready" | "error";
-

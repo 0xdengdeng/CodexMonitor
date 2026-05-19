@@ -1,0 +1,121 @@
+.ds-select {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.ds-select.is-open {
+  z-index: 50;
+}
+
+.ds-select-trigger {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ds-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.ds-select-trigger-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-select-trigger-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--select-caret, currentColor);
+  transition: transform var(--ds-dur-fast) var(--ds-ease-out-soft),
+    color var(--ds-dur-fast) var(--ds-ease-out-soft);
+}
+
+.ds-select.is-open .ds-select-trigger-chevron {
+  transform: rotate(180deg);
+  color: var(--text-strong);
+}
+
+.ds-select-popover {
+  position: absolute;
+  z-index: 120;
+  min-width: max(100%, 152px);
+  max-width: min(320px, calc(100vw - 32px));
+  max-height: 260px;
+  overflow: auto;
+  padding: 3px;
+  transform-origin: top center;
+}
+
+.ds-select-popover[data-align="start"] {
+  left: 0;
+}
+
+.ds-select-popover[data-align="end"] {
+  right: 0;
+}
+
+.ds-select-popover[data-placement="bottom"] {
+  top: calc(100% + 6px);
+}
+
+.ds-select-popover[data-placement="top"] {
+  bottom: calc(100% + 6px);
+  transform-origin: bottom center;
+  animation-name: ds-select-popover-in-top;
+}
+
+.ds-select-option {
+  min-height: 28px;
+  justify-content: space-between;
+}
+
+.ds-select-option-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-select-option-check {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-strong);
+  opacity: 0;
+}
+
+.ds-select-option.is-selected .ds-select-option-check {
+  opacity: 1;
+}
+
+@keyframes ds-select-popover-in-top {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+    scale: 0.985;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}

@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
+import type { CodexSection } from "@settings/components/settingsTypes";
 
-export type SettingsSection =
-  | "ai"
-  | "projects"
-  | "about"
-  | "advanced";
+export type SettingsSection = CodexSection;
 
 export function useSettingsModalState() {
   const [settingsOpen, setSettingsOpen] = useState(false);

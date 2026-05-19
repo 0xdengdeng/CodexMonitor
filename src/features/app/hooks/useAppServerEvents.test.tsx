@@ -403,6 +403,168 @@ describe("useAppServerEvents", () => {
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
+  it("does not complete empty agent messages from app-server items", async () => {
+    const handlers: Handlers = {
+      onItemCompleted: vi.fn(),
+      onAgentMessageCompleted: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "item/completed",
+          params: {
+            threadId: "thread-1",
+            item: { type: "agentMessage", id: "item-empty", text: "" },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith("ws-1", "thread-1", {
+      type: "agentMessage",
+      id: "item-empty",
+      text: "",
+    });
+    expect(handlers.onAgentMessageCompleted).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes explicit turn error notifications to turn error handlers", async () => {
+    const handlers: Handlers = {
+      onTurnError: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "turn/error",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            error: { message: "image model is not available" },
+            willRetry: false,
+          },
+        },
+      });
+    });
+
+    expect(handlers.onTurnError).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "turn-1",
+      {
+        message: "image model is not available",
+        willRetry: false,
+      },
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes failed turn completions to turn error handlers when the error notification was missed", async () => {
+    const handlers: Handlers = {
+      onTurnCompleted: vi.fn(),
+      onTurnError: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "turn/completed",
+          params: {
+            threadId: "thread-1",
+            turn: {
+              id: "turn-1",
+              status: "failed",
+              error: { message: "native image generation returned no image" },
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onTurnError).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "turn-1",
+      {
+        message: "native image generation returned no image",
+        willRetry: false,
+      },
+    );
+    expect(handlers.onTurnCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "turn-1",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not duplicate turn errors already reported before completion", async () => {
+    const handlers: Handlers = {
+      onTurnCompleted: vi.fn(),
+      onTurnError: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "error",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            error: { message: "image model is not available" },
+            willRetry: false,
+          },
+        },
+      });
+    });
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "turn/completed",
+          params: {
+            threadId: "thread-1",
+            turn: {
+              id: "turn-1",
+              status: "failed",
+              error: { message: "image model is not available" },
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onTurnError).toHaveBeenCalledTimes(1);
+    expect(handlers.onTurnCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "turn-1",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("normalizes request user input questions and options", async () => {
     const handlers: Handlers = {
       onRequestUserInput: vi.fn(),

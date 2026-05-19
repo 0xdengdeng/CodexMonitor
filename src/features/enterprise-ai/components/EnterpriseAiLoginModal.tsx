@@ -1,42 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Building2, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import type { EnterpriseAiLoginResult } from "@/types";
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import { useI18n } from "@/features/i18n/i18n";
 import { enterpriseAiLogin } from "@services/tauri";
 
 type EnterpriseAiLoginModalProps = {
-  initialTenantDomain?: string | null;
   onCancel: () => void;
   onSuccess: (result: EnterpriseAiLoginResult) => void | Promise<void>;
 };
 
 export function EnterpriseAiLoginModal({
-  initialTenantDomain,
   onCancel,
   onSuccess,
 }: EnterpriseAiLoginModalProps) {
   const { t } = useI18n();
-  const [tenantDomain, setTenantDomain] = useState(initialTenantDomain ?? "");
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const tenantInputRef = useRef<HTMLInputElement | null>(null);
+  const apiKeyInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    tenantInputRef.current?.focus();
+    apiKeyInputRef.current?.focus();
   }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalizedTenantDomain = tenantDomain.trim();
     const normalizedApiKey = apiKey.trim();
 
-    if (!normalizedTenantDomain) {
-      setError(t("settings.codex.enterpriseTenantRequired"));
-      return;
-    }
     if (!normalizedApiKey) {
       setError(t("settings.codex.apiKeyRequired"));
       return;
@@ -45,7 +37,7 @@ export function EnterpriseAiLoginModal({
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await enterpriseAiLogin(normalizedTenantDomain, normalizedApiKey);
+      const result = await enterpriseAiLogin(normalizedApiKey);
       await onSuccess(result);
     } catch (submitError) {
       setError(
@@ -84,29 +76,13 @@ export function EnterpriseAiLoginModal({
           </div>
         </div>
 
-        <label className="enterprise-ai-login-field" htmlFor="enterprise-ai-tenant-domain">
-          <span className="ds-modal-label">{t("settings.codex.enterpriseTenantDomain")}</span>
-          <span className="enterprise-ai-login-input-wrap">
-            <Building2 size={18} aria-hidden="true" />
-            <input
-              id="enterprise-ai-tenant-domain"
-              ref={tenantInputRef}
-              className="ds-modal-input enterprise-ai-login-input"
-              value={tenantDomain}
-              onChange={(event) => setTenantDomain(event.target.value)}
-              placeholder={t("settings.codex.enterpriseTenantPlaceholder")}
-              autoComplete="organization"
-              disabled={isSubmitting}
-            />
-          </span>
-        </label>
-
         <label className="enterprise-ai-login-field" htmlFor="enterprise-ai-api-key">
           <span className="ds-modal-label">{t("settings.codex.managedRuntimeApiKey")}</span>
           <span className="enterprise-ai-login-input-wrap">
             <KeyRound size={18} aria-hidden="true" />
             <input
               id="enterprise-ai-api-key"
+              ref={apiKeyInputRef}
               className="ds-modal-input enterprise-ai-login-input"
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}

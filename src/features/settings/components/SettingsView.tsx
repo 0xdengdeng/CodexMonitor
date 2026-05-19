@@ -94,6 +94,7 @@ export function SettingsView({
   } = useSettingsViewNavigation({ initialSection });
 
   const orchestration = useSettingsViewOrchestration({
+    activeSection,
     workspaceGroups,
     groupedWorkspaces,
     ungroupedLabel,

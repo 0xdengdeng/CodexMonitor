@@ -194,6 +194,7 @@ impl DaemonState {
         let settings_path = config.data_dir.join("settings.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
+        utils::set_git_runtime_preference(&app_settings.git_runtime_preference);
         if let Err(err) = sync_managed_runtime_config_from_settings(&app_settings) {
             eprintln!("daemon: failed to sync agentDesk runtime config: {err}");
         }
@@ -655,6 +656,16 @@ impl DaemonState {
         })
     }
 
+    async fn runtime_model_list(&self) -> Result<Value, String> {
+        let settings = self.app_settings.lock().await.clone();
+        shared::runtime_models_core::runtime_model_list_core(&settings.managed_runtime).await
+    }
+
+    async fn runtime_image_model_list(&self) -> Result<Value, String> {
+        let settings = self.app_settings.lock().await.clone();
+        shared::runtime_models_core::runtime_image_model_list_core(&settings.managed_runtime).await
+    }
+
     async fn runtime_api_key_set(
         &self,
         api_key: String,
@@ -770,8 +781,18 @@ impl DaemonState {
         files_core::file_write_core(&self.workspaces, scope, kind, workspace_id, content).await
     }
 
-    async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::start_thread_core(&self.sessions, &self.workspaces, workspace_id).await
+    async fn start_thread(
+        &self,
+        workspace_id: String,
+        native_image_generation: bool,
+    ) -> Result<Value, String> {
+        codex_core::start_thread_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            native_image_generation,
+        )
+        .await
     }
 
     async fn resume_thread(
@@ -1343,10 +1364,7 @@ impl DaemonState {
         .await
     }
 
-    async fn codex_doctor(
-        &self,
-        codex_args: Option<String>,
-    ) -> Result<Value, String> {
+    async fn codex_doctor(&self, codex_args: Option<String>) -> Result<Value, String> {
         let codex_bin = codex_runtime::resolve_codex_runtime_from_current_exe()?;
         codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
     }

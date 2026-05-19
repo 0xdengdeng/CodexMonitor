@@ -1,9 +1,10 @@
-import type { AppSettings, ModelOption } from "@/types";
+import type { AppSettings, GitRuntimeInfo, ModelOption } from "@/types";
 import {
   SettingsSection,
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 
 type SettingsGitSectionProps = {
@@ -16,7 +17,33 @@ type SettingsGitSectionProps = {
   onSetCommitMessagePromptDraft: (value: string) => void;
   onSaveCommitMessagePrompt: () => Promise<void>;
   onResetCommitMessagePrompt: () => Promise<void>;
+  gitRuntimeInfo: GitRuntimeInfo | null;
+  gitRuntimeInfoLoading: boolean;
+  gitRuntimeInfoError: string | null;
+  onRefreshGitRuntimeInfo: () => Promise<void>;
 };
+
+function gitRuntimeSourceLabel(source: GitRuntimeInfo["source"], t: (key: string) => string) {
+  if (source === "bundled") {
+    return t("settings.git.runtime.source.bundled");
+  }
+  if (source === "PATH") {
+    return t("settings.git.runtime.source.path");
+  }
+  if (source === "fallback") {
+    return t("settings.git.runtime.source.fallback");
+  }
+  return t("common.unknown");
+}
+
+function normalizeGitRuntimePreference(
+  value: AppSettings["gitRuntimePreference"] | undefined,
+): AppSettings["gitRuntimePreference"] {
+  if (value === "bundled" || value === "system") {
+    return value;
+  }
+  return "auto";
+}
 
 export function SettingsGitSection({
   appSettings,
@@ -28,13 +55,81 @@ export function SettingsGitSection({
   onSetCommitMessagePromptDraft,
   onSaveCommitMessagePrompt,
   onResetCommitMessagePrompt,
+  gitRuntimeInfo,
+  gitRuntimeInfoLoading,
+  gitRuntimeInfoError,
+  onRefreshGitRuntimeInfo,
 }: SettingsGitSectionProps) {
   const { t } = useI18n();
+  const sourceLabel = gitRuntimeInfo?.available
+    ? gitRuntimeSourceLabel(gitRuntimeInfo.source, t)
+    : t("settings.git.runtime.unavailable");
   return (
     <SettingsSection
       title={t("settings.git.title")}
       subtitle={t("settings.git.subtitle")}
     >
+      <div className="settings-field">
+        <div className="settings-field-label">{t("settings.git.runtime.title")}</div>
+        <div className="settings-field-row">
+          <div>
+            <div className="settings-help">
+              {gitRuntimeInfoLoading ? t("settings.git.runtime.loading") : sourceLabel}
+            </div>
+            {gitRuntimeInfo?.version && (
+              <div className="settings-help">{gitRuntimeInfo.version}</div>
+            )}
+            {gitRuntimeInfo?.path && (
+              <div className="settings-help" title={gitRuntimeInfo.path}>
+                {gitRuntimeInfo.path}
+              </div>
+            )}
+            {(gitRuntimeInfoError || gitRuntimeInfo?.error) && (
+              <div className="settings-help settings-help-error">
+                {gitRuntimeInfoError || gitRuntimeInfo?.error}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="ghost settings-button-compact"
+            onClick={() => {
+              void onRefreshGitRuntimeInfo();
+            }}
+            disabled={gitRuntimeInfoLoading}
+          >
+            {t("common.refresh")}
+          </button>
+        </div>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="git-runtime-preference-select">
+          {t("settings.git.runtimePreference.title")}
+        </label>
+        <div className="settings-help">
+          {t("settings.git.runtimePreference.help")}
+        </div>
+        <SelectMenu
+          id="git-runtime-preference-select"
+          className="settings-select"
+          value={normalizeGitRuntimePreference(appSettings.gitRuntimePreference)}
+          onValueChange={(nextValue) => {
+            const gitRuntimePreference = nextValue as AppSettings["gitRuntimePreference"];
+            void (async () => {
+              await onUpdateAppSettings({
+                ...appSettings,
+                gitRuntimePreference,
+              });
+              await onRefreshGitRuntimeInfo();
+            })();
+          }}
+          options={[
+            { value: "auto", label: t("settings.git.runtimePreference.auto") },
+            { value: "bundled", label: t("settings.git.runtimePreference.bundled") },
+            { value: "system", label: t("settings.git.runtimePreference.system") },
+          ]}
+        />
+      </div>
       <SettingsToggleRow
         title={t("settings.git.preload.title")}
         subtitle={t("settings.git.preload.subtitle")}
@@ -108,25 +203,25 @@ export function SettingsGitSection({
           <div className="settings-help">
             {t("settings.git.commitModelHelp")}
           </div>
-          <select
+          <SelectMenu
             id="commit-message-model-select"
             className="settings-select"
             value={appSettings.commitMessageModelId ?? ""}
-            onChange={(event) => {
-              const value = event.target.value || null;
+            onValueChange={(nextValue) => {
+              const value = nextValue || null;
               void onUpdateAppSettings({
                 ...appSettings,
                 commitMessageModelId: value,
               });
             }}
-          >
-            <option value="">{t("settings.git.defaultModel")}</option>
-            {models.map((model) => (
-              <option key={model.id} value={model.model}>
-                {model.displayName?.trim() || model.model}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: t("settings.git.defaultModel") },
+              ...models.map((model) => ({
+                value: model.id,
+                label: model.displayName?.trim() || model.model,
+              })),
+            ]}
+          />
         </div>
       )}
     </SettingsSection>

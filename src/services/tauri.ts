@@ -29,6 +29,7 @@ import type {
   GitHubPullRequestDiff,
   GitHubPullRequestsResponse,
   GitLogResponse,
+  GitRuntimeInfo,
   ReviewTarget,
 } from "../types";
 
@@ -391,8 +392,16 @@ export async function setWorkspaceRuntimeCodexArgs(
   });
 }
 
-export async function startThread(workspaceId: string) {
-  return invoke<any>("start_thread", { workspaceId });
+export async function startThread(
+  workspaceId: string,
+  options?: { nativeImageGeneration?: boolean },
+) {
+  return invoke<any>("start_thread", {
+    workspaceId,
+    ...(options?.nativeImageGeneration != null
+      ? { nativeImageGeneration: options.nativeImageGeneration }
+      : {}),
+  });
 }
 
 export async function forkThread(workspaceId: string, threadId: string) {
@@ -569,17 +578,20 @@ export async function generateImage({
   threadId,
   prompt,
   size,
+  referenceImageIds,
 }: {
   workspaceId?: string | null;
   threadId?: string | null;
   prompt: string;
   size?: string | null;
+  referenceImageIds?: string[] | null;
 }): Promise<GeneratedImageAsset> {
   return invoke<GeneratedImageAsset>("generate_image", {
     workspaceId,
     threadId,
     prompt,
     size,
+    referenceImageIds,
   });
 }
 
@@ -609,6 +621,10 @@ export async function getGitStatus(workspace_id: string): Promise<{
   totalDeletions: number;
 }> {
   return invoke("get_git_status", { workspaceId: workspace_id });
+}
+
+export async function getGitRuntimeInfo(): Promise<GitRuntimeInfo> {
+  return invoke<GitRuntimeInfo>("get_git_runtime_info");
 }
 
 export type InitGitRepoResponse =
@@ -779,6 +795,14 @@ export async function getModelList(workspaceId: string) {
   return invoke<any>("model_list", { workspaceId });
 }
 
+export async function getRuntimeModelList() {
+  return invoke<any>("runtime_model_list");
+}
+
+export async function getRuntimeImageModelList() {
+  return invoke<any>("runtime_image_model_list");
+}
+
 export async function getExperimentalFeatureList(
   workspaceId: string,
   cursor?: string | null,
@@ -934,12 +958,8 @@ export async function clearRuntimeApiKey(): Promise<RuntimeApiKeyStatus> {
   return invoke<RuntimeApiKeyStatus>("runtime_api_key_clear");
 }
 
-export async function enterpriseAiLogin(
-  tenantDomain: string,
-  apiKey: string,
-): Promise<EnterpriseAiLoginResult> {
+export async function enterpriseAiLogin(apiKey: string): Promise<EnterpriseAiLoginResult> {
   return invoke<EnterpriseAiLoginResult>("enterprise_ai_login", {
-    tenantDomain,
     apiKey,
   });
 }

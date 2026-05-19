@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { AppSettings } from "@/types";
-import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
+import {
+  getAppSettings,
+  getRuntimeImageModelList,
+  runCodexDoctor,
+  updateAppSettings,
+} from "@services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
 import { CHAT_SCROLLBACK_DEFAULT, normalizeChatHistoryScrollbackItems } from "@utils/chatScrollback";
 import {
@@ -24,10 +29,13 @@ import {
   DEFAULT_INTERFACE_LANGUAGE,
   normalizeInterfaceLanguage,
 } from "@/features/i18n/i18n";
+import { normalizePublicImageModel } from "@/utils/imageModels";
+import { parseModelListResponse } from "@/features/models/utils/modelListResponse";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
 const allowedFollowUpMessageBehavior = new Set(["queue", "steer"]);
+const allowedGitRuntimePreference = new Set(["auto", "bundled", "system"]);
 const DEFAULT_REMOTE_BACKEND_HOST = "127.0.0.1:4732";
 const DEFAULT_REMOTE_BACKEND_ID = "remote-default";
 const DEFAULT_REMOTE_BACKEND_NAME = "Primary remote";
@@ -63,7 +71,25 @@ function normalizeManagedRuntime(
     enabled: value?.enabled === true,
     baseUrl: normalizeNullableString(value?.baseUrl),
     model: normalizeNullableString(value?.model),
+    imageModel: normalizeNullableString(normalizePublicImageModel(value?.imageModel)),
+    nativeImageGeneration: value?.nativeImageGeneration !== false,
   };
+}
+
+function selectCatalogImageModel(
+  response: unknown,
+  savedImageModel: string | null,
+): string | null {
+  const imageModels = parseModelListResponse(response);
+  if (imageModels.length === 0) {
+    return null;
+  }
+  const saved = normalizePublicImageModel(savedImageModel);
+  const selected =
+    imageModels.find((model) => model.model === saved) ??
+    imageModels.find((model) => model.id === saved) ??
+    imageModels[0];
+  return normalizeNullableString(normalizePublicImageModel(selected.model));
 }
 
 function normalizeEnterpriseAi(
@@ -185,6 +211,8 @@ function buildDefaultSettings(): AppSettings {
       enabled: false,
       baseUrl: null,
       model: null,
+      imageModel: null,
+      nativeImageGeneration: true,
     },
     enterpriseAi: {
       tenantDomain: null,
@@ -234,6 +262,7 @@ function buildDefaultSettings(): AppSettings {
     splitChatDiffView: false,
     preloadGitDiffs: true,
     gitDiffIgnoreWhitespaceChanges: false,
+    gitRuntimePreference: "auto",
     commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
     commitMessageModelId: null,
     collaborationModesEnabled: true,
@@ -323,6 +352,9 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
         : true,
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
+    gitRuntimePreference: allowedGitRuntimePreference.has(settings.gitRuntimePreference)
+      ? settings.gitRuntimePreference
+      : "auto",
     chatHistoryScrollbackItems,
     commitMessagePrompt,
     openAppTargets: normalizedTargets,
@@ -335,6 +367,7 @@ export function useAppSettings() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const settingsRef = useRef<AppSettings>(defaultSettings);
+  const imageModelReconcileKeyRef = useRef<string | null>(null);
   const setSettingsState = useCallback<Dispatch<SetStateAction<AppSettings>>>((next) => {
     const resolved =
       typeof next === "function"
@@ -369,6 +402,91 @@ export function useAppSettings() {
       active = false;
     };
   }, [defaultSettings, setSettingsState]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    const runtime = settings.managedRuntime;
+    if (!runtime.enabled || !runtime.baseUrl) {
+      return;
+    }
+    const key = JSON.stringify([
+      runtime.baseUrl,
+      runtime.model,
+      runtime.imageModel,
+      settings.enterpriseAi.status,
+      settings.enterpriseAi.keyLast4,
+    ]);
+    if (imageModelReconcileKeyRef.current === key) {
+      return;
+    }
+    imageModelReconcileKeyRef.current = key;
+
+    let active = true;
+    void (async () => {
+      try {
+        const response = await getRuntimeImageModelList();
+        if (!active) {
+          return;
+        }
+        const selectedImageModel = selectCatalogImageModel(
+          response,
+          settingsRef.current.managedRuntime.imageModel,
+        );
+        if (!selectedImageModel) {
+          return;
+        }
+        const current = settingsRef.current;
+        if (
+          !current.managedRuntime.enabled ||
+          current.managedRuntime.baseUrl !== runtime.baseUrl
+        ) {
+          return;
+        }
+        const currentImageModel = normalizePublicImageModel(
+          current.managedRuntime.imageModel,
+        );
+        if (currentImageModel === selectedImageModel) {
+          return;
+        }
+        const normalized = normalizeAppSettings({
+          ...current,
+          managedRuntime: {
+            ...current.managedRuntime,
+            imageModel: selectedImageModel,
+          },
+        });
+        setSettingsState(normalized);
+        const saved = await updateAppSettings(normalized);
+        if (settingsRef.current === normalized) {
+          setSettingsState(
+            normalizeAppSettings({
+              ...defaultSettings,
+              ...saved,
+            }),
+          );
+        }
+      } catch {
+        imageModelReconcileKeyRef.current = null;
+        // Keep the loaded settings if the runtime catalog is temporarily unavailable.
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    defaultSettings,
+    isLoading,
+    settings.managedRuntime.baseUrl,
+    settings.managedRuntime.enabled,
+    settings.managedRuntime.imageModel,
+    settings.managedRuntime.model,
+    settings.enterpriseAi.keyLast4,
+    settings.enterpriseAi.status,
+    setSettingsState,
+  ]);
 
   const saveSettings = useCallback(async (next: AppSettings) => {
     const previous = settingsRef.current;

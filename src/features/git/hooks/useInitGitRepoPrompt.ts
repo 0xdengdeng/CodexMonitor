@@ -61,7 +61,7 @@ export function useInitGitRepoPrompt({
       workspaceId: activeWorkspace.id,
       workspaceName: activeWorkspace.name,
       branch: "main",
-      createRemote: true,
+      createRemote: false,
       repoName: suggestedRepoName,
       isPrivate: true,
       error: null,

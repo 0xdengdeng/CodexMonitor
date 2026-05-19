@@ -8,4 +8,11 @@
 
 # Built from ../Codex and copied before Tauri dev/build.
 /binaries/codex-runtime-*
+/binaries/git-*
 !/binaries/.gitkeep
+
+# Built from Git source and bundled as app resources.
+/resources/git/
+!/resources/.gitkeep
+!/resources/git/
+!/resources/git/.gitkeep

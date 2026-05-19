@@ -166,9 +166,7 @@ pub(crate) async fn add_workspace(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, codex_args, codex_home| {
-            spawn_with_app(&app, entry, codex_args, codex_home)
-        },
+        |entry, codex_args, codex_home| spawn_with_app(&app, entry, codex_args, codex_home),
     )
     .await
 }
@@ -206,9 +204,7 @@ pub(crate) async fn add_workspace_from_git_url(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, codex_args, codex_home| {
-            spawn_with_app(&app, entry, codex_args, codex_home)
-        },
+        |entry, codex_args, codex_home| spawn_with_app(&app, entry, codex_args, codex_home),
     )
     .await
 }
@@ -229,9 +225,7 @@ pub(crate) async fn add_clone(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, codex_args, codex_home| {
-            spawn_with_app(&app, entry, codex_args, codex_home)
-        },
+        |entry, codex_args, codex_home| spawn_with_app(&app, entry, codex_args, codex_home),
     )
     .await
 }
@@ -291,9 +285,7 @@ pub(crate) async fn add_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, codex_args, codex_home| {
-            spawn_with_app(&app, entry, codex_args, codex_home)
-        },
+        |entry, codex_args, codex_home| spawn_with_app(&app, entry, codex_args, codex_home),
     )
     .await
 }
@@ -473,9 +465,7 @@ pub(crate) async fn rename_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, codex_args, codex_home| {
-            spawn_with_app(&app, entry, codex_args, codex_home)
-        },
+        |entry, codex_args, codex_home| spawn_with_app(&app, entry, codex_args, codex_home),
     )
     .await
 }
@@ -577,9 +567,7 @@ pub(crate) async fn update_workspace_settings(
         |workspaces, workspace_id, next_settings| {
             apply_workspace_settings_update(workspaces, workspace_id, next_settings)
         },
-        |entry, codex_args, codex_home| {
-            spawn_with_app(&app, entry, codex_args, codex_home)
-        },
+        |entry, codex_args, codex_home| spawn_with_app(&app, entry, codex_args, codex_home),
     )
     .await
 }
@@ -607,9 +595,7 @@ pub(crate) async fn connect_workspace(
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
-        |entry, codex_args, codex_home| {
-            spawn_with_app(&app, entry, codex_args, codex_home)
-        },
+        |entry, codex_args, codex_home| spawn_with_app(&app, entry, codex_args, codex_home),
     )
     .await
 }

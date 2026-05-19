@@ -101,20 +101,28 @@ pub(crate) async fn codex_update(
 #[tauri::command]
 pub(crate) async fn start_thread(
     workspace_id: String,
+    native_image_generation: Option<bool>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
+    let native_image_generation = native_image_generation.unwrap_or(true);
     if remote_backend::is_remote_mode(&*state).await {
         return remote_backend::call_remote(
             &*state,
             app,
             "start_thread",
-            json!({ "workspaceId": workspace_id }),
+            json!({ "workspaceId": workspace_id, "nativeImageGeneration": native_image_generation }),
         )
         .await;
     }
 
-    codex_core::start_thread_core(&state.sessions, &state.workspaces, workspace_id).await
+    codex_core::start_thread_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        native_image_generation,
+    )
+    .await
 }
 
 #[tauri::command]

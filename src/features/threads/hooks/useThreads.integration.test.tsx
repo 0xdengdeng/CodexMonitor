@@ -170,7 +170,9 @@ describe("useThreads UX integration", () => {
     });
 
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
+      nativeImageGeneration: true,
+    });
     const startEnsureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
     const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
     expect(startEnsureCallOrder).toBeLessThan(startThreadCallOrder);
@@ -208,11 +210,35 @@ describe("useThreads UX integration", () => {
     });
 
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
+      nativeImageGeneration: true,
+    });
 
     const ensureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
     const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
     expect(ensureCallOrder).toBeLessThan(startThreadCallOrder);
+  });
+
+  it("passes disabled native image generation through when configured", async () => {
+    vi.mocked(startThread).mockResolvedValue({
+      result: { thread: { id: "thread-dynamic-new" } },
+    } as Awaited<ReturnType<typeof startThread>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        nativeImageGenerationEnabled: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startThread();
+    });
+
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
+      nativeImageGeneration: false,
+    });
   });
 
   it("still resumes selected thread when runtime codex args sync fails", async () => {
@@ -420,7 +446,9 @@ describe("useThreads UX integration", () => {
     });
 
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
+      nativeImageGeneration: true,
+    });
     expect(threadId).toBe("thread-new");
   });
 
@@ -1876,7 +1904,7 @@ describe("useThreads UX integration", () => {
       workspaceId: "ws-1",
       threadId: "thread-image",
       source: "adg",
-      model: "gpt-image-2",
+      model: "adg-image",
       prompt: "A small blue rocket icon",
       revisedPrompt: null,
       size: "1024x1024",
@@ -1936,6 +1964,197 @@ describe("useThreads UX integration", () => {
         ]),
       }),
     );
+  });
+
+  it("updates the local image generation card when dynamic generation succeeds", async () => {
+    vi.mocked(generateImage).mockResolvedValue({
+      id: "asset-1",
+      workspaceId: "ws-1",
+      threadId: "thread-image",
+      source: "adg",
+      model: "adg-image",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      size: "1024x1536",
+      localPath: "/Users/example/generated-images/asset-1.png",
+      modelVisibleImageUrl: "data:image/png;base64,AAA",
+      mimeType: "image/png",
+      createdAtMs: 123,
+      requestId: "req-1",
+      status: "completed",
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onDynamicToolCall?.({
+        workspace_id: "ws-1",
+        request_id: 407,
+        params: {
+          thread_id: "thread-image",
+          turn_id: "turn-1",
+          call_id: "call-1",
+          namespace: "codex_monitor",
+          tool: "generate_image",
+          arguments: {
+            prompt: "A seaside portrait",
+            size: "1024x1536",
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(respondToDynamicToolCallRequest).toHaveBeenCalledWith(
+        "ws-1",
+        407,
+        expect.objectContaining({ success: true }),
+      );
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-image");
+    });
+
+    await waitFor(() => {
+      const imageItem = result.current.activeItems.find(
+        (item) => item.kind === "imageGeneration" && item.id === "call-1",
+      );
+      expect(imageItem).toMatchObject({
+        kind: "imageGeneration",
+        status: "completed",
+        assetId: "asset-1",
+        savedPath: "/Users/example/generated-images/asset-1.png",
+        imageSrc: "/Users/example/generated-images/asset-1.png",
+      });
+    });
+  });
+
+  it("defaults dynamic image generation size to auto when omitted", async () => {
+    vi.mocked(generateImage).mockResolvedValue({
+      id: "asset-1",
+      workspaceId: "ws-1",
+      threadId: "thread-image",
+      source: "adg",
+      model: "adg-image",
+      prompt: "A cinematic wallpaper",
+      revisedPrompt: null,
+      size: "auto",
+      localPath: "/Users/example/generated-images/asset-1.png",
+      modelVisibleImageUrl: "data:image/png;base64,AAA",
+      mimeType: "image/png",
+      createdAtMs: 123,
+      requestId: "req-1",
+      status: "completed",
+    });
+
+    renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      handlers?.onDynamicToolCall?.({
+        workspace_id: "ws-1",
+        request_id: 405,
+        params: {
+          thread_id: "thread-image",
+          turn_id: "turn-1",
+          call_id: "call-1",
+          namespace: "codex_monitor",
+          tool: "generate_image",
+          arguments: {
+            prompt: "A cinematic wallpaper",
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(generateImage).toHaveBeenCalledWith({
+        workspaceId: "ws-1",
+        threadId: "thread-image",
+        prompt: "A cinematic wallpaper",
+        size: "auto",
+      });
+    });
+  });
+
+  it("passes reference image ids through dynamic image generation", async () => {
+    vi.mocked(generateImage).mockResolvedValue({
+      id: "asset-edited",
+      workspaceId: "ws-1",
+      threadId: "thread-image",
+      source: "adg",
+      model: "adg-image",
+      prompt: "Change the outfit to a suit",
+      revisedPrompt: null,
+      size: "1024x1536",
+      localPath: "/Users/example/generated-images/asset-edited.png",
+      modelVisibleImageUrl: "data:image/png;base64,BBB",
+      mimeType: "image/png",
+      createdAtMs: 124,
+      requestId: "req-2",
+      status: "completed",
+    });
+
+    renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      handlers?.onDynamicToolCall?.({
+        workspace_id: "ws-1",
+        request_id: 406,
+        params: {
+          thread_id: "thread-image",
+          turn_id: "turn-1",
+          call_id: "call-2",
+          namespace: "codex_monitor",
+          tool: "generate_image",
+          arguments: {
+            prompt: "Change the outfit to a suit",
+            size: "1024x1536",
+            referenceImageIds: ["asset-source"],
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(generateImage).toHaveBeenCalledWith({
+        workspaceId: "ws-1",
+        threadId: "thread-image",
+        prompt: "Change the outfit to a suit",
+        size: "1024x1536",
+        referenceImageIds: ["asset-source"],
+      });
+    });
+    await waitFor(() => {
+      expect(respondToDynamicToolCallRequest).toHaveBeenCalledWith(
+        "ws-1",
+        406,
+        expect.objectContaining({
+          success: true,
+          contentItems: expect.arrayContaining([
+            expect.objectContaining({
+              type: "inputText",
+              text: expect.stringContaining("\"referenceImageIds\":[\"asset-source\"]"),
+            }),
+          ]),
+        }),
+      );
+    });
   });
 
   it("orders thread lists, applies custom names, and keeps pin ordering stable", async () => {

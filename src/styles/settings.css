@@ -673,8 +673,21 @@
   background-color: var(--surface-control-hover);
 }
 
+.ds-select-trigger.settings-select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background-color: var(--surface-control-hover);
+}
+
 .settings-input:focus,
-.settings-select:focus {
+.settings-select:focus-visible,
+.settings-select[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
+}
+
+.ds-select-trigger.settings-select:focus-visible,
+.ds-select-trigger.settings-select[aria-expanded="true"] {
   outline: none;
   border-color: var(--border-accent);
   box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
@@ -716,19 +729,11 @@
 }
 
 .settings-select {
-  appearance: none;
-  -webkit-appearance: none;
   min-height: 38px;
-  padding: 9px 38px 9px 12px;
+  padding: 9px 12px;
   border-radius: var(--cm-control-radius, 10px);
   border: 1px solid var(--button-secondary-border, var(--border-muted));
   background-color: var(--surface-control);
-  background-image: linear-gradient(45deg, transparent 50%, var(--select-caret) 50%),
-    linear-gradient(135deg, var(--select-caret) 50%, transparent 50%);
-  background-position: calc(100% - 18px) calc(50% + 1px),
-    calc(100% - 13px) calc(50% + 1px);
-  background-repeat: no-repeat;
-  background-size: 5px 5px, 5px 5px;
   color: var(--text-strong);
   font-size: 12px;
   font-weight: 600;
@@ -739,20 +744,35 @@
     box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
 }
 
-.settings-select::-ms-expand {
-  display: none;
-}
-
-.settings-select option {
-  background-color: var(--surface-popover);
+.ds-select-trigger.settings-select {
+  min-height: 38px;
+  min-width: 150px;
+  padding: 9px 12px;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--button-secondary-border, var(--border-muted));
+  border-radius: var(--cm-control-radius, 10px);
+  background-color: var(--surface-control);
   color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: var(--control-shadow, none);
+  transition: border-color var(--ds-dur-normal) var(--ds-ease-out-soft),
+    background-color var(--ds-dur-normal) var(--ds-ease-out-soft),
+    box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
 }
 
 .settings-select--compact {
   min-height: 30px;
-  padding: 6px 30px 6px 9px;
-  background-position: calc(100% - 15px) calc(50% + 1px),
-    calc(100% - 10px) calc(50% + 1px);
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.ds-select-trigger.settings-select--compact {
+  min-height: 30px;
+  min-width: 116px;
+  padding: 6px 9px;
   font-size: 11px;
 }
 

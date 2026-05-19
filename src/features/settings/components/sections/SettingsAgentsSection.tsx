@@ -13,6 +13,7 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 
 const FALLBACK_AGENT_MODELS: ModelOption[] = [
@@ -539,43 +540,42 @@ export function SettingsAgentsSection({
         <div className="settings-agents-model-row">
           <div className="settings-agents-model-field settings-agents-model-field--model">
             <span className="settings-agents-inline-label">{t("settings.agents.model")}</span>
-            <select
+            <SelectMenu
               id="settings-agent-create-model"
               className="settings-select settings-select--compact"
               value={createModel}
-              onChange={(event) => setCreateModel(event.target.value)}
+              onValueChange={setCreateModel}
               disabled={creatingAgent}
               aria-label={t("settings.agents.agentModel")}
-            >
-              {effectiveModelOptions.map((option) => (
-                <option key={option.model} value={option.model}>
-                  {option.model}
-                </option>
-              ))}
-            </select>
+              options={effectiveModelOptions.map((option) => ({
+                value: option.model,
+                label: option.model,
+              }))}
+              popoverAlign="end"
+            />
           </div>
           <span className="settings-agents-inline-separator" aria-hidden>
             |
           </span>
           <div className="settings-agents-model-field settings-agents-model-field--effort">
             <span className="settings-agents-inline-label">{t("settings.agents.reasoning")}</span>
-            <select
+            <SelectMenu
               id="settings-agent-create-effort"
               className="settings-select settings-select--compact"
               value={createReasoningEffort}
-              onChange={(event) => setCreateReasoningEffort(event.target.value)}
+              onValueChange={setCreateReasoningEffort}
               disabled={creatingAgent || createReasoningOptions.length === 0}
               aria-label={t("settings.agents.agentReasoning")}
-            >
-              {createReasoningOptions.length === 0 && (
-                <option value="">{t("settings.codex.notSupported")}</option>
-              )}
-              {createReasoningOptions.map((effort) => (
-                <option key={effort} value={effort}>
-                  {effort}
-                </option>
-              ))}
-            </select>
+              options={
+                createReasoningOptions.length === 0
+                  ? [{ value: "", label: t("settings.codex.notSupported"), disabled: true }]
+                  : createReasoningOptions.map((effort) => ({
+                      value: effort,
+                      label: effort,
+                    }))
+              }
+              popoverAlign="end"
+            />
           </div>
         </div>
         <div className="settings-agents-actions">

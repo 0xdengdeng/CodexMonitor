@@ -64,6 +64,17 @@ const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/srv/",
   "/data/",
 ];
+const IMAGE_OR_FILE_EXTENSION_SOURCE = "\\.[A-Za-z0-9][A-Za-z0-9._-]{0,31}";
+const FILE_PATH_TEXT_BOUNDARY_SOURCE = "(?=$|[\\s\\`\"'<>),;:!?，。；：！？\\]\\}])";
+const SPACED_LOCAL_ABSOLUTE_FILE_PATH_PATTERN = new RegExp(
+  `(${LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES.map((prefix) =>
+    prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  ).join("|")}|[A-Za-z]:[\\\\/])[^\\n\\\`"'<>{}]*?${IMAGE_OR_FILE_EXTENSION_SOURCE}${FILE_LINK_SUFFIX_SOURCE}${FILE_PATH_TEXT_BOUNDARY_SOURCE}`,
+  "g",
+);
+const SPACED_LOCAL_ABSOLUTE_FILE_PATH_MATCH = new RegExp(
+  `^${SPACED_LOCAL_ABSOLUTE_FILE_PATH_PATTERN.source}$`,
+);
 
 function normalizePathSeparators(path: string) {
   return path.replace(/\\/g, "/");
@@ -184,6 +195,11 @@ function hasLikelyLocalAbsolutePrefix(path: string) {
   return LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES.some((prefix) =>
     normalizedPath.startsWith(prefix),
   );
+}
+
+function isLikelySpacedLocalAbsoluteFilePath(path: string) {
+  SPACED_LOCAL_ABSOLUTE_FILE_PATH_MATCH.lastIndex = 0;
+  return SPACED_LOCAL_ABSOLUTE_FILE_PATH_MATCH.test(path);
 }
 
 function hasLikelyWorkspaceNameSegment(segment: string) {
@@ -359,7 +375,11 @@ export function parseInlineFileTarget(value: string): ParsedFileLocation | null 
   if (!normalizedPath || isKnownLocalWorkspaceRoutePath(normalizedPath)) {
     return null;
   }
-  if (!FILE_PATH_MATCH.test(normalizedPath)) {
+  FILE_PATH_MATCH.lastIndex = 0;
+  if (
+    !FILE_PATH_MATCH.test(normalizedPath) &&
+    !isLikelySpacedLocalAbsoluteFilePath(normalizedPath)
+  ) {
     return null;
   }
   if (!isPathCandidate(normalizedPath, "", "")) {
@@ -386,15 +406,34 @@ export function toFileLink(target: ParsedFileLocation | string) {
   return `${FILE_LINK_PROTOCOL}${encodeURIComponent(value)}`;
 }
 
+function findFilePathMatches(value: string) {
+  FILE_PATH_PATTERN.lastIndex = 0;
+  SPACED_LOCAL_ABSOLUTE_FILE_PATH_PATTERN.lastIndex = 0;
+  return [
+    ...Array.from(value.matchAll(SPACED_LOCAL_ABSOLUTE_FILE_PATH_PATTERN)),
+    ...Array.from(value.matchAll(FILE_PATH_PATTERN)),
+  ].sort((left, right) => {
+    const leftIndex = left.index ?? 0;
+    const rightIndex = right.index ?? 0;
+    if (leftIndex !== rightIndex) {
+      return leftIndex - rightIndex;
+    }
+    return right[0].length - left[0].length;
+  });
+}
+
 function linkifyText(value: string) {
   FILE_PATH_PATTERN.lastIndex = 0;
   const nodes: MarkdownNode[] = [];
   let lastIndex = 0;
   let hasLink = false;
 
-  for (const match of value.matchAll(FILE_PATH_PATTERN)) {
+  for (const match of findFilePathMatches(value)) {
     const matchIndex = match.index ?? 0;
     const raw = match[0];
+    if (matchIndex < lastIndex) {
+      continue;
+    }
     if (matchIndex > lastIndex) {
       nodes.push({ type: "text", value: value.slice(lastIndex, matchIndex) });
     }

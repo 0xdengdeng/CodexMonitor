@@ -15,6 +15,30 @@ const workspace: WorkspaceInfo = {
 };
 
 describe("useInitGitRepoPrompt", () => {
+  it("opens as a local-only version record by default", () => {
+    const initGitRepo = vi.fn().mockResolvedValue("cancelled");
+    const createGitHubRepo = vi.fn().mockResolvedValue({ ok: true });
+    const refreshGitRemote = vi.fn();
+
+    const { result } = renderHook(() =>
+      useInitGitRepoPrompt({
+        activeWorkspace: workspace,
+        initGitRepo,
+        createGitHubRepo,
+        refreshGitRemote,
+        isBusy: false,
+      }),
+    );
+
+    act(() => {
+      result.current.openInitGitRepoPrompt();
+    });
+
+    expect(result.current.initGitRepoPrompt?.branch).toBe("main");
+    expect(result.current.initGitRepoPrompt?.createRemote).toBe(false);
+    expect(result.current.initGitRepoPrompt?.isPrivate).toBe(true);
+  });
+
   it("does not set generic error when init confirmation is canceled", async () => {
     const initGitRepo = vi.fn().mockResolvedValue("cancelled");
     const createGitHubRepo = vi.fn().mockResolvedValue({ ok: true });
@@ -68,8 +92,7 @@ describe("useInitGitRepoPrompt", () => {
     });
 
     expect(result.current.initGitRepoPrompt?.error).toBe(
-      "Failed to initialize Git repository.",
+      "Failed to turn on version records.",
     );
   });
 });
-

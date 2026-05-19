@@ -190,6 +190,7 @@ type UseMainAppLayoutSurfacesArgs = {
   handleComposerSendWithDraftStart: ComposerProps["onSend"];
   interruptTurn: () => void;
   terminalOpen: boolean;
+  openTerminalWithFocus: () => void;
   debugOpen: boolean;
   debugEntries: LayoutNodesOptions["secondary"]["debugPanelProps"]["entries"];
   terminalTabs: LayoutNodesOptions["secondary"]["terminalDockProps"]["terminals"];
@@ -352,6 +353,7 @@ export function useMainAppLayoutSurfaces({
   handleComposerSendWithDraftStart,
   interruptTurn,
   terminalOpen,
+  openTerminalWithFocus,
   debugOpen,
   debugEntries,
   terminalTabs,
@@ -510,6 +512,7 @@ export function useMainAppLayoutSurfaces({
     handleComposerSendWithDraftStart,
     interruptTurn,
     terminalOpen,
+    openTerminalWithFocus,
     debugOpen,
     debugEntries,
     terminalTabs,

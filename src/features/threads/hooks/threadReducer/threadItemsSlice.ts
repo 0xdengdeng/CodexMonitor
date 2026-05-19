@@ -70,16 +70,20 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
       };
     }
     case "completeAgentMessage": {
+      const hasText = action.text.trim().length > 0;
       const list = [...(state.itemsByThread[action.threadId] ?? [])];
       const index = list.findIndex((msg) => msg.id === action.itemId);
       if (index >= 0 && list[index].kind === "message") {
         const existing = list[index];
         list[index] = {
           ...existing,
-          text: action.text || existing.text,
+          text: hasText ? action.text : existing.text,
           createdAt: existing.createdAt ?? action.timestamp ?? Date.now(),
         };
       } else {
+        if (!hasText) {
+          return state;
+        }
         list.push({
           id: action.itemId,
           kind: "message",

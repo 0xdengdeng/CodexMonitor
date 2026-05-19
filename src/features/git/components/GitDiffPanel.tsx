@@ -13,6 +13,7 @@ import Search from "lucide-react/dist/esm/icons/search";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
 import { PanelShell } from "../../layout/components/PanelShell";
+import { SelectMenu } from "../../design-system/components/select/SelectMenu";
 import { pushErrorToast } from "../../../services/toasts";
 import {
   fileManagerName,
@@ -37,6 +38,7 @@ import {
   getGitHubBaseUrl,
   getRelativePathWithin,
   hasPushSyncConflict,
+  isGitRootNotFound,
   isMissingRepo,
   joinRootAndPath,
   normalizeRootPath,
@@ -606,7 +608,19 @@ export function GitDiffPanel({
             : [{ key: "pullRequests", message: pullRequestsError }];
 
     return options
-      .filter((entry) => Boolean(entry.message))
+      .filter((entry) => {
+        if (!entry.message) {
+          return false;
+        }
+        if (
+          entry.key === "git" &&
+          isMissingRepo(entry.message) &&
+          !isGitRootNotFound(entry.message)
+        ) {
+          return false;
+        }
+        return true;
+      })
       .map((entry) => ({
         ...entry,
         signature: `${errorScope}:${entry.key}:${entry.message}`,
@@ -669,22 +683,24 @@ export function GitDiffPanel({
             <span className="git-panel-select-icon" aria-hidden>
               <ModeIcon />
             </span>
-            <select
+            <SelectMenu
               className="git-panel-select-input"
               value={mode}
-              onChange={(event) => onModeChange(event.target.value as GitDiffPanelProps["mode"])}
+              onValueChange={(nextValue) => onModeChange(nextValue as GitDiffPanelProps["mode"])}
               aria-label={t("git.panelView")}
-            >
-              <option value="diff">{t("git.diff")}</option>
-              <option value="perFile">{t("git.agentEdits")}</option>
-              <option value="log">{t("git.log")}</option>
-              {FEATURE_VISIBILITY.githubIntegration && (
-                <>
-                  <option value="issues">{t("git.issues")}</option>
-                  <option value="prs">{t("git.prs")}</option>
-                </>
-              )}
-            </select>
+              options={[
+                { value: "diff", label: t("git.diff") },
+                { value: "perFile", label: t("git.agentEdits") },
+                { value: "log", label: t("git.log") },
+                ...(FEATURE_VISIBILITY.githubIntegration
+                  ? [
+                      { value: "issues", label: t("git.issues") },
+                      { value: "prs", label: t("git.prs") },
+                    ]
+                  : []),
+              ]}
+              popoverAlign="end"
+            />
           </div>
         </div>
       }

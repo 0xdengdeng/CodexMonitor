@@ -126,6 +126,7 @@ export function buildResumeHydrationPlan({
   thread,
   threadId,
   workspaceId,
+  imageGenerationModel,
 }: {
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   localActiveTurnId: string | null;
@@ -135,8 +136,9 @@ export function buildResumeHydrationPlan({
   thread: ThreadRecord;
   threadId: string;
   workspaceId: string;
+  imageGenerationModel?: string | null;
 }): ResumeHydrationPlan {
-  const items = buildItemsFromThread(thread);
+  const items = buildItemsFromThread(thread, { imageGenerationModel });
   if (localItems.length > 0 && !replaceLocal) {
     return {
       keepLocalProcessing: false,

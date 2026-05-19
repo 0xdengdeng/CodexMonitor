@@ -10,9 +10,21 @@
   gap: 12px;
 }
 
+@keyframes git-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .git-panel-header .panel-tabs {
   background: var(--cm-surface-panel);
   border-color: var(--cm-border-default);
+  box-shadow: var(--cm-edge-highlight);
 }
 
 .git-panel-header .panel-tab {
@@ -56,34 +68,29 @@
   color: var(--text-emphasis);
   font-size: 12px;
   font-weight: 600;
-  padding: 9px 34px 9px 34px;
+  padding: 9px 12px 9px 34px;
   border-radius: var(--cm-control-radius, 10px);
   cursor: pointer;
   min-height: 34px;
-  appearance: none;
   box-shadow: var(--control-shadow, none);
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
-    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
-  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
   max-width: 148px;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-
-.git-panel-select-input option {
-  background-color: var(--surface-popover);
-  color: var(--text-strong);
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .git-panel-select-input:hover,
-.git-panel-select-input:focus-visible {
+.git-panel-select-input:focus-visible,
+.git-panel-select-input[aria-expanded="true"] {
   background-color: var(--surface-control-hover);
   border-color: var(--border-strong);
   outline: none;
 }
 
-.git-panel-select-input:focus-visible {
+.git-panel-select-input:focus-visible,
+.git-panel-select-input[aria-expanded="true"] {
   border-color: var(--border-accent);
   box-shadow: var(--cm-control-focus-ring, 0 0 0 3px var(--control-focus-ring));
 }
@@ -107,6 +114,7 @@
   border: 0;
   border-bottom: 1px solid var(--cm-border-soft);
   background: transparent;
+  animation: git-panel-enter var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease) both;
 }
 
 .git-panel-overview-status {
@@ -167,7 +175,12 @@
   flex-shrink: 0;
   box-shadow: none;
   transform: none;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+  box-shadow: var(--cm-edge-highlight);
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .diff-branch-refresh:hover:not(:disabled) {
@@ -218,6 +231,8 @@
   border-radius: 18px;
   border: 1px solid var(--cm-border-default);
   background: var(--cm-surface-panel-soft);
+  box-shadow: var(--cm-edge-highlight);
+  animation: git-panel-enter var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease) both;
 }
 
 .git-root-title {
@@ -246,7 +261,11 @@
   color: var(--text-emphasis);
   box-shadow: none;
   transform: none;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .git-root-button:hover:not(:disabled),
@@ -291,7 +310,7 @@
 }
 
 .git-root-select {
-  padding: 6px 24px 6px 10px;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--cm-border-default);
   background: var(--cm-surface-panel);
@@ -319,7 +338,10 @@
   font-size: 12px;
   box-shadow: none;
   transform: none;
-  transition: background 160ms ease;
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .git-root-item.active {
@@ -366,6 +388,7 @@
   flex: 1;
   padding-right: 2px;
   min-height: 0;
+  animation: git-panel-enter var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease) both;
 }
 
 .diff-section {
@@ -477,7 +500,9 @@
   text-align: left;
   box-shadow: none;
   transform: none;
-  transition: background 160ms ease;
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .per-file-group-row:hover {
@@ -532,7 +557,10 @@
   text-align: left;
   box-shadow: none;
   transform: none;
-  transition: background 160ms ease;
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .per-file-edit-row:hover {
@@ -667,7 +695,10 @@
   cursor: pointer;
   border: 0;
   background: transparent;
-  transition: background 160ms ease, box-shadow 160ms ease;
+  transition:
+    background var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .diff-row-meta {
@@ -706,8 +737,11 @@
   opacity: 0;
   pointer-events: none;
   transform: translateX(6px);
-  transition: max-width 180ms ease, opacity 140ms ease, transform 140ms ease,
-    margin-left 180ms ease;
+  transition:
+    max-width var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    opacity var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    margin-left var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .diff-row:hover .diff-row-actions,
@@ -732,7 +766,11 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+  transition:
+    background var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
   position: relative;
 }
 

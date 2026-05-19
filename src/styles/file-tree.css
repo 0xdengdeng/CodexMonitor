@@ -23,6 +23,10 @@
   border-radius: 7px;
   padding: 0;
   color: var(--text-faint);
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .file-tree-search-filter:hover {
@@ -43,6 +47,18 @@
   flex: 1;
   padding-right: 2px;
   min-height: 0;
+  animation: file-tree-enter var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease) both;
+}
+
+@keyframes file-tree-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .file-tree-virtual {
@@ -88,6 +104,10 @@
   font-size: 11px;
   text-align: left;
   width: 100%;
+  transition:
+    background-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .file-tree-row-wrap {
@@ -119,7 +139,7 @@
   justify-content: center;
   color: var(--text-faint);
   transform: rotate(0deg);
-  transition: transform 140ms ease;
+  transition: transform var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .file-tree-chevron.is-open {
@@ -162,6 +182,9 @@
   border: none;
   background: transparent;
   box-shadow: none;
+  transition:
+    opacity var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .file-tree-action:hover:not(:disabled) {
@@ -184,6 +207,19 @@
   gap: 10px;
   z-index: 30;
   position: relative;
+  box-shadow: var(--cm-shadow-panel);
+  animation: file-tree-popover-enter var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease) both;
+}
+
+@keyframes file-tree-popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .file-preview-popover::after {

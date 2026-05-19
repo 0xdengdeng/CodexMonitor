@@ -44,6 +44,7 @@ import {
   extractThreadFromResponse,
 } from "@threads/utils/threadSummary";
 import { getSubagentDescendantThreadIds } from "@threads/utils/subagentTree";
+import { normalizePublicImageModel } from "@/utils/imageModels";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -64,6 +65,8 @@ type UseThreadsOptions = {
   steerEnabled?: boolean;
   threadTitleAutogenerationEnabled?: boolean;
   chatHistoryScrollbackItems?: number | null;
+  nativeImageGenerationEnabled?: boolean;
+  imageGenerationModel?: string | null;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
@@ -76,6 +79,21 @@ type UseThreadsOptions = {
 
 function buildWorkspaceThreadKey(workspaceId: string, threadId: string) {
   return `${workspaceId}:${threadId}`;
+}
+
+function stringArrayArg(...values: unknown[]) {
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      return value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    if (typeof value === "string" && value.trim()) {
+      return [value.trim()];
+    }
+  }
+  return [];
 }
 
 const CASCADE_ARCHIVE_SKIP_TTL_MS = 120_000;
@@ -96,6 +114,8 @@ export function useThreads({
   steerEnabled = false,
   threadTitleAutogenerationEnabled = false,
   chatHistoryScrollbackItems,
+  nativeImageGenerationEnabled = true,
+  imageGenerationModel = null,
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
@@ -416,6 +436,7 @@ export function useThreads({
   const threadHandlers = useThreadEventHandlers({
     activeThreadId,
     dispatch,
+    imageGenerationModel,
     getItemsForThread: (threadId) => itemsByThreadRef.current[threadId] ?? [],
     planByThreadRef,
     getCurrentRateLimits,
@@ -553,7 +574,17 @@ export function useThreads({
         const size =
           typeof args.size === "string" && args.size.trim()
             ? args.size.trim()
-            : "1024x1024";
+            : "auto";
+        const referenceImageIds = stringArrayArg(
+          args.referenceImageIds,
+          args.reference_image_ids,
+          args.sourceImageIds,
+          args.source_image_ids,
+          args.referenceImageId,
+          args.reference_image_id,
+          args.sourceImageId,
+          args.source_image_id,
+        );
         const isImageTool =
           params.namespace === "codex_monitor" && params.tool === "generate_image";
         if (!isImageTool || !prompt) {
@@ -583,7 +614,7 @@ export function useThreads({
             status: "in_progress",
             prompt,
             revisedPrompt: null,
-            model: "gpt-image-2",
+            model: normalizePublicImageModel(null),
             size,
             assetId: null,
             savedPath: null,
@@ -595,29 +626,56 @@ export function useThreads({
         });
 
         try {
-          const asset = await generateImage({
+          const imageRequest = {
             workspaceId: workspace_id,
             threadId: params.thread_id,
             prompt,
             size,
+            ...(referenceImageIds.length > 0 ? { referenceImageIds } : {}),
+          };
+          const asset = await generateImage({
+            ...imageRequest,
           });
           const imageUrl = asset.modelVisibleImageUrl?.trim() ?? "";
+          const metadata = {
+            assetId: asset.id,
+            model: asset.model,
+            size: asset.size,
+            ...(asset.revisedPrompt ? { revisedPrompt: asset.revisedPrompt } : {}),
+            savedPath: asset.localPath,
+            localPath: asset.localPath,
+            requestId: asset.requestId,
+            ...(referenceImageIds.length > 0 ? { referenceImageIds } : {}),
+          };
           const contentItems: DynamicToolCallOutputContentItem[] = [
             {
               type: "inputText" as const,
-              text: JSON.stringify({
-                assetId: asset.id,
-                model: asset.model,
-                size: asset.size,
-                savedPath: asset.localPath,
-                localPath: asset.localPath,
-                requestId: asset.requestId,
-              }),
+              text: JSON.stringify(metadata),
             },
           ];
           if (imageUrl) {
             contentItems.push({ type: "inputImage" as const, imageUrl });
           }
+          dispatch({
+            type: "upsertItem",
+            workspaceId: workspace_id,
+            threadId: params.thread_id,
+            item: {
+              id: params.call_id,
+              kind: "imageGeneration",
+              status: "completed",
+              prompt: asset.prompt || prompt,
+              revisedPrompt: asset.revisedPrompt,
+              model: normalizePublicImageModel(asset.model),
+              size: asset.size || size,
+              assetId: asset.id,
+              savedPath: asset.localPath || null,
+              imageSrc: asset.localPath || imageUrl || null,
+              error: null,
+            },
+            hasCustomName: Boolean(getCustomName(workspace_id, params.thread_id)),
+          });
+          safeMessageActivity();
           await respondToDynamicToolCallRequest(workspace_id, request_id, {
             success: true,
             contentItems,
@@ -634,7 +692,7 @@ export function useThreads({
               status: "failed",
               prompt,
               revisedPrompt: null,
-              model: "gpt-image-2",
+              model: normalizePublicImageModel(null),
               size,
               assetId: null,
               savedPath: null,
@@ -664,7 +722,7 @@ export function useThreads({
         });
       });
     },
-    [dispatch, getCustomName, onDebug],
+    [dispatch, getCustomName, onDebug, safeMessageActivity],
   );
 
   const handlers = useMemo(
@@ -719,6 +777,7 @@ export function useThreads({
     updateThreadParent,
     onSubagentThreadDetected,
     onThreadCodexMetadataDetected,
+    imageGenerationModel,
   });
 
   const ensureWorkspaceRuntimeCodexArgsBestEffort = useCallback(
@@ -785,11 +844,22 @@ export function useThreads({
   );
 
   const startThreadForWorkspace = useCallback(
-    async (workspaceId: string, options?: { activate?: boolean }) => {
+    async (
+      workspaceId: string,
+      options?: { activate?: boolean; nativeImageGeneration?: boolean },
+    ) => {
       await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
-      return startThreadForWorkspaceInternal(workspaceId, options);
+      const startOptions = { ...options };
+      const nativeImageGeneration =
+        options?.nativeImageGeneration ?? nativeImageGenerationEnabled;
+      startOptions.nativeImageGeneration = nativeImageGeneration;
+      return startThreadForWorkspaceInternal(workspaceId, startOptions);
     },
-    [ensureWorkspaceRuntimeCodexArgsBestEffort, startThreadForWorkspaceInternal],
+    [
+      ensureWorkspaceRuntimeCodexArgsBestEffort,
+      nativeImageGenerationEnabled,
+      startThreadForWorkspaceInternal,
+    ],
   );
 
   const startThread = useCallback(async () => {

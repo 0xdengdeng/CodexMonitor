@@ -5,6 +5,7 @@ import type {
   CodexDoctorResult,
   CodexUpdateResult,
   EnterpriseAiUsageSnapshot,
+  ModelOption,
   WorkspaceInfo,
 } from "@/types";
 import {
@@ -12,9 +13,12 @@ import {
   enterpriseAiLogout,
   enterpriseAiUsage,
   enterpriseAiValidate,
+  getRuntimeImageModelList,
   isDeveloperModeEnabled,
   setRuntimeApiKey,
 } from "@services/tauri";
+import { parseModelListResponse } from "@/features/models/utils/modelListResponse";
+import { normalizePublicImageModel } from "@/utils/imageModels";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
@@ -30,6 +34,8 @@ type UseSettingsCodexSectionArgs = {
   onRunCodexUpdate?: () => Promise<CodexUpdateResult>;
 };
 
+const IMAGE_MODEL_REFRESH_INTERVAL_MS = 60_000;
+
 export type SettingsCodexSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
@@ -38,6 +44,10 @@ export type SettingsCodexSectionProps = {
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
+  imageModels: ModelOption[];
+  imageModelsLoading: boolean;
+  imageModelsError: string | null;
+  onRefreshImageModels: () => void;
   codexArgsDraft: string;
   codexDirty: boolean;
   isSavingSettings: boolean;
@@ -63,7 +73,6 @@ export type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  enterpriseTenantDomainDraft: string;
   enterpriseApiKeyDraft: string;
   enterpriseAiUsage: EnterpriseAiUsageSnapshot | null;
   enterpriseAiLoading: boolean;
@@ -75,7 +84,6 @@ export type SettingsCodexSectionProps = {
   developerRuntimeSaving: boolean;
   developerRuntimeError: string | null;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
-  onSetEnterpriseTenantDomainDraft: Dispatch<SetStateAction<string>>;
   onSetEnterpriseApiKeyDraft: Dispatch<SetStateAction<string>>;
   onSetDeveloperBaseUrlDraft: Dispatch<SetStateAction<string>>;
   onSetDeveloperApiKeyDraft: Dispatch<SetStateAction<string>>;
@@ -104,9 +112,6 @@ export const useSettingsCodexSection = ({
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
   const { t } = useI18n();
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
-  const [enterpriseTenantDomainDraft, setEnterpriseTenantDomainDraft] = useState(
-    appSettings.enterpriseAi.tenantDomain ?? "",
-  );
   const [enterpriseApiKeyDraft, setEnterpriseApiKeyDraft] = useState("");
   const [developerModeEnabled, setDeveloperModeEnabled] = useState(false);
   const [developerBaseUrlDraft, setDeveloperBaseUrlDraft] = useState(
@@ -118,6 +123,9 @@ export const useSettingsCodexSection = ({
   const [enterpriseAiLoading, setEnterpriseAiLoading] = useState(false);
   const [enterpriseAiSaving, setEnterpriseAiSaving] = useState(false);
   const [enterpriseAiError, setEnterpriseAiError] = useState<string | null>(null);
+  const [imageModels, setImageModels] = useState<ModelOption[]>([]);
+  const [imageModelsLoading, setImageModelsLoading] = useState(false);
+  const [imageModelsError, setImageModelsError] = useState<string | null>(null);
   const [developerRuntimeSaving, setDeveloperRuntimeSaving] = useState(false);
   const [developerRuntimeError, setDeveloperRuntimeError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -137,6 +145,20 @@ export const useSettingsCodexSection = ({
     connectedWorkspaceCount: defaultModelsConnectedWorkspaceCount,
     refresh: refreshDefaultModels,
   } = useSettingsDefaultModels(projects);
+
+  const refreshImageModels = useCallback(async () => {
+    setImageModelsLoading(true);
+    setImageModelsError(null);
+    try {
+      const response = await getRuntimeImageModelList();
+      setImageModels(parseModelListResponse(response));
+    } catch (error) {
+      setImageModels([]);
+      setImageModelsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setImageModelsLoading(false);
+    }
+  }, []);
 
   const {
     content: globalAgentsContent,
@@ -201,8 +223,35 @@ export const useSettingsCodexSection = ({
   }, [appSettings.codexArgs]);
 
   useEffect(() => {
-    setEnterpriseTenantDomainDraft(appSettings.enterpriseAi.tenantDomain ?? "");
-  }, [appSettings.enterpriseAi.tenantDomain]);
+    void refreshImageModels();
+    const intervalId = window.setInterval(() => {
+      void refreshImageModels();
+    }, IMAGE_MODEL_REFRESH_INTERVAL_MS);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [refreshImageModels]);
+
+  useEffect(() => {
+    if (!imageModels.length) {
+      return;
+    }
+    const saved = normalizePublicImageModel(appSettings.managedRuntime.imageModel);
+    const selected =
+      imageModels.find((model) => model.model === saved) ??
+      imageModels.find((model) => model.id === saved) ??
+      imageModels[0];
+    if (!selected || saved === selected.model) {
+      return;
+    }
+    void onUpdateAppSettings({
+      ...appSettings,
+      managedRuntime: {
+        ...appSettings.managedRuntime,
+        imageModel: normalizePublicImageModel(selected.model),
+      },
+    });
+  }, [appSettings, imageModels, onUpdateAppSettings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -303,12 +352,7 @@ export const useSettingsCodexSection = ({
   };
 
   const handleEnterpriseAiLogin = async () => {
-    const tenantDomain = enterpriseTenantDomainDraft.trim();
     const apiKey = enterpriseApiKeyDraft.trim();
-    if (!tenantDomain) {
-      setEnterpriseAiError(t("settings.codex.enterpriseTenantRequired"));
-      return;
-    }
     if (!apiKey) {
       setEnterpriseAiError(t("settings.codex.apiKeyRequired"));
       return;
@@ -316,7 +360,7 @@ export const useSettingsCodexSection = ({
     setEnterpriseAiSaving(true);
     setEnterpriseAiError(null);
     try {
-      const result = await enterpriseAiLogin(tenantDomain, apiKey);
+      const result = await enterpriseAiLogin(apiKey);
       setEnterpriseApiKeyDraft("");
       setEnterpriseAiUsageSnapshot(result.usage);
       await onUpdateAppSettings(result.settings);
@@ -418,6 +462,12 @@ export const useSettingsCodexSection = ({
     onRefreshDefaultModels: () => {
       void refreshDefaultModels();
     },
+    imageModels,
+    imageModelsLoading,
+    imageModelsError,
+    onRefreshImageModels: () => {
+      void refreshImageModels();
+    },
     codexArgsDraft,
     codexDirty,
     isSavingSettings,
@@ -437,7 +487,6 @@ export const useSettingsCodexSection = ({
     globalConfigRefreshDisabled: globalConfigEditorMeta.refreshDisabled,
     globalConfigSaveDisabled: globalConfigEditorMeta.saveDisabled,
     globalConfigSaveLabel: globalConfigEditorMeta.saveLabel,
-    enterpriseTenantDomainDraft,
     enterpriseApiKeyDraft,
     enterpriseAiUsage: enterpriseAiUsageSnapshot,
     enterpriseAiLoading,
@@ -449,7 +498,6 @@ export const useSettingsCodexSection = ({
     developerRuntimeSaving,
     developerRuntimeError,
     onSetCodexArgsDraft: setCodexArgsDraft,
-    onSetEnterpriseTenantDomainDraft: setEnterpriseTenantDomainDraft,
     onSetEnterpriseApiKeyDraft: setEnterpriseApiKeyDraft,
     onSetDeveloperBaseUrlDraft: setDeveloperBaseUrlDraft,
     onSetDeveloperApiKeyDraft: setDeveloperApiKeyDraft,

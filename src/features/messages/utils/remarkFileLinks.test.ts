@@ -40,6 +40,16 @@ describe("remarkFileLinks", () => {
     expect(tree.children?.[0]?.children?.filter((child) => child.type === "link")).toHaveLength(2);
   });
 
+  it("turns local file paths with spaces into a single link", () => {
+    const path =
+      "/Users/example/Library/Application Support/com.agentdesk.app.dev/generated-images/images/asset-146820c6-a259-4492-aa57-050b0cfb3862.png";
+    const tree = runRemarkFileLinks(textParagraph(`保存路径： ${path}`));
+    const links = tree.children?.[0]?.children?.filter((child) => child.type === "link") ?? [];
+
+    expect(links).toHaveLength(1);
+    expect(links[0]?.children?.[0]?.value).toBe(path);
+  });
+
   it("keeps workspace route anchors out of linkification", () => {
     const tree = runRemarkFileLinks(
       textParagraph("See /workspace/settings#L12 for app settings."),

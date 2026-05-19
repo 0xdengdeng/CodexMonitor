@@ -6,6 +6,7 @@ import {
   SettingsSection,
   SettingsSubsection,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
 import type { WorkspaceGroup, WorkspaceInfo } from "@/types";
 
@@ -214,21 +215,22 @@ export function SettingsProjectsSection({
                     <div className="settings-project-path">{workspace.path}</div>
                   </div>
                   <div className="settings-project-actions">
-                    <select
+                    <SelectMenu
                       className="settings-select settings-select--compact"
                       value={groupValue}
-                      onChange={(event) => {
-                        const nextGroupId = event.target.value || null;
+                      onValueChange={(nextValue) => {
+                        const nextGroupId = nextValue || null;
                         void onAssignWorkspaceGroup(workspace.id, nextGroupId);
                       }}
-                    >
-                      <option value="">{ungroupedLabel}</option>
-                      {workspaceGroups.map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "", label: ungroupedLabel },
+                        ...workspaceGroups.map((entry) => ({
+                          value: entry.id,
+                          label: entry.name,
+                        })),
+                      ]}
+                      popoverAlign="end"
+                    />
                     <button
                       type="button"
                       className="ghost icon-button"

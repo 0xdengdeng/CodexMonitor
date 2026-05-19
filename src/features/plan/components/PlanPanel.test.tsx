@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PlanPanel } from "./PlanPanel";
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("PlanPanel", () => {
   it("shows a waiting label while processing without a plan", () => {
@@ -14,5 +18,126 @@ describe("PlanPanel", () => {
     render(<PlanPanel plan={null} isProcessing={false} />);
 
     expect(screen.getByText("No active plan.")).toBeTruthy();
+  });
+
+  it("summarizes progress, background tasks, and generated images", () => {
+    render(
+      <PlanPanel
+        plan={{
+          turnId: "turn-1",
+          explanation: "Implementation checklist",
+          steps: [
+            { step: "Map current UI", status: "completed" },
+            { step: "Build overview", status: "inProgress" },
+            { step: "Verify behavior", status: "pending" },
+          ],
+        }}
+        isProcessing
+        backgroundTasks={[
+          { id: "terminal-1", title: "npm run tauri:dev", status: "running" },
+        ]}
+        generatedImages={[
+          {
+            id: "image-1",
+            kind: "imageGeneration",
+            status: "completed",
+            prompt: "wide banner",
+            revisedPrompt: null,
+            model: "adg-image",
+            size: "1792x768",
+            assetId: "asset-1",
+            savedPath: "/tmp/generated-images/asset-1.png",
+            imageSrc: "data:image/png;base64,AAA",
+            error: null,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Progress")).toBeTruthy();
+    expect(screen.getByText("1/3")).toBeTruthy();
+    expect(screen.getByText("Background tasks")).toBeTruthy();
+    expect(screen.getByText("npm run tauri:dev")).toBeTruthy();
+    expect(screen.getByText("Generated images")).toBeTruthy();
+    expect(screen.getByText("adg-image")).toBeTruthy();
+    expect(screen.getByText("1792x768")).toBeTruthy();
+    expect(screen.queryByText("/tmp/generated-images")).toBeNull();
+  });
+
+  it("opens background tasks from the overview", async () => {
+    const onOpenBackgroundTask = vi.fn();
+
+    render(
+      <PlanPanel
+        plan={null}
+        isProcessing={false}
+        backgroundTasks={[
+          { id: "terminal-1", title: "npm run tauri:dev", status: "running" },
+        ]}
+        onOpenBackgroundTask={onOpenBackgroundTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /npm run tauri:dev/ }));
+
+    expect(onOpenBackgroundTask).toHaveBeenCalledWith("terminal-1");
+  });
+
+  it("opens generated images from the overview", () => {
+    const onOpenGeneratedImage = vi.fn();
+
+    render(
+      <PlanPanel
+        plan={null}
+        isProcessing={false}
+        generatedImages={[
+          {
+            id: "image-1",
+            kind: "imageGeneration",
+            status: "completed",
+            prompt: "wide banner",
+            revisedPrompt: null,
+            model: "adg-image",
+            size: "1792x768",
+            assetId: "asset-1",
+            savedPath: "/tmp/generated-images/asset-1.png",
+            imageSrc: "data:image/png;base64,AAA",
+            error: null,
+          },
+        ]}
+        onOpenGeneratedImage={onOpenGeneratedImage}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Open generated image/ }));
+
+    expect(onOpenGeneratedImage).toHaveBeenCalledWith("image-1");
+  });
+
+  it("shows a readable label for in-progress generated images", () => {
+    render(
+      <PlanPanel
+        plan={null}
+        isProcessing
+        generatedImages={[
+          {
+            id: "image-1",
+            kind: "imageGeneration",
+            status: "in_progress",
+            prompt: "portrait cover",
+            revisedPrompt: null,
+            model: "adg-image",
+            size: "1024x1536",
+            assetId: null,
+            savedPath: null,
+            imageSrc: null,
+            error: null,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("processing")).toBeTruthy();
+    expect(screen.queryByText("messages.status.in_progress")).toBeNull();
   });
 });

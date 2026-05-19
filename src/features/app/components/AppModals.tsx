@@ -124,7 +124,6 @@ export type AppModalsProps = {
   SettingsViewComponent: ComponentType<SettingsViewProps>;
   settingsProps: Omit<SettingsViewProps, "initialSection" | "onClose">;
   enterpriseAiLoginOpen?: boolean;
-  enterpriseAiLoginTenantDomain?: string | null;
   onCloseEnterpriseAiLogin?: () => void;
   onEnterpriseAiLoginSuccess?: (result: EnterpriseAiLoginResult) => void | Promise<void>;
 };
@@ -182,7 +181,6 @@ export const AppModals = memo(function AppModals({
   SettingsViewComponent,
   settingsProps,
   enterpriseAiLoginOpen = false,
-  enterpriseAiLoginTenantDomain = null,
   onCloseEnterpriseAiLogin,
   onEnterpriseAiLoginSuccess,
 }: AppModalsProps) {
@@ -318,7 +316,6 @@ export const AppModals = memo(function AppModals({
       {enterpriseAiLoginOpen && onCloseEnterpriseAiLogin && onEnterpriseAiLoginSuccess && (
         <Suspense fallback={null}>
           <EnterpriseAiLoginModal
-            initialTenantDomain={enterpriseAiLoginTenantDomain}
             onCancel={onCloseEnterpriseAiLogin}
             onSuccess={onEnterpriseAiLoginSuccess}
           />

@@ -1,4 +1,5 @@
 import Bot from "lucide-react/dist/esm/icons/bot";
+import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
 import Info from "lucide-react/dist/esm/icons/info";
 import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
@@ -38,6 +39,15 @@ export function SettingsNav({
           onClick={() => onSelectSection("projects")}
         >
           {t("settings.nav.projects")}
+        </PanelNavItem>
+        <PanelNavItem
+          className="settings-nav"
+          icon={<GitBranch aria-hidden />}
+          active={activeSection === "version"}
+          showDisclosure={showDisclosure}
+          onClick={() => onSelectSection("version")}
+        >
+          {t("settings.nav.version")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"

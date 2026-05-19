@@ -117,6 +117,15 @@ body {
   --cm-border-accent-strong: color-mix(in srgb, var(--border-accent) 46%, transparent);
   --cm-control-radius: var(--control-radius, 10px);
   --cm-control-focus-ring: 0 0 0 3px var(--control-focus-ring, rgba(110, 168, 255, 0.2));
+  --cm-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --cm-ease-soft: cubic-bezier(0.25, 1, 0.5, 1);
+  --cm-motion-fast: 120ms;
+  --cm-motion-medium: 180ms;
+  --cm-motion-slow: 260ms;
+  --cm-shadow-soft: 0 10px 30px color-mix(in srgb, #000 18%, transparent);
+  --cm-shadow-panel: 0 16px 44px color-mix(in srgb, #000 24%, transparent);
+  --cm-shadow-focus: 0 0 0 3px var(--control-focus-ring, rgba(110, 168, 255, 0.2));
+  --cm-edge-highlight: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent);
   transition: grid-template-columns 220ms ease;
   font-family: var(--ui-font-family);
 }

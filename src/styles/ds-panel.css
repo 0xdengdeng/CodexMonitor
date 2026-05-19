@@ -72,6 +72,12 @@
   background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   color: var(--text-faint);
+  box-shadow: var(--cm-edge-highlight);
+  transition:
+    background-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    box-shadow var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .ds-panel-search:focus-within {
@@ -127,6 +133,10 @@
   font-weight: 600;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .ds-panel-nav-item-main {

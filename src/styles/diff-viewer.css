@@ -9,11 +9,23 @@
   min-height: 0;
   min-width: 0;
   background: var(--surface-messages);
+  scroll-behavior: smooth;
 }
 
 .main .diff-viewer {
   margin-top: 0;
   padding-top: 0;
+}
+
+@keyframes diff-viewer-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .diff-viewer-pr {
@@ -22,7 +34,8 @@
   border-radius: 14px;
   border: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--cm-shadow-soft), var(--cm-edge-highlight);
+  animation: diff-viewer-enter var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease) both;
 }
 
 .diff-viewer-pr-header {
@@ -230,6 +243,7 @@
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   border: 1px solid var(--border-subtle);
+  box-shadow: var(--cm-edge-highlight);
 }
 
 .diff-viewer-pr-timeline-meta {
@@ -302,6 +316,9 @@
   border-bottom: 1px solid var(--border-subtle);
   position: relative;
   isolation: isolate;
+  transition:
+    background-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-medium, 180ms) var(--cm-ease-out, ease);
 }
 
 .diff-viewer-item.active {
@@ -324,7 +341,9 @@
   padding: 12px 12px 10px;
   margin: 0;
   border-bottom: 1px solid var(--border-subtle);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.08),
+    var(--cm-edge-highlight);
 }
 
 .diff-viewer-review-actions {
@@ -335,6 +354,7 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--surface-card) 88%, transparent);
+  animation: diff-viewer-enter var(--cm-motion-slow, 260ms) var(--cm-ease-out, ease) both;
 }
 
 .diff-viewer-review-action {
@@ -342,6 +362,10 @@
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--border-muted);
+  transition:
+    background-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .diff-viewer-review-thread {
@@ -443,7 +467,11 @@
   justify-content: center;
   cursor: pointer;
   flex: 0 0 auto;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+  transition:
+    background var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    transform var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .diff-viewer-header-action:hover {
@@ -486,6 +514,7 @@
   --diffs-font-size: var(--code-font-size, 11px);
   --diffs-line-height: var(--code-line-height, 1.28);
   --diffs-tab-size: 2;
+  box-shadow: var(--cm-edge-highlight);
 }
 
 .diff-viewer-output-flat {
@@ -535,7 +564,7 @@
 }
 
 .diff-line.is-selectable:hover {
-  background: color-mix(in srgb, var(--surface-active) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-active) 50%, transparent);
   box-shadow: inset 3px 0 0 var(--border-accent-soft);
 }
 
@@ -616,10 +645,10 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    opacity 140ms ease,
-    background 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease;
+    opacity var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    background var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    border-color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease),
+    color var(--cm-motion-fast, 120ms) var(--cm-ease-out, ease);
 }
 
 .diff-line.has-line-action:hover .diff-line-action,

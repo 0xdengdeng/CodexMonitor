@@ -29,7 +29,7 @@
 
   --ds-popover-bg: var(--surface-popover);
   --ds-popover-border: var(--border-muted);
-  --ds-popover-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
+  --ds-popover-shadow: 0 10px 24px color-mix(in srgb, #000 18%, transparent);
   --ds-popover-item-text: var(--text-muted);
   --ds-popover-item-text-active: var(--text-stronger);
 

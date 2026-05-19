@@ -20,21 +20,9 @@ beforeEach(() => {
 });
 
 describe("EnterpriseAiLoginModal", () => {
-  it("requires a tenant domain before submitting", () => {
-    render(<EnterpriseAiLoginModal onCancel={vi.fn()} onSuccess={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign in and save" }));
-
-    expect(screen.getByText("Enter a tenant domain before signing in.")).toBeTruthy();
-    expect(enterpriseAiLoginMock).not.toHaveBeenCalled();
-  });
-
   it("requires an API Key before submitting", () => {
     render(<EnterpriseAiLoginModal onCancel={vi.fn()} onSuccess={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText("Tenant domain"), {
-      target: { value: "acme" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Sign in and save" }));
 
     expect(screen.getByText("Enter an API Key before saving.")).toBeTruthy();
@@ -66,7 +54,6 @@ describe("EnterpriseAiLoginModal", () => {
 
     render(
       <EnterpriseAiLoginModal
-        initialTenantDomain="  acme  "
         onCancel={vi.fn()}
         onSuccess={onSuccess}
       />,
@@ -78,7 +65,7 @@ describe("EnterpriseAiLoginModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in and save" }));
 
     await waitFor(() => {
-      expect(enterpriseAiLoginMock).toHaveBeenCalledWith("acme", "sk-test");
+      expect(enterpriseAiLoginMock).toHaveBeenCalledWith("sk-test");
       expect(onSuccess).toHaveBeenCalledWith(loginResult);
     });
   });

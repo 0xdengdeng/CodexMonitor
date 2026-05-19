@@ -156,8 +156,8 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const presetSelect = screen.getByLabelText("Scrollback preset");
-    expect((presetSelect as HTMLSelectElement).disabled).toBe(true);
+    const presetSelect = screen.getByRole("combobox", { name: "Scrollback preset" });
+    expect((presetSelect as HTMLButtonElement).disabled).toBe(true);
 
     const maxItemsInput = screen.getByLabelText("Max items per thread");
     expect((maxItemsInput as HTMLInputElement).disabled).toBe(true);
@@ -215,8 +215,9 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const select = screen.getByLabelText("Scrollback preset");
-    fireEvent.change(select, { target: { value: "1000" } });
+    const select = screen.getByRole("combobox", { name: "Scrollback preset" });
+    fireEvent.click(select);
+    fireEvent.click(screen.getByRole("option", { name: "1000" }));
 
     expect(onUpdateAppSettings).toHaveBeenCalledWith(
       expect.objectContaining({ chatHistoryScrollbackItems: 1000 }),

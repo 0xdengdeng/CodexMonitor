@@ -63,6 +63,7 @@ impl AppState {
         let settings_path = data_dir.join("settings.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
+        crate::utils::set_git_runtime_preference(&app_settings.git_runtime_preference);
         if let Err(err) = sync_managed_runtime_config_from_settings(&app_settings) {
             eprintln!("failed to sync agentDesk runtime config: {err}");
         }

@@ -5,6 +5,7 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import type { SettingsFeaturesSectionProps } from "@settings/hooks/useSettingsFeaturesSection";
 import { fileManagerName } from "@utils/platformPaths";
 import { useI18n, type I18nKey } from "@/features/i18n/i18n";
@@ -115,21 +116,22 @@ export function SettingsFeaturesSection({
         title={t("settings.features.personality")}
         subtitle={t("settings.features.personalitySubtitle")}
       >
-        <select
+        <SelectMenu
           id="features-personality-select"
           className="settings-select"
           value={appSettings.personality}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              personality: event.target.value as (typeof appSettings)["personality"],
+              personality: nextValue as (typeof appSettings)["personality"],
             })
           }
           aria-label={t("settings.features.personality")}
-        >
-          <option value="friendly">{t("settings.features.friendly")}</option>
-          <option value="pragmatic">{t("settings.features.pragmatic")}</option>
-        </select>
+          options={[
+            { value: "friendly", label: t("settings.features.friendly") },
+            { value: "pragmatic", label: t("settings.features.pragmatic") },
+          ]}
+        />
       </SettingsToggleRow>
       <SettingsToggleRow
         title={t("settings.features.pauseQueued.title")}

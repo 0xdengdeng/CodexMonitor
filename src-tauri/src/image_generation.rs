@@ -18,10 +18,18 @@ pub(crate) async fn generate_image(
     thread_id: Option<String>,
     prompt: String,
     size: Option<String>,
+    reference_image_ids: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> Result<GeneratedImageAsset, String> {
     let api_key = runtime_secret_core::get_runtime_api_key()?
         .ok_or_else(|| "请先登录启航 AI 后再生成图片。".to_string())?;
+    let image_model = state
+        .app_settings
+        .lock()
+        .await
+        .managed_runtime
+        .image_model
+        .clone();
     let data_dir = app_data_dir(&state);
     image_generation_core::generate_image_core(
         &data_dir,
@@ -30,8 +38,10 @@ pub(crate) async fn generate_image(
         GenerateImageRequest {
             workspace_id,
             thread_id,
+            model: image_model,
             prompt,
             size,
+            reference_image_ids,
         },
     )
     .await

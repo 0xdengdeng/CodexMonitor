@@ -21,6 +21,7 @@ import {
   SettingsToggleRow,
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
+import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import {
   SUPPORTED_INTERFACE_LANGUAGES,
   useI18n,
@@ -176,49 +177,48 @@ export function SettingsDisplaySection({
         <label className="settings-field-label" htmlFor="theme-select">
           {t("settings.display.theme")}
         </label>
-        <select
+        <SelectMenu
           id="theme-select"
           className="settings-select"
           value={appSettings.theme}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              theme: event.target.value as AppSettings["theme"],
+              theme: nextValue as AppSettings["theme"],
             })
           }
-        >
-          <option value="system">{t("settings.display.theme.system")}</option>
-          <option value="light">{t("settings.display.theme.light")}</option>
-          <option value="dark">{t("settings.display.theme.dark")}</option>
-          <option value="dim">{t("settings.display.theme.dim")}</option>
-        </select>
+          options={[
+            { value: "system", label: t("settings.display.theme.system") },
+            { value: "light", label: t("settings.display.theme.light") },
+            { value: "dark", label: t("settings.display.theme.dark") },
+            { value: "dim", label: t("settings.display.theme.dim") },
+          ]}
+        />
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="interface-language-select">
           {t("settings.display.interfaceLanguage.label")}
         </label>
-        <select
+        <SelectMenu
           id="interface-language-select"
           className="settings-select"
           value={appSettings.interfaceLanguage}
-          onChange={(event) =>
+          onValueChange={(nextValue) =>
             void onUpdateAppSettings({
               ...appSettings,
-              interfaceLanguage:
-                event.target.value as AppSettings["interfaceLanguage"],
+              interfaceLanguage: nextValue as AppSettings["interfaceLanguage"],
             })
           }
-        >
-          {SUPPORTED_INTERFACE_LANGUAGES.map((language) => (
-            <option key={language} value={language}>
-              {language === "system"
+          options={SUPPORTED_INTERFACE_LANGUAGES.map((language) => ({
+            value: language,
+            label:
+              language === "system"
                 ? t("settings.display.interfaceLanguage.system")
                 : language === "zh-CN"
                   ? t("settings.display.interfaceLanguage.chinese")
-                  : t("settings.display.interfaceLanguage.english")}
-            </option>
-          ))}
-        </select>
+                  : t("settings.display.interfaceLanguage.english"),
+          }))}
+        />
       </div>
       <SettingsToggleRow
         title={t("settings.display.remaining.title")}
@@ -295,23 +295,24 @@ export function SettingsDisplaySection({
         <label className="settings-field-label" htmlFor="chat-scrollback-preset">
           {t("settings.display.scrollbackPreset")}
         </label>
-        <select
+        <SelectMenu
           id="chat-scrollback-preset"
           className="settings-select"
           value={scrollbackPresetValue}
-          onChange={(event) => selectScrollbackPreset(event.target.value)}
+          onValueChange={selectScrollbackPreset}
           data-scrollback-control="true"
           disabled={scrollbackUnlimited}
-        >
-          <option value="custom">{t("settings.display.scrollbackCustom")}</option>
-          {CHAT_SCROLLBACK_PRESETS.map((value) => (
-            <option key={value} value={value}>
-              {value === CHAT_SCROLLBACK_DEFAULT
-                ? t("settings.display.scrollbackDefault", { value })
-                : value}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "custom", label: t("settings.display.scrollbackCustom") },
+            ...CHAT_SCROLLBACK_PRESETS.map((value) => ({
+              value: String(value),
+              label:
+                value === CHAT_SCROLLBACK_DEFAULT
+                  ? t("settings.display.scrollbackDefault", { value })
+                  : String(value),
+            })),
+          ]}
+        />
         <div className="settings-help">
           {t("settings.display.scrollbackHelp")}
         </div>

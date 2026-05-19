@@ -10,6 +10,7 @@ import {
   PopoverMenuItem,
   SplitActionMenu,
 } from "../../design-system/components/popover/PopoverPrimitives";
+import { SelectMenu } from "../../design-system/components/select/SelectMenu";
 import { useMenuController } from "../../app/hooks/useMenuController";
 import {
   buildModelSummary,
@@ -253,19 +254,19 @@ export function WorkspaceHomeRunControls({
                 />
               </svg>
             </span>
-            <select
+            <SelectMenu
               className="composer-select composer-select--model"
               aria-label={t("workspace.home.collaborationMode")}
               value={selectedCollaborationModeId ?? ""}
-              onChange={(event) => onSelectCollaborationMode(event.target.value || null)}
+              onValueChange={(nextValue) => onSelectCollaborationMode(nextValue || null)}
               disabled={isSubmitting}
-            >
-              {collaborationModes.map((mode) => (
-                <option key={mode.id} value={mode.id}>
-                  {mode.label || mode.id}
-                </option>
-              ))}
-            </select>
+              options={collaborationModes.map((mode) => ({
+                value: mode.id,
+                label: mode.label || mode.id,
+              }))}
+              popoverClassName="composer-select-popover workspace-home-select-popover"
+              popoverAlign="end"
+            />
           </div>
         </div>
       )}
@@ -299,22 +300,23 @@ export function WorkspaceHomeRunControls({
               />
             </svg>
           </span>
-          <select
+          <SelectMenu
             className="composer-select composer-select--effort"
             aria-label={t("workspace.home.thinkingMode")}
             value={selectedEffort ?? ""}
-            onChange={(event) => onSelectEffort(event.target.value)}
             disabled={isSubmitting || !reasoningSupported}
-          >
-            {reasoningOptions.length === 0 && (
-              <option value="">{t("workspace.home.default")}</option>
-            )}
-            {reasoningOptions.map((effortOption) => (
-              <option key={effortOption} value={effortOption}>
-                {effortOption}
-              </option>
-            ))}
-          </select>
+            onValueChange={onSelectEffort}
+            options={
+              reasoningOptions.length === 0
+                ? [{ value: "", label: t("workspace.home.default"), disabled: true }]
+                : reasoningOptions.map((effortOption) => ({
+                    value: effortOption,
+                    label: effortOption,
+                  }))
+            }
+            popoverClassName="composer-select-popover workspace-home-select-popover"
+            popoverAlign="end"
+          />
         </div>
       </div>
     </div>

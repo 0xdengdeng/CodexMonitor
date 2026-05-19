@@ -44,7 +44,11 @@
     "targets": "all",
     "createUpdaterArtifacts": true,
     "externalBin": [
-      "binaries/codex-runtime"
+      "binaries/codex-runtime",
+      "binaries/git"
+    ],
+    "resources": [
+      "resources/git/"
     ],
     "iOS": {
       "frameworks": [

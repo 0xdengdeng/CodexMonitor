@@ -2,12 +2,17 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
-import { getConfigModel, getModelList } from "../../../services/tauri";
+import {
+  getConfigModel,
+  getModelList,
+  getRuntimeModelList,
+} from "../../../services/tauri";
 import { useModels } from "./useModels";
 
 vi.mock("../../../services/tauri", () => ({
   getModelList: vi.fn(),
   getConfigModel: vi.fn(),
+  getRuntimeModelList: vi.fn(),
 }));
 
 const workspace: WorkspaceInfo = {
@@ -18,12 +23,98 @@ const workspace: WorkspaceInfo = {
   settings: { sidebarCollapsed: false },
 };
 
+async function flushHookUpdates() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 describe("useModels", () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.useRealTimers();
+    vi.resetAllMocks();
+  });
+
+  it("uses ADG runtime models without requiring a workspace", async () => {
+    vi.mocked(getRuntimeModelList).mockResolvedValueOnce({
+      object: "list",
+      data: [
+        {
+          id: "adg-pro",
+          object: "model",
+          display_name: "ADG Pro",
+          owned_by: "adg",
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: null }),
+    );
+
+    await waitFor(() => expect(result.current.selectedModelId).toBe("adg-pro"));
+
+    expect(getModelList).not.toHaveBeenCalled();
+    expect(getConfigModel).not.toHaveBeenCalled();
+    expect(result.current.models[0]).toMatchObject({
+      id: "adg-pro",
+      model: "adg-pro",
+      displayName: "ADG Pro",
+    });
+  });
+
+  it("treats an empty ADG runtime catalog as authoritative", async () => {
+    vi.mocked(getRuntimeModelList).mockResolvedValueOnce({
+      object: "list",
+      data: [],
+    });
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: workspace }),
+    );
+
+    await waitFor(() => expect(getRuntimeModelList).toHaveBeenCalled());
+    await flushHookUpdates();
+
+    expect(result.current.models).toEqual([]);
+    expect(result.current.selectedModelId).toBeNull();
+    expect(getModelList).not.toHaveBeenCalled();
+    expect(getConfigModel).not.toHaveBeenCalled();
+  });
+
+  it("refreshes ADG runtime models every minute", async () => {
+    vi.useFakeTimers();
+    vi.mocked(getRuntimeModelList)
+      .mockResolvedValueOnce({
+        object: "list",
+        data: [{ id: "adg-pro", object: "model", display_name: "ADG Pro" }],
+      })
+      .mockResolvedValueOnce({
+        object: "list",
+        data: [{ id: "adg-lite", object: "model", display_name: "ADG Lite" }],
+      });
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: null }),
+    );
+
+    await flushHookUpdates();
+
+    expect(result.current.selectedModelId).toBe("adg-pro");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    await flushHookUpdates();
+
+    expect(getRuntimeModelList).toHaveBeenCalledTimes(2);
+    expect(result.current.selectedModelId).toBe("adg-lite");
   });
 
   it("adds the config model when it is missing from model/list", async () => {
+    vi.mocked(getRuntimeModelList).mockRejectedValue(new Error("runtime missing"));
     vi.mocked(getModelList).mockResolvedValueOnce({
       result: {
         data: [
@@ -56,6 +147,7 @@ describe("useModels", () => {
   });
 
   it("prefers the provider entry when the config model matches by slug", async () => {
+    vi.mocked(getRuntimeModelList).mockRejectedValue(new Error("runtime missing"));
     vi.mocked(getModelList).mockResolvedValueOnce({
       result: {
         data: [
@@ -87,6 +179,7 @@ describe("useModels", () => {
   });
 
   it("keeps the selected reasoning effort when switching models", async () => {
+    vi.mocked(getRuntimeModelList).mockRejectedValue(new Error("runtime missing"));
     vi.mocked(getModelList).mockResolvedValueOnce({
       result: {
         data: [

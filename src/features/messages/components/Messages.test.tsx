@@ -37,6 +37,11 @@ vi.mock("@services/tauri", async () => {
   };
 });
 
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  revealItemInDir: vi.fn(),
+  openUrl: vi.fn(),
+}));
+
 describe("Messages", () => {
   beforeAll(() => {
     if (!HTMLElement.prototype.scrollIntoView) {
@@ -199,6 +204,36 @@ describe("Messages", () => {
 
     expect(screen.getByText("14:05")).toBeTruthy();
     expect(container.querySelector(".message-time")).toBeTruthy();
+  });
+
+  it("renders message actions before the creation time", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-time-actions-1",
+        kind: "message",
+        role: "user",
+        text: "Timed message",
+        createdAt: new Date(2025, 4, 7, 14, 5).getTime(),
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onQuoteMessage={vi.fn()}
+      />,
+    );
+
+    const meta = container.querySelector(".message-meta");
+    expect(meta?.children.item(0)?.classList.contains("message-actions")).toBe(true);
+    expect(
+      meta?.children.item(meta.children.length - 1)?.classList.contains("message-time"),
+    ).toBe(true);
   });
 
   it("quotes a message into composer using markdown blockquote format", () => {
@@ -448,6 +483,40 @@ describe("Messages", () => {
     );
   });
 
+  it("opens generated image paths with spaces in the shared file preview", () => {
+    const savedPath =
+      "/Users/xiaodeng/Library/Application Support/com.agentdesk.app.dev/generated-images/images/asset-146820c6-a259-4492-aa57-050b0cfb3862.png";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-generated-image-path",
+        kind: "message",
+        role: "assistant",
+        text: `生成成功。\n\n保存路径： ${savedPath}`,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    expect(screen.getByText("asset-146820c6-a259-4492-aa57-050b0cfb3862.png")).toBeTruthy();
+
+    fireEvent.click(fileLink as Element);
+
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+    expect(document.body.querySelector(".file-preview-popover")).toBeTruthy();
+    expect(screen.getByAltText(savedPath)).toBeTruthy();
+  });
+
   it("routes Windows absolute href file paths with #L anchors through the file opener", () => {
     const linkedPath =
       "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx#L422";
@@ -665,6 +734,40 @@ describe("Messages", () => {
     expect(fileName?.textContent).toBe("DocumentListView.swift");
     expect(lineLabel?.textContent).toBe("L111");
     expect(container.querySelector(".message-file-link-path")).toBeNull();
+    expect(container.querySelector(".message-file-link-path-popover")).toBeNull();
+  });
+
+  it("keeps file parent paths out of the inline link and exposes them as a hover popover", () => {
+    const workspacePath = "/Users/dimillian/Documents/Dev/CodexMonitor";
+    const absolutePath =
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx:244";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link-hover-path",
+        kind: "message",
+        role: "assistant",
+        text: `Reference: \`${absolutePath}\``,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        workspacePath={workspacePath}
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLink = container.querySelector(".message-file-link");
+    const pathPopover = container.querySelector(".message-file-link-path-popover");
+    expect(fileLink).toBeTruthy();
+    expect(container.querySelector(".message-file-link-path")).toBeNull();
+    expect(pathPopover?.textContent).toBe("src/features/messages/components");
+    expect(pathPopover?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("renders absolute file references as workspace-relative paths", () => {
@@ -1776,7 +1879,7 @@ describe("Messages", () => {
         status: "completed",
         prompt: "A small blue rocket icon",
         revisedPrompt: null,
-        model: "gpt-image-2",
+        model: "adg-image",
         size: "1024x1024",
         assetId: "asset-1",
         savedPath: "/tmp/generated-images/asset-1.png",
@@ -1797,9 +1900,168 @@ describe("Messages", () => {
     );
 
     expect(screen.getByText("Image generated")).toBeTruthy();
-    expect(screen.getByText("gpt-image-2")).toBeTruthy();
+    expect(screen.getByText("adg-image")).toBeTruthy();
     expect(screen.getByText("1024x1024")).toBeTruthy();
     expect(screen.getByAltText("Generated image")).toBeTruthy();
-    expect(screen.getByText("A small blue rocket icon")).toBeTruthy();
+    expect(screen.queryByText("A small blue rocket icon")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show prompt" })).toBeTruthy();
+  });
+
+  it("renders a sized skeleton while image generation is processing", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "image-1",
+        kind: "imageGeneration",
+        status: "in_progress",
+        prompt: "A wide banner",
+        revisedPrompt: null,
+        model: "adg-image",
+        size: "1792x768",
+        assetId: null,
+        savedPath: null,
+        imageSrc: null,
+        error: null,
+      } as ConversationItem,
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText(/Generating image/)).toBeTruthy();
+    const skeleton = screen.getByLabelText("Image generation preview loading");
+    expect(skeleton.className).toContain("image-generation-preview--skeleton");
+    expect(skeleton.className).toContain("image-generation-preview--landscape");
+    expect(skeleton.getAttribute("style")).toContain("aspect-ratio: 1792 / 768");
+    expect(skeleton.querySelector(".image-generation-skeleton-grid")).toBeTruthy();
+    expect(skeleton.querySelector(".image-generation-skeleton-shape")).toBeNull();
+    expect(skeleton.querySelector(".image-generation-skeleton-lines")).toBeNull();
+  });
+
+  it("reveals generated image prompts only after clicking the prompt button", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "image-1",
+        kind: "imageGeneration",
+        status: "completed",
+        prompt: "A hidden image prompt",
+        revisedPrompt: null,
+        model: "adg-image",
+        size: "1024x1024",
+        assetId: "asset-1",
+        savedPath: "/tmp/generated-images/asset-1.png",
+        imageSrc: "data:image/png;base64,AAA",
+        error: null,
+      } as ConversationItem,
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.queryByText("A hidden image prompt")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show prompt" }));
+
+    expect(screen.getByText("A hidden image prompt")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy prompt" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hide prompt" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide prompt" }));
+    expect(screen.queryByText("A hidden image prompt")).toBeNull();
+  });
+
+  it("preserves generated image aspect ratios in the preview", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "image-1",
+        kind: "imageGeneration",
+        status: "completed",
+        prompt: "A wide banner",
+        revisedPrompt: null,
+        model: "adg-image",
+        size: "1792x768",
+        assetId: "asset-1",
+        savedPath: "/tmp/generated-images/banner.png",
+        imageSrc: "data:image/png;base64,AAA",
+        error: null,
+      } as ConversationItem,
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const preview = screen.getByRole("button", { name: "Open generated image" });
+    expect(preview.className).toContain("image-generation-preview--landscape");
+    expect(preview.getAttribute("style")).toContain("aspect-ratio: 1792 / 768");
+  });
+
+  it("renders auto-sized generated images as proportional chat thumbnails", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "image-1",
+        kind: "imageGeneration",
+        status: "completed",
+        prompt: "A large generated illustration",
+        revisedPrompt: null,
+        model: "adg-image",
+        size: "auto",
+        assetId: "asset-1",
+        savedPath: "/tmp/generated-images/large.png",
+        imageSrc: "data:image/png;base64,AAA",
+        error: null,
+      } as ConversationItem,
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const preview = screen.getByRole("button", { name: "Open generated image" });
+    expect(preview.className).toContain("image-generation-preview--thumbnail");
+    expect(preview.className).not.toContain("image-generation-preview--natural");
+
+    const image = screen.getByAltText("Generated image") as HTMLImageElement;
+    Object.defineProperty(image, "naturalWidth", {
+      configurable: true,
+      value: 1600,
+    });
+    Object.defineProperty(image, "naturalHeight", {
+      configurable: true,
+      value: 900,
+    });
+    fireEvent.load(image);
+
+    expect(preview.className).toContain("image-generation-preview--landscape");
+    expect(preview.getAttribute("style")).toContain("aspect-ratio: 1600 / 900");
   });
 });
