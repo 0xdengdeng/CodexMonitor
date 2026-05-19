@@ -252,6 +252,7 @@ Codex emits native image generation through normal item lifecycle events:
 
 - `item/started` with `item.type = "imageGeneration"`;
 - `item/completed` with `item.type = "imageGeneration"`;
+- `rawResponseItem/completed` with `item.type = "image_generation_call"`;
 - rollout replay can also expose raw `image_generation_call` response items.
 
 CodexMonitor should normalize all of these into one frontend item kind:
@@ -341,6 +342,8 @@ Use this checklist before claiming image behavior is fixed:
 - `image_generation_call.result` is serialized as `""` for text-only normalized
   history.
 - Native `item/started` and `item/completed` image items merge by id.
+- Live raw `rawResponseItem/completed` image results update the same frontend
+  image card shape.
 - Raw rollout `image_generation_call` replay normalizes into the same frontend
   image card shape.
 - Follow-up chat uses WebSocket incremental continuation when the provider

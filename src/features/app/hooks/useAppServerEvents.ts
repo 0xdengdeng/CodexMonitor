@@ -130,6 +130,7 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "item/started",
   "item/tool/call",
   "item/tool/requestUserInput",
+  "rawResponseItem/completed",
   "thread/archived",
   "thread/closed",
   "thread/name/updated",
@@ -264,6 +265,15 @@ function parseHookEvent(
     turnId,
     run: run as Record<string, unknown>,
   };
+}
+
+function isRawImageGenerationItem(value: unknown): value is Record<string, unknown> {
+  const item = asRecord(value);
+  if (!item) {
+    return false;
+  }
+  const itemType = readFirstString(item.type);
+  return itemType === "image_generation_call" || itemType === "imageGeneration";
 }
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
@@ -635,6 +645,15 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
               text,
             });
           }
+        }
+        return;
+      }
+
+      if (method === "rawResponseItem/completed") {
+        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+        const item = params.item;
+        if (threadId && isRawImageGenerationItem(item)) {
+          currentHandlers.onItemCompleted?.(workspace_id, threadId, item);
         }
         return;
       }

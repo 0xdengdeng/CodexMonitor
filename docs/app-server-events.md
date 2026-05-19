@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `19702e190ebf16f789617ca5f16bfc373c238fe7`)
+# App-Server Events Reference (Codex `ebd9ec05b404bf9fbf339f6185f52e435dc5c982`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -74,6 +74,7 @@ subscriptions.
 - `item/reasoning/summaryTextDelta`
 - `item/reasoning/textDelta`
 - `item/started`
+- `rawResponseItem/completed`
 - `thread/archived`
 - `thread/closed`
 - `thread/name/updated`
@@ -126,6 +127,11 @@ may include optional `model` and `size` fields; when present, these populate the
 generated-image card header instead of relying on AgentDesk dynamic-tool
 metadata.
 
+Codex also emits raw Responses items through `rawResponseItem/completed`.
+CodexMonitor routes raw `image_generation_call` payloads through the same
+completed item path so a final native image result updates the existing
+generated-image card instead of leaving the live card in progress.
+
 Thread replay also normalizes raw rollout `image_generation_call` response
 items into the same generated-image card model so live lifecycle updates and
 history hydration reconcile by item id instead of rendering separate cards.
@@ -146,7 +152,6 @@ events are currently not routed:
 - `mcpServer/oauthLogin/completed`
 - `mcpServer/startupStatus/updated`
 - `model/rerouted`
-- `rawResponseItem/completed`
 - `serverRequest/resolved`
 - `skills/changed`
 - `thread/compacted` (deprecated; intentionally not routed)

@@ -403,6 +403,47 @@ describe("useAppServerEvents", () => {
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
+  it("routes raw image generation response items as completed items", async () => {
+    const handlers: Handlers = {
+      onItemCompleted: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "rawResponseItem/completed",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            item: {
+              type: "image_generation_call",
+              id: "ig-1",
+              status: "generating",
+              size: "1024x1536",
+              revised_prompt: "A generated image",
+              result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith("ws-1", "thread-1", {
+      type: "image_generation_call",
+      id: "ig-1",
+      status: "generating",
+      size: "1024x1536",
+      revised_prompt: "A generated image",
+      result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("does not complete empty agent messages from app-server items", async () => {
     const handlers: Handlers = {
       onItemCompleted: vi.fn(),

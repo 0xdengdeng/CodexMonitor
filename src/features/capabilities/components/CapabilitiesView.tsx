@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import Info from "lucide-react/dist/esm/icons/info";
 import Layers from "lucide-react/dist/esm/icons/layers";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
@@ -61,6 +62,29 @@ function skillScopeLabel(
   return t("capabilities.source.global");
 }
 
+function localizedMessage(t: ReturnType<typeof useI18n>["t"], key: string) {
+  const message = t(key);
+  return message === key ? null : message;
+}
+
+function shouldUseLocalizedSkillDescription(skill: SkillOption) {
+  return (
+    skill.scope === "system" ||
+    skill.path.includes("/.system/") ||
+    skill.path.includes("/.codex/plugins/cache/")
+  );
+}
+
+function skillDescription(skill: SkillOption, t: ReturnType<typeof useI18n>["t"]) {
+  if (shouldUseLocalizedSkillDescription(skill)) {
+    const localized = localizedMessage(t, `capabilities.skillDescription.${skill.name}`);
+    if (localized) {
+      return localized;
+    }
+  }
+  return skill.description ?? t("capabilities.noDescription");
+}
+
 function mcpScopeLabel(server: McpServerOption, t: ReturnType<typeof useI18n>["t"]) {
   if (server.scope === "project") {
     return t("capabilities.source.project");
@@ -77,6 +101,11 @@ function mcpScopeLabel(server: McpServerOption, t: ReturnType<typeof useI18n>["t
   return t("capabilities.source.global");
 }
 
+function mcpAuthStatusLabel(status: string, t: ReturnType<typeof useI18n>["t"]) {
+  const normalized = status.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return localizedMessage(t, `capabilities.mcp.authStatusValue.${normalized}`) ?? status;
+}
+
 function mcpInventoryLabel(server: McpServerOption, t: ReturnType<typeof useI18n>["t"]) {
   const parts = [
     t("capabilities.mcp.toolsCount", { count: server.toolsCount }),
@@ -88,7 +117,11 @@ function mcpInventoryLabel(server: McpServerOption, t: ReturnType<typeof useI18n
     );
   }
   if (server.authStatus) {
-    parts.push(t("capabilities.mcp.authStatus", { status: server.authStatus }));
+    parts.push(
+      t("capabilities.mcp.authStatus", {
+        status: mcpAuthStatusLabel(server.authStatus, t),
+      }),
+    );
   }
   return parts.join(" · ");
 }
@@ -109,6 +142,7 @@ export function CapabilitiesView({
   const [query, setQuery] = useState("");
   const [pendingSkillId, setPendingSkillId] = useState<string | null>(null);
   const [pendingMcpServerId, setPendingMcpServerId] = useState<string | null>(null);
+  const [skillSessionNoticeVisible, setSkillSessionNoticeVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -153,10 +187,14 @@ export function CapabilitiesView({
     });
   }, [mcpServers, normalizedQuery, scope]);
 
-  const activeScopeName =
+  const activeScopeDescription =
     scope === "project" && activeWorkspace
-      ? activeWorkspace.name
-      : t("capabilities.globalScope");
+      ? t("capabilities.scopeDescription.project", { name: activeWorkspace.name })
+      : t("capabilities.scopeDescription.global");
+  const searchPlaceholder =
+    scope === "project" && activeWorkspace
+      ? t("capabilities.search.project")
+      : t("capabilities.search.global");
   const disabledCount =
     scopedSkills.filter((skill) => skill.enabled === false).length +
     scopedMcpServers.filter((server) => server.enabled === false).length;
@@ -166,6 +204,7 @@ export function CapabilitiesView({
     setPendingSkillId(id);
     try {
       await onSetSkillEnabled(skill, !enabled);
+      setSkillSessionNoticeVisible(true);
     } finally {
       setPendingSkillId((current) => (current === id ? null : current));
     }
@@ -276,7 +315,7 @@ export function CapabilitiesView({
                   {t("capabilities.skills")}
                 </h2>
                 <p className="settings-section-subtitle capabilities-subtitle">
-                  {activeScopeName}
+                  {activeScopeDescription}
                 </p>
               </div>
             </div>
@@ -286,9 +325,16 @@ export function CapabilitiesView({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={t("capabilities.search")}
+                placeholder={searchPlaceholder}
               />
             </label>
+
+            {skillSessionNoticeVisible ? (
+              <div className="capabilities-session-note" role="status">
+                <Info aria-hidden />
+                <span>{t("capabilities.skillSessionNotice")}</span>
+              </div>
+            ) : null}
 
             <section className="capabilities-section">
               <div className="capabilities-section-head">
@@ -308,7 +354,7 @@ export function CapabilitiesView({
                             {skillScopeLabel(skill, activeWorkspace, t)}
                           </span>
                         </div>
-                        <p>{skill.description || t("capabilities.noDescription")}</p>
+                        <p>{skillDescription(skill, t)}</p>
                         <code>{skill.path}</code>
                       </div>
                       <div className="capability-row-control">

@@ -23,6 +23,7 @@ export const SUPPORTED_APP_SERVER_METHODS = [
   "item/started",
   "item/tool/call",
   "item/tool/requestUserInput",
+  "rawResponseItem/completed",
   "thread/archived",
   "thread/closed",
   "thread/name/updated",

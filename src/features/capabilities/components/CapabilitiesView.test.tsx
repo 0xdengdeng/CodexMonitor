@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/features/i18n/i18n";
 import { CapabilitiesView } from "./CapabilitiesView";
 
 afterEach(() => {
@@ -8,6 +11,28 @@ afterEach(() => {
 });
 
 describe("CapabilitiesView", () => {
+  it("keeps capability sections from shrinking so the main pane can scroll", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/styles/capabilities.css"),
+      "utf8",
+    );
+
+    expect(css).toMatch(/\.capabilities-section\s*\{[^}]*flex-shrink:\s*0;/s);
+  });
+
+  it("uses a balanced search field in the capabilities panel", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/styles/capabilities.css"),
+      "utf8",
+    );
+
+    expect(css).toMatch(/\.capabilities-search\s*\{[^}]*width:\s*100%;/s);
+    expect(css).toMatch(/\.capabilities-search\s*\{[^}]*height:\s*40px;/s);
+    expect(css).toMatch(
+      /\.capabilities-search input:focus\s*\{[^}]*outline:\s*none;[^}]*box-shadow:\s*none;/s,
+    );
+  });
+
   it("uses the same modal frame structure as settings", () => {
     const { container } = render(
       <CapabilitiesView
@@ -58,11 +83,66 @@ describe("CapabilitiesView", () => {
     expect(screen.getByRole("dialog", { name: "Capabilities" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Current Project" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Global" })).toBeTruthy();
-    expect(screen.getAllByText("test-fold").length).toBeGreaterThan(0);
+    expect(screen.getByText("Manage Skills and MCP for test-fold.")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Skills" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "MCP" })).toBeTruthy();
     expect(screen.getByText("imagegen")).toBeTruthy();
     expect(screen.getByText("Generate or edit images.")).toBeTruthy();
+  });
+
+  it("uses localized built-in skill descriptions", () => {
+    render(
+      <I18nProvider languagePreference="zh-CN">
+        <CapabilitiesView
+          activeWorkspace={null}
+          skills={[
+            {
+              name: "imagegen",
+              path: "/Users/me/.codex/skills/.system/imagegen/SKILL.md",
+              description: "Generate or edit raster images.",
+              scope: "system",
+              enabled: true,
+            },
+            {
+              name: "custom-skill",
+              path: "/Users/me/.agents/skills/custom-skill/SKILL.md",
+              description: "Custom local description.",
+              scope: "user",
+              enabled: true,
+            },
+          ]}
+          mcpServers={[]}
+          onClose={vi.fn()}
+          onRefreshCapabilities={vi.fn()}
+          onSetSkillEnabled={vi.fn()}
+          onSetMcpServerEnabled={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("生成或编辑图片、插画、纹理、精灵图和产品 mockup。")).toBeTruthy();
+    expect(screen.queryByText("Generate or edit raster images.")).toBeNull();
+    expect(screen.getByText("Custom local description.")).toBeTruthy();
+  });
+
+  it("uses localized scope copy and search placeholder", () => {
+    render(
+      <I18nProvider languagePreference="zh-CN">
+        <CapabilitiesView
+          activeWorkspace={null}
+          skills={[]}
+          mcpServers={[]}
+          onClose={vi.fn()}
+          onRefreshCapabilities={vi.fn()}
+          onSetSkillEnabled={vi.fn()}
+          onSetMcpServerEnabled={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("管理全局可用的 Skills 和 MCP")).toBeTruthy();
+    expect(screen.getByPlaceholderText("搜索全局能力")).toBeTruthy();
+    expect(screen.queryByText("全局能力")).toBeNull();
   });
 
   it("shows MCP servers with inventory and enablement controls", async () => {
@@ -112,6 +192,36 @@ describe("CapabilitiesView", () => {
     );
   });
 
+  it("localizes MCP inventory status text", () => {
+    render(
+      <I18nProvider languagePreference="zh-CN">
+        <CapabilitiesView
+          activeWorkspace={null}
+          skills={[]}
+          mcpServers={[
+            {
+              name: "github",
+              scope: "global",
+              enabled: true,
+              configurable: true,
+              toolsCount: 2,
+              resourcesCount: 1,
+              resourceTemplatesCount: 0,
+              authStatus: "unsupported",
+            },
+          ]}
+          onClose={vi.fn()}
+          onRefreshCapabilities={vi.fn()}
+          onSetSkillEnabled={vi.fn()}
+          onSetMcpServerEnabled={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("2 个工具 · 1 个资源 · 认证：不支持")).toBeTruthy();
+    expect(screen.queryByText(/unsupported/)).toBeNull();
+  });
+
   it("requests enablement changes from the row switch", async () => {
     const onSetSkillEnabled = vi.fn();
 
@@ -149,5 +259,10 @@ describe("CapabilitiesView", () => {
       expect.objectContaining({ name: "imagegen" }),
       false,
     );
+    expect(
+      screen.getByText(
+        "Skill changes apply to new sessions. Current sessions may keep the previous skill list.",
+      ),
+    ).toBeTruthy();
   });
 });
