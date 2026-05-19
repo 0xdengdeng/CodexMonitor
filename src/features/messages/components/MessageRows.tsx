@@ -1035,12 +1035,18 @@ export const ToolRow = memo(function ToolRow({
 export const ImageGenerationRow = memo(function ImageGenerationRow({
   item,
 }: ImageGenerationRowProps) {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [promptVisible, setPromptVisible] = useState(false);
   const [naturalMetrics, setNaturalMetrics] = useState<ImagePreviewMetrics | null>(
     null,
   );
+  const imageGenerationTime = useMemo(() => {
+    if (!item.createdAt) {
+      return "";
+    }
+    return formatMessageCreatedAt(item.createdAt, language);
+  }, [item.createdAt, language]);
   const imageSrc = item.imageSrc ? normalizeMessageImageSrc(item.imageSrc) : "";
   const requestedMetrics = useMemo(
     () => parseImagePreviewMetrics(item.size),
@@ -1117,6 +1123,14 @@ export const ImageGenerationRow = memo(function ImageGenerationRow({
         <div className="image-generation-meta">
           {displayModel && <span>{displayModel}</span>}
           {item.size && <span>{item.size}</span>}
+          {imageGenerationTime && item.createdAt && (
+            <time
+              className="message-time image-generation-time"
+              dateTime={new Date(item.createdAt).toISOString()}
+            >
+              {imageGenerationTime}
+            </time>
+          )}
         </div>
       </div>
       {image && item.status === "completed" && (

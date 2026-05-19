@@ -1885,6 +1885,7 @@ describe("Messages", () => {
         savedPath: "/tmp/generated-images/asset-1.png",
         imageSrc: "data:image/png;base64,AAA",
         error: null,
+        createdAt: new Date(2025, 4, 7, 14, 5).getTime(),
       } as ConversationItem,
     ];
 
@@ -1902,6 +1903,7 @@ describe("Messages", () => {
     expect(screen.getByText("Image generated")).toBeTruthy();
     expect(screen.getByText("adg-image")).toBeTruthy();
     expect(screen.getByText("1024x1024")).toBeTruthy();
+    expect(screen.getByText("14:05")).toBeTruthy();
     expect(screen.getByAltText("Generated image")).toBeTruthy();
     expect(screen.queryByText("A small blue rocket icon")).toBeNull();
     expect(screen.getByRole("button", { name: "Show prompt" })).toBeTruthy();
