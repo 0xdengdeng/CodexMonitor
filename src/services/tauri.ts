@@ -11,6 +11,11 @@ import type {
   GeneratedImageAsset,
   LocalUsageSnapshot,
   RuntimeApiKeyStatus,
+  SkillMarketInstallInput,
+  SkillMarketInstallResult,
+  SkillMarketItem,
+  SkillUninstallInput,
+  SkillUninstallResult,
   TcpDaemonStatus,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
@@ -863,6 +868,30 @@ export async function setSkillEnabled(
     path: input.path ?? null,
     name: input.name ?? null,
     enabled: input.enabled,
+  });
+}
+
+export async function listSkillMarketItems() {
+  return invoke<SkillMarketItem[]>("skill_market_list");
+}
+
+export async function installSkillFromMarket(
+  workspaceId: string | null,
+  input: SkillMarketInstallInput,
+) {
+  return invoke<SkillMarketInstallResult>("skill_market_install", {
+    workspaceId,
+    input,
+  });
+}
+
+export async function uninstallSkill(
+  workspaceId: string | null,
+  input: SkillUninstallInput,
+) {
+  return invoke<SkillUninstallResult>("skill_uninstall", {
+    workspaceId,
+    input,
   });
 }
 

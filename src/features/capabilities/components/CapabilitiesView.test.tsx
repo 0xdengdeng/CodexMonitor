@@ -53,6 +53,78 @@ describe("CapabilitiesView", () => {
     expect(container.querySelector(".settings-content")).toBeTruthy();
   });
 
+  it("opens the skill market from an icon-only action outside the capabilities modal", () => {
+    const { container } = render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[]}
+        mcpServers={[]}
+        skillMarketItems={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={vi.fn()}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+        onInstallSkill={vi.fn()}
+        onUninstallSkill={vi.fn()}
+      />,
+    );
+
+    const marketButton = screen.getByRole("button", { name: "Open skill market" });
+    expect(marketButton.textContent).toBe("");
+
+    fireEvent.click(marketButton);
+
+    const marketDialog = screen.getByRole("dialog", { name: "Skill Market" });
+    const capabilitiesWindow = container.querySelector(".capabilities-window");
+
+    expect(marketDialog).toBeTruthy();
+    expect(capabilitiesWindow).toBeTruthy();
+    expect(capabilitiesWindow?.contains(marketDialog)).toBe(false);
+  });
+
+  it("shows uninstall only for user installed skills", async () => {
+    const onUninstallSkill = vi.fn();
+
+    render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[
+          {
+            name: "docs-writer",
+            path: "/Users/me/Library/Application Support/com.agentdesk.app/codex-home/skills/docs-writer/SKILL.md",
+            description: "Docs helper.",
+            scope: "user",
+            enabled: true,
+          },
+          {
+            name: "imagegen",
+            path: "/Users/me/Library/Application Support/com.agentdesk.app/codex-home/skills/.system/imagegen/SKILL.md",
+            description: "Image helper.",
+            scope: "system",
+            enabled: true,
+          },
+        ]}
+        mcpServers={[]}
+        skillMarketItems={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={vi.fn()}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+        onInstallSkill={vi.fn()}
+        onUninstallSkill={onUninstallSkill}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Uninstall docs-writer" }));
+    });
+
+    expect(onUninstallSkill).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "docs-writer" }),
+    );
+    expect(screen.queryByRole("button", { name: "Uninstall imagegen" })).toBeNull();
+  });
+
   it("shows current project and global ability scopes with skills and MCP groups", () => {
     render(
       <CapabilitiesView

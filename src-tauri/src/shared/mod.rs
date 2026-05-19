@@ -16,6 +16,7 @@ pub(crate) mod runtime_config_core;
 pub(crate) mod runtime_models_core;
 pub(crate) mod runtime_secret_core;
 pub(crate) mod settings_core;
+pub(crate) mod skills_market_core;
 pub(crate) mod workspace_rpc;
 pub(crate) mod workspaces_core;
 pub(crate) mod worktree_core;

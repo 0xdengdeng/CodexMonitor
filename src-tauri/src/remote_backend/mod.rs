@@ -185,6 +185,9 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "thread_live_unsubscribe"
             | "skills_list"
             | "skills_config_write"
+            | "skill_market_list"
+            | "skill_market_install"
+            | "skill_uninstall"
             | "worktree_setup_status"
     )
 }

@@ -752,6 +752,43 @@ export type SkillOption = {
   sourcePath?: string;
 };
 
+export type SkillInstallTarget = "global" | "project";
+
+export type SkillMarketItem = {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  categories: string[];
+  tags: string[];
+  publisher: string;
+  verified: boolean;
+  source: {
+    type: string;
+  };
+};
+
+export type SkillMarketInstallInput = {
+  itemId: string;
+  target: SkillInstallTarget;
+};
+
+export type SkillMarketInstallResult = {
+  ok: boolean;
+  name: string;
+  path: string;
+  target: SkillInstallTarget;
+};
+
+export type SkillUninstallInput = {
+  path: string;
+};
+
+export type SkillUninstallResult = {
+  ok: boolean;
+  path: string;
+};
+
 export type McpServerOption = {
   name: string;
   scope?: "project" | "global" | "system" | "managed" | "runtime" | string;

@@ -19,6 +19,7 @@ use crate::remote_backend;
 use crate::shared::agents_config_core;
 use crate::shared::codex_core::{self, insert_optional_nullable_string};
 use crate::shared::runtime_config_core;
+use crate::shared::skills_market_core;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
 
@@ -921,6 +922,70 @@ pub(crate) async fn skills_config_write(
     }
 
     codex_core::skills_config_write_core(&state.sessions, workspace_id, path, name, enabled).await
+}
+
+#[tauri::command]
+pub(crate) async fn skill_market_list(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(&*state, app, "skill_market_list", json!({})).await;
+    }
+
+    serde_json::to_value(skills_market_core::skill_market_catalog())
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn skill_market_install(
+    workspace_id: Option<String>,
+    input: skills_market_core::SkillMarketInstallInput,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "skill_market_install",
+            json!({
+                "workspaceId": workspace_id,
+                "input": input
+            }),
+        )
+        .await;
+    }
+
+    let result =
+        skills_market_core::skill_market_install_core(&state.workspaces, workspace_id, input)
+            .await?;
+    serde_json::to_value(result).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn skill_uninstall(
+    workspace_id: Option<String>,
+    input: skills_market_core::SkillUninstallInput,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "skill_uninstall",
+            json!({
+                "workspaceId": workspace_id,
+                "input": input
+            }),
+        )
+        .await;
+    }
+
+    let result =
+        skills_market_core::skill_uninstall_core(&state.workspaces, workspace_id, input).await?;
+    serde_json::to_value(result).map_err(|err| err.to_string())
 }
 
 #[tauri::command]

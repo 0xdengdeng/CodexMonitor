@@ -85,7 +85,7 @@ use shared::prompts_core::{self, CustomPromptEntry};
 use shared::settings_core::sync_managed_runtime_config_from_settings;
 use shared::{
     agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
-    local_usage_core, settings_core, workspaces_core, worktree_core,
+    local_usage_core, settings_core, skills_market_core, workspaces_core, worktree_core,
 };
 use storage::{read_settings, read_workspaces};
 use types::{
@@ -1055,6 +1055,32 @@ impl DaemonState {
     ) -> Result<Value, String> {
         codex_core::skills_config_write_core(&self.sessions, workspace_id, path, name, enabled)
             .await
+    }
+
+    async fn skill_market_list(&self) -> Result<Value, String> {
+        serde_json::to_value(skills_market_core::skill_market_catalog())
+            .map_err(|err| err.to_string())
+    }
+
+    async fn skill_market_install(
+        &self,
+        workspace_id: Option<String>,
+        input: skills_market_core::SkillMarketInstallInput,
+    ) -> Result<Value, String> {
+        let result =
+            skills_market_core::skill_market_install_core(&self.workspaces, workspace_id, input)
+                .await?;
+        serde_json::to_value(result).map_err(|err| err.to_string())
+    }
+
+    async fn skill_uninstall(
+        &self,
+        workspace_id: Option<String>,
+        input: skills_market_core::SkillUninstallInput,
+    ) -> Result<Value, String> {
+        let result =
+            skills_market_core::skill_uninstall_core(&self.workspaces, workspace_id, input).await?;
+        serde_json::to_value(result).map_err(|err| err.to_string())
     }
 
     async fn apps_list(

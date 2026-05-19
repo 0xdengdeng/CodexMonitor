@@ -476,6 +476,23 @@ pub(super) async fn try_handle(
                     .await,
             )
         }
+        "skill_market_list" => Some(state.skill_market_list().await),
+        "skill_market_install" => {
+            let workspace_id = parse_optional_nullable_string(params, "workspaceId").unwrap_or(None);
+            let input = match parse_input::<skills_market_core::SkillMarketInstallInput>(params) {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(state.skill_market_install(workspace_id, input).await)
+        }
+        "skill_uninstall" => {
+            let workspace_id = parse_optional_nullable_string(params, "workspaceId").unwrap_or(None);
+            let input = match parse_input::<skills_market_core::SkillUninstallInput>(params) {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(state.skill_uninstall(workspace_id, input).await)
+        }
         "apps_list" => {
             let workspace_id = match parse_string(params, "workspaceId") {
                 Ok(value) => value,

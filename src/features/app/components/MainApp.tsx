@@ -60,6 +60,9 @@ import type {
   EnterpriseAiLoginResult,
   EnterpriseAiUsageSnapshot,
   ServiceTier,
+  SkillMarketInstallInput,
+  SkillMarketItem,
+  SkillOption,
   WorkspaceInfo,
 } from "@/types";
 import { useOpenAppIcons } from "@app/hooks/useOpenAppIcons";
@@ -86,7 +89,12 @@ import {
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { subscribeTrayOpenThread } from "@services/events";
-import { enterpriseAiValidate } from "@services/tauri";
+import {
+  enterpriseAiValidate,
+  installSkillFromMarket,
+  listSkillMarketItems,
+  uninstallSkill,
+} from "@services/tauri";
 import {
   I18nProvider,
   resolveInterfaceLanguage,
@@ -129,6 +137,7 @@ export default function MainApp() {
   const [enterpriseAiUsage, setEnterpriseAiUsage] =
     useState<EnterpriseAiUsageSnapshot | null>(null);
   const [enterpriseAiLoginOpen, setEnterpriseAiLoginOpen] = useState(false);
+  const [skillMarketItems, setSkillMarketItems] = useState<SkillMarketItem[]>([]);
   const enterpriseAiAutoValidatedRef = useRef(false);
   const resolvedInterfaceLanguage = resolveInterfaceLanguage(appSettings.interfaceLanguage);
   const {
@@ -424,6 +433,40 @@ export default function MainApp() {
   const refreshCapabilities = useCallback(async () => {
     await Promise.all([refreshSkills(), refreshMcpServers()]);
   }, [refreshMcpServers, refreshSkills]);
+  useEffect(() => {
+    if (!capabilitiesOpen) {
+      return;
+    }
+    let cancelled = false;
+    void listSkillMarketItems().then((items) => {
+      if (!cancelled) {
+        setSkillMarketItems(items);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [capabilitiesOpen]);
+  const installSkill = useCallback(
+    async (input: SkillMarketInstallInput) => {
+      const workspaceId =
+        input.target === "project"
+          ? (activeWorkspace?.id ?? capabilitiesRuntimeWorkspace?.id ?? null)
+          : null;
+      await installSkillFromMarket(workspaceId, input);
+      await refreshSkills();
+    },
+    [activeWorkspace?.id, capabilitiesRuntimeWorkspace?.id, refreshSkills],
+  );
+  const removeSkill = useCallback(
+    async (skill: SkillOption) => {
+      await uninstallSkill(activeWorkspace?.id ?? capabilitiesRuntimeWorkspace?.id ?? null, {
+        path: skill.path,
+      });
+      await refreshSkills();
+    },
+    [activeWorkspace?.id, capabilitiesRuntimeWorkspace?.id, refreshSkills],
+  );
   const {
     prompts,
     createPrompt,
@@ -1975,10 +2018,13 @@ export default function MainApp() {
             activeWorkspace={activeWorkspace}
             skills={allSkills}
             mcpServers={mcpServers}
+            skillMarketItems={skillMarketItems}
             onClose={closeCapabilities}
             onRefreshCapabilities={refreshCapabilities}
             onSetSkillEnabled={setSkillEnabled}
             onSetMcpServerEnabled={setMcpServerEnabled}
+            onInstallSkill={installSkill}
+            onUninstallSkill={removeSkill}
           />
         </Suspense>
       )}

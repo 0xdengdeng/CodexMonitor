@@ -36,6 +36,9 @@ import {
   steerTurn,
   sendNotification,
   setSkillEnabled,
+  installSkillFromMarket,
+  listSkillMarketItems,
+  uninstallSkill,
   setMcpServerEnabled,
   setCodexFeatureFlag,
   setAgentsCoreSettings,
@@ -367,6 +370,49 @@ describe("tauri invoke wrappers", () => {
       path: "/repo/.agents/skills/demo/SKILL.md",
       name: "demo",
       enabled: false,
+    });
+  });
+
+  it("maps skill market listing to skill_market_list", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce([{ id: "docs-writer" }]);
+
+    await expect(listSkillMarketItems()).resolves.toEqual([{ id: "docs-writer" }]);
+
+    expect(invokeMock).toHaveBeenCalledWith("skill_market_list");
+  });
+
+  it("maps skill market installs to skill_market_install", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ ok: true });
+
+    await installSkillFromMarket("ws-10", {
+      itemId: "docs-writer",
+      target: "project",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("skill_market_install", {
+      workspaceId: "ws-10",
+      input: {
+        itemId: "docs-writer",
+        target: "project",
+      },
+    });
+  });
+
+  it("maps skill uninstalls to skill_uninstall", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ ok: true });
+
+    await uninstallSkill("ws-10", {
+      path: "/repo/.agents/skills/docs-writer/SKILL.md",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("skill_uninstall", {
+      workspaceId: "ws-10",
+      input: {
+        path: "/repo/.agents/skills/docs-writer/SKILL.md",
+      },
     });
   });
 
