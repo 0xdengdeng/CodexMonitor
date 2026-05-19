@@ -7,6 +7,7 @@ import ListFilter from "lucide-react/dist/esm/icons/list-filter";
 import ListTree from "lucide-react/dist/esm/icons/list-tree";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ThreadListOrganizeMode, ThreadListSortKey } from "../../../types";
 import {
@@ -27,6 +28,7 @@ type SidebarHeaderProps = {
   threadListOrganizeMode: ThreadListOrganizeMode;
   onSetThreadListOrganizeMode: (organizeMode: ThreadListOrganizeMode) => void;
   onRefreshAllThreads: () => void;
+  onOpenCapabilities: () => void;
   refreshDisabled?: boolean;
   refreshInProgress?: boolean;
 };
@@ -41,6 +43,7 @@ export function SidebarHeader({
   threadListOrganizeMode,
   onSetThreadListOrganizeMode,
   onRefreshAllThreads,
+  onOpenCapabilities,
   refreshDisabled = false,
   refreshInProgress = false,
 }: SidebarHeaderProps) {
@@ -237,6 +240,19 @@ export function SidebarHeader({
             </PopoverSurface>
           )}
         </div>
+        <button
+          className="ghost sidebar-capabilities-toggle ds-tooltip-trigger"
+          onClick={onOpenCapabilities}
+          data-tauri-drag-region="false"
+          aria-label={t("sidebar.header.capabilities")}
+          type="button"
+          title={t("sidebar.header.capabilities")}
+          data-tooltip={t("sidebar.header.capabilities")}
+          data-tooltip-align="end"
+          data-tooltip-placement="bottom"
+        >
+          <Sparkles aria-hidden />
+        </button>
         <button
           className="ghost sidebar-refresh-toggle ds-tooltip-trigger"
           onClick={onRefreshAllThreads}

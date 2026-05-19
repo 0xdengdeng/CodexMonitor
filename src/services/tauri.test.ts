@@ -19,6 +19,7 @@ import {
   getOpenAppIcon,
   listThreads,
   listMcpServerStatus,
+  readCodexConfig,
   readThread,
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
@@ -34,6 +35,8 @@ import {
   sendUserMessage,
   steerTurn,
   sendNotification,
+  setSkillEnabled,
+  setMcpServerEnabled,
   setCodexFeatureFlag,
   setAgentsCoreSettings,
   setTrayRecentThreads,
@@ -330,6 +333,58 @@ describe("tauri invoke wrappers", () => {
       workspaceId: "ws-10",
       cursor: "cursor-1",
       limit: 25,
+    });
+  });
+
+  it("maps config read params to codex_config_read", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await readCodexConfig("ws-10", {
+      includeLayers: true,
+      cwd: "/tmp/repo",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("codex_config_read", {
+      workspaceId: "ws-10",
+      includeLayers: true,
+      cwd: "/tmp/repo",
+    });
+  });
+
+  it("maps skill enablement writes to skills_config_write", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ effectiveEnabled: false });
+
+    await setSkillEnabled("ws-10", {
+      path: "/repo/.agents/skills/demo/SKILL.md",
+      name: "demo",
+      enabled: false,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("skills_config_write", {
+      workspaceId: "ws-10",
+      path: "/repo/.agents/skills/demo/SKILL.md",
+      name: "demo",
+      enabled: false,
+    });
+  });
+
+  it("maps MCP enablement writes to mcp_server_config_write", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await setMcpServerEnabled("ws-10", {
+      name: "github",
+      enabled: false,
+      sourcePath: "/Users/me/.codex/config.toml",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("mcp_server_config_write", {
+      workspaceId: "ws-10",
+      name: "github",
+      enabled: false,
+      sourcePath: "/Users/me/.codex/config.toml",
     });
   });
 

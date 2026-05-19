@@ -884,6 +884,33 @@ impl DaemonState {
         codex_core::list_mcp_server_status_core(&self.sessions, workspace_id, cursor, limit).await
     }
 
+    async fn codex_config_read(
+        &self,
+        workspace_id: String,
+        include_layers: bool,
+        cwd: Option<String>,
+    ) -> Result<Value, String> {
+        codex_core::codex_config_read_core(&self.sessions, workspace_id, include_layers, cwd).await
+    }
+
+    async fn mcp_server_config_write(
+        &self,
+        workspace_id: String,
+        name: String,
+        enabled: bool,
+        source_path: Option<String>,
+    ) -> Result<Value, String> {
+        codex_core::mcp_server_config_write_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            name,
+            enabled,
+            source_path,
+        )
+        .await
+    }
+
     async fn archive_thread(
         &self,
         workspace_id: String,
@@ -1017,6 +1044,17 @@ impl DaemonState {
 
     async fn skills_list(&self, workspace_id: String) -> Result<Value, String> {
         codex_core::skills_list_core(&self.sessions, &self.workspaces, workspace_id).await
+    }
+
+    async fn skills_config_write(
+        &self,
+        workspace_id: String,
+        path: Option<String>,
+        name: Option<String>,
+        enabled: bool,
+    ) -> Result<Value, String> {
+        codex_core::skills_config_write_core(&self.sessions, workspace_id, path, name, enabled)
+            .await
     }
 
     async fn apps_list(

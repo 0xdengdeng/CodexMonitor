@@ -1,0 +1,407 @@
+import { useMemo, useState } from "react";
+import Layers from "lucide-react/dist/esm/icons/layers";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Search from "lucide-react/dist/esm/icons/search";
+import Server from "lucide-react/dist/esm/icons/server";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+import X from "lucide-react/dist/esm/icons/x";
+import type { McpServerOption, SkillOption, WorkspaceInfo } from "@/types";
+import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
+import {
+  PanelNavItem,
+  PanelNavList,
+} from "@/features/design-system/components/panel/PanelPrimitives";
+import { useI18n } from "@/features/i18n/i18n";
+
+type CapabilityScope = "project" | "global";
+
+export type CapabilitiesViewProps = {
+  activeWorkspace: WorkspaceInfo | null;
+  skills: SkillOption[];
+  mcpServers: McpServerOption[];
+  onClose: () => void;
+  onRefreshCapabilities: () => Promise<void> | void;
+  onSetSkillEnabled: (skill: SkillOption, enabled: boolean) => Promise<void> | void;
+  onSetMcpServerEnabled: (
+    server: McpServerOption,
+    enabled: boolean,
+  ) => Promise<void> | void;
+};
+
+function skillId(skill: SkillOption) {
+  return skill.path || skill.name;
+}
+
+function mcpServerId(server: McpServerOption) {
+  return server.sourcePath ? `${server.sourcePath}:${server.name}` : server.name;
+}
+
+function isProjectSkill(skill: SkillOption, workspace: WorkspaceInfo | null) {
+  if (skill.scope === "repo") {
+    return true;
+  }
+  return Boolean(workspace && skill.path.startsWith(`${workspace.path}/.agents/skills`));
+}
+
+function isProjectMcpServer(server: McpServerOption) {
+  return server.scope === "project";
+}
+
+function skillScopeLabel(
+  skill: SkillOption,
+  workspace: WorkspaceInfo | null,
+  t: ReturnType<typeof useI18n>["t"],
+) {
+  if (isProjectSkill(skill, workspace)) {
+    return t("capabilities.source.project");
+  }
+  if (skill.scope === "system" || skill.path.includes("/.system/")) {
+    return t("capabilities.source.system");
+  }
+  return t("capabilities.source.global");
+}
+
+function mcpScopeLabel(server: McpServerOption, t: ReturnType<typeof useI18n>["t"]) {
+  if (server.scope === "project") {
+    return t("capabilities.source.project");
+  }
+  if (server.scope === "system") {
+    return t("capabilities.source.system");
+  }
+  if (server.scope === "managed") {
+    return t("capabilities.source.managed");
+  }
+  if (server.scope === "runtime") {
+    return t("capabilities.source.runtime");
+  }
+  return t("capabilities.source.global");
+}
+
+function mcpInventoryLabel(server: McpServerOption, t: ReturnType<typeof useI18n>["t"]) {
+  const parts = [
+    t("capabilities.mcp.toolsCount", { count: server.toolsCount }),
+    t("capabilities.mcp.resourcesCount", { count: server.resourcesCount }),
+  ];
+  if (server.resourceTemplatesCount > 0) {
+    parts.push(
+      t("capabilities.mcp.templatesCount", { count: server.resourceTemplatesCount }),
+    );
+  }
+  if (server.authStatus) {
+    parts.push(t("capabilities.mcp.authStatus", { status: server.authStatus }));
+  }
+  return parts.join(" · ");
+}
+
+export function CapabilitiesView({
+  activeWorkspace,
+  skills,
+  mcpServers,
+  onClose,
+  onRefreshCapabilities,
+  onSetSkillEnabled,
+  onSetMcpServerEnabled,
+}: CapabilitiesViewProps) {
+  const { t } = useI18n();
+  const [scope, setScope] = useState<CapabilityScope>(
+    activeWorkspace ? "project" : "global",
+  );
+  const [query, setQuery] = useState("");
+  const [pendingSkillId, setPendingSkillId] = useState<string | null>(null);
+  const [pendingMcpServerId, setPendingMcpServerId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const projectSkillCount = useMemo(
+    () => skills.filter((skill) => isProjectSkill(skill, activeWorkspace)).length,
+    [activeWorkspace, skills],
+  );
+  const globalSkillCount = skills.length - projectSkillCount;
+  const projectMcpCount = useMemo(
+    () => mcpServers.filter(isProjectMcpServer).length,
+    [mcpServers],
+  );
+  const globalMcpCount = mcpServers.length - projectMcpCount;
+
+  const scopedSkills = useMemo(() => {
+    const candidates =
+      scope === "project"
+        ? skills.filter((skill) => isProjectSkill(skill, activeWorkspace))
+        : skills.filter((skill) => !isProjectSkill(skill, activeWorkspace));
+    if (!normalizedQuery) {
+      return candidates;
+    }
+    return candidates.filter((skill) => {
+      const haystack = `${skill.name} ${skill.description ?? ""} ${skill.path}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [activeWorkspace, normalizedQuery, scope, skills]);
+
+  const scopedMcpServers = useMemo(() => {
+    const candidates =
+      scope === "project"
+        ? mcpServers.filter(isProjectMcpServer)
+        : mcpServers.filter((server) => !isProjectMcpServer(server));
+    if (!normalizedQuery) {
+      return candidates;
+    }
+    return candidates.filter((server) => {
+      const haystack = `${server.name} ${server.authStatus ?? ""} ${
+        server.sourcePath ?? ""
+      }`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [mcpServers, normalizedQuery, scope]);
+
+  const activeScopeName =
+    scope === "project" && activeWorkspace
+      ? activeWorkspace.name
+      : t("capabilities.globalScope");
+  const disabledCount =
+    scopedSkills.filter((skill) => skill.enabled === false).length +
+    scopedMcpServers.filter((server) => server.enabled === false).length;
+  const handleToggleSkill = async (skill: SkillOption) => {
+    const id = skillId(skill);
+    const enabled = skill.enabled !== false;
+    setPendingSkillId(id);
+    try {
+      await onSetSkillEnabled(skill, !enabled);
+    } finally {
+      setPendingSkillId((current) => (current === id ? null : current));
+    }
+  };
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await onRefreshCapabilities();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  const handleToggleMcpServer = async (server: McpServerOption) => {
+    const id = mcpServerId(server);
+    const enabled = server.enabled !== false;
+    setPendingMcpServerId(id);
+    try {
+      await onSetMcpServerEnabled(server, !enabled);
+    } finally {
+      setPendingMcpServerId((current) => (current === id ? null : current));
+    }
+  };
+
+  return (
+    <ModalShell
+      className="settings-overlay capabilities-overlay"
+      cardClassName="settings-window capabilities-window"
+      onBackdropClick={onClose}
+      ariaLabelledBy="capabilities-title"
+    >
+      <div className="settings-titlebar capabilities-titlebar">
+        <div className="settings-title" id="capabilities-title">
+          {t("capabilities.title")}
+        </div>
+        <div className="capabilities-titlebar-actions">
+          <button
+            type="button"
+            className="ghost icon-button"
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+            aria-label={t("capabilities.refresh")}
+          >
+            <RefreshCw
+              className={refreshing ? "capabilities-refresh-icon spinning" : undefined}
+              aria-hidden
+            />
+          </button>
+          <button
+            type="button"
+            className="ghost icon-button settings-close"
+            onClick={onClose}
+            aria-label={t("capabilities.close")}
+          >
+            <X aria-hidden />
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-body capabilities-body">
+        <div className="settings-master capabilities-master">
+          <aside className="settings-sidebar capabilities-sidebar">
+            <PanelNavList className="settings-nav-list capabilities-nav-list">
+              <PanelNavItem
+                className="settings-nav capabilities-nav-item"
+                icon={<Layers aria-hidden />}
+                active={scope === "project"}
+                onClick={() => setScope("project")}
+                disabled={!activeWorkspace}
+                aria-label={t("capabilities.currentProject")}
+              >
+                <span>{t("capabilities.currentProject")}</span>
+                <strong>{projectSkillCount + projectMcpCount}</strong>
+              </PanelNavItem>
+              <PanelNavItem
+                className="settings-nav capabilities-nav-item"
+                icon={<Sparkles aria-hidden />}
+                active={scope === "global"}
+                onClick={() => setScope("global")}
+                aria-label={t("capabilities.global")}
+              >
+                <span>{t("capabilities.global")}</span>
+                <strong>{globalSkillCount + globalMcpCount}</strong>
+              </PanelNavItem>
+            </PanelNavList>
+
+            <div className="capabilities-overview" aria-label={t("capabilities.summary")}>
+              <div>
+                <span>{t("capabilities.summary.skills")}</span>
+                <strong>{scopedSkills.length}</strong>
+              </div>
+              <div>
+                <span>{t("capabilities.summary.mcp")}</span>
+                <strong>{scopedMcpServers.length}</strong>
+              </div>
+              <div>
+                <span>{t("capabilities.summary.disabled")}</span>
+                <strong>{disabledCount}</strong>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div className="settings-detail capabilities-detail">
+          <main className="settings-content capabilities-main">
+            <div className="capabilities-heading-row">
+              <div>
+                <h2 className="settings-section-title capabilities-heading">
+                  {t("capabilities.skills")}
+                </h2>
+                <p className="settings-section-subtitle capabilities-subtitle">
+                  {activeScopeName}
+                </p>
+              </div>
+            </div>
+
+            <label className="capabilities-search">
+              <Search aria-hidden />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("capabilities.search")}
+              />
+            </label>
+
+            <section className="capabilities-section">
+              <div className="capabilities-section-head">
+                <span>{t("capabilities.items", { count: scopedSkills.length })}</span>
+              </div>
+              <div className="capabilities-list">
+                {scopedSkills.length > 0 ? (
+                  scopedSkills.map((skill) => (
+                    <article
+                      key={`${skill.name}:${skill.path}`}
+                      className={`capability-row${skill.enabled === false ? " is-disabled" : ""}`}
+                    >
+                      <div className="capability-row-main">
+                        <div className="capability-row-title">
+                          <strong>{skill.name}</strong>
+                          <span className="capability-source">
+                            {skillScopeLabel(skill, activeWorkspace, t)}
+                          </span>
+                        </div>
+                        <p>{skill.description || t("capabilities.noDescription")}</p>
+                        <code>{skill.path}</code>
+                      </div>
+                      <div className="capability-row-control">
+                        <span>
+                          {skill.enabled === false
+                            ? t("capabilities.status.disabled")
+                            : t("capabilities.status.enabled")}
+                        </span>
+                        <button
+                          type="button"
+                          className={`capability-switch${skill.enabled === false ? "" : " is-on"}`}
+                          aria-pressed={skill.enabled === false ? "false" : "true"}
+                          aria-label={
+                            skill.enabled === false
+                              ? t("capabilities.disabledLabel", { name: skill.name })
+                              : t("capabilities.enabledLabel", { name: skill.name })
+                          }
+                          onClick={() => void handleToggleSkill(skill)}
+                          disabled={pendingSkillId === skillId(skill)}
+                        >
+                          <span />
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="capabilities-empty">{t("capabilities.noSkills")}</div>
+                )}
+              </div>
+            </section>
+
+            <section className="capabilities-section capabilities-mcp-section">
+              <div className="capabilities-section-head">
+                <h3>{t("capabilities.mcp")}</h3>
+                <span>{t("capabilities.items", { count: scopedMcpServers.length })}</span>
+              </div>
+              <div className="capabilities-list">
+                {scopedMcpServers.length > 0 ? (
+                  scopedMcpServers.map((server) => (
+                    <article
+                      key={`${server.name}:${server.sourcePath ?? server.scope ?? "runtime"}`}
+                      className={`capability-row${
+                        server.enabled === false ? " is-disabled" : ""
+                      }`}
+                    >
+                      <div className="capability-row-main">
+                        <div className="capability-row-title">
+                          <strong>{server.name}</strong>
+                          <span className="capability-source">
+                            {mcpScopeLabel(server, t)}
+                          </span>
+                        </div>
+                        <p>{mcpInventoryLabel(server, t)}</p>
+                        {server.sourcePath ? <code>{server.sourcePath}</code> : null}
+                      </div>
+                      <div className="capability-row-control">
+                        <span>
+                          {server.enabled === false
+                            ? t("capabilities.status.disabled")
+                            : t("capabilities.status.enabled")}
+                        </span>
+                        <button
+                          type="button"
+                          className={`capability-switch${
+                            server.enabled === false ? "" : " is-on"
+                          }`}
+                          aria-pressed={server.enabled === false ? "false" : "true"}
+                          aria-label={
+                            server.enabled === false
+                              ? t("capabilities.mcpDisabledLabel", { name: server.name })
+                              : t("capabilities.mcpEnabledLabel", { name: server.name })
+                          }
+                          onClick={() => void handleToggleMcpServer(server)}
+                          disabled={
+                            !server.configurable || pendingMcpServerId === mcpServerId(server)
+                          }
+                        >
+                          <span />
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="capabilities-empty capabilities-empty-mcp">
+                    <Server aria-hidden />
+                    <span>{t("capabilities.mcpEmpty")}</span>
+                  </div>
+                )}
+              </div>
+            </section>
+          </main>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}

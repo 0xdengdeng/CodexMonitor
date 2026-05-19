@@ -2,12 +2,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent, WorkspaceInfo } from "../../../types";
-import { getSkillsList } from "../../../services/tauri";
+import { getSkillsList, setSkillEnabled } from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import { useSkills } from "./useSkills";
 
 vi.mock("../../../services/tauri", () => ({
   getSkillsList: vi.fn(),
+  setSkillEnabled: vi.fn(),
 }));
 
 vi.mock("../../../services/events", () => ({
@@ -28,6 +29,8 @@ const unlisten = vi.fn();
 beforeEach(() => {
   listener = null;
   unlisten.mockReset();
+  vi.mocked(getSkillsList).mockReset();
+  vi.mocked(setSkillEnabled).mockReset();
   vi.mocked(subscribeAppServerEvents).mockImplementation((cb) => {
     listener = cb;
     return unlisten;
@@ -39,6 +42,207 @@ afterEach(() => {
 });
 
 describe("useSkills", () => {
+  it("uses a fallback connected workspace when no project is active", async () => {
+    vi.mocked(getSkillsList).mockResolvedValueOnce({
+      result: {
+        skills: [
+          {
+            name: "imagegen",
+            path: "/Users/me/.codex/skills/.system/imagegen/SKILL.md",
+            scope: "system",
+            enabled: true,
+          },
+        ],
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useSkills({ activeWorkspace: null, fallbackWorkspace: workspace }),
+    );
+
+    await waitFor(() => {
+      expect(getSkillsList).toHaveBeenCalledWith("workspace-1");
+      expect(result.current.allSkills.map((skill) => skill.name)).toEqual(["imagegen"]);
+    });
+  });
+
+  it("keeps disabled skills manageable but exposes only enabled skills for composer use", async () => {
+    vi.mocked(getSkillsList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            skills: [
+              {
+                name: "enabled-skill",
+                path: "/tmp/workspace-one/.agents/skills/enabled/SKILL.md",
+                description: "Enabled skill.",
+                scope: "repo",
+                enabled: true,
+              },
+              {
+                name: "disabled-skill",
+                path: "/skills/disabled/SKILL.md",
+                description: "Disabled skill.",
+                scope: "user",
+                enabled: false,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const { result } = renderHook(() => useSkills({ activeWorkspace: workspace }));
+
+    await waitFor(() => {
+      expect(result.current.allSkills.map((skill) => skill.name)).toEqual([
+        "enabled-skill",
+        "disabled-skill",
+      ]);
+      expect(result.current.skills.map((skill) => skill.name)).toEqual(["enabled-skill"]);
+      expect(result.current.allSkills[1].enabled).toBe(false);
+      expect(result.current.allSkills[1].scope).toBe("user");
+    });
+  });
+
+  it("writes project skill enablement by path and refreshes the catalog", async () => {
+    vi.mocked(getSkillsList)
+      .mockResolvedValueOnce({
+        result: {
+          skills: [
+            {
+              name: "demo",
+              path: "/tmp/workspace-one/.agents/skills/demo/SKILL.md",
+              scope: "repo",
+              enabled: true,
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          skills: [
+            {
+              name: "demo",
+              path: "/tmp/workspace-one/.agents/skills/demo/SKILL.md",
+              scope: "repo",
+              enabled: false,
+            },
+          ],
+        },
+      });
+    vi.mocked(setSkillEnabled).mockResolvedValueOnce({ effectiveEnabled: false });
+
+    const { result } = renderHook(() => useSkills({ activeWorkspace: workspace }));
+
+    await waitFor(() => {
+      expect(result.current.allSkills[0]?.enabled).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.setSkillEnabled(result.current.allSkills[0], false);
+    });
+
+    expect(setSkillEnabled).toHaveBeenCalledWith("workspace-1", {
+      path: "/tmp/workspace-one/.agents/skills/demo/SKILL.md",
+      name: null,
+      enabled: false,
+    });
+    await waitFor(() => {
+      expect(result.current.allSkills[0]?.enabled).toBe(false);
+    });
+  });
+
+  it("writes global user skill enablement by name", async () => {
+    vi.mocked(getSkillsList)
+      .mockResolvedValueOnce({
+        result: {
+          skills: [
+            {
+              name: "adapt",
+              path: "/Users/me/.agents/skills/adapt/SKILL.md",
+              scope: "user",
+              enabled: true,
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          skills: [
+            {
+              name: "adapt",
+              path: "/Users/me/.agents/skills/adapt/SKILL.md",
+              scope: "user",
+              enabled: false,
+            },
+          ],
+        },
+      });
+    vi.mocked(setSkillEnabled).mockResolvedValueOnce({ effectiveEnabled: false });
+
+    const { result } = renderHook(() => useSkills({ activeWorkspace: workspace }));
+
+    await waitFor(() => {
+      expect(result.current.allSkills[0]?.enabled).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.setSkillEnabled(result.current.allSkills[0], false);
+    });
+
+    expect(setSkillEnabled).toHaveBeenCalledWith("workspace-1", {
+      path: null,
+      name: "adapt",
+      enabled: false,
+    });
+  });
+
+  it("writes bundled system skill enablement by name", async () => {
+    vi.mocked(getSkillsList)
+      .mockResolvedValueOnce({
+        result: {
+          skills: [
+            {
+              name: "imagegen",
+              path: "/Users/me/.codex/skills/.system/imagegen/SKILL.md",
+              scope: "system",
+              enabled: true,
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          skills: [
+            {
+              name: "imagegen",
+              path: "/Users/me/.codex/skills/.system/imagegen/SKILL.md",
+              scope: "system",
+              enabled: false,
+            },
+          ],
+        },
+      });
+    vi.mocked(setSkillEnabled).mockResolvedValueOnce({ effectiveEnabled: false });
+
+    const { result } = renderHook(() => useSkills({ activeWorkspace: workspace }));
+
+    await waitFor(() => {
+      expect(result.current.allSkills[0]?.enabled).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.setSkillEnabled(result.current.allSkills[0], false);
+    });
+
+    expect(setSkillEnabled).toHaveBeenCalledWith("workspace-1", {
+      path: null,
+      name: "imagegen",
+      enabled: false,
+    });
+  });
+
   it("refreshes skills on canonical codex/event/skills_update_available notifications", async () => {
     vi.mocked(getSkillsList)
       .mockResolvedValueOnce({ result: { skills: [{ name: "first", path: "/skills/first" }] } })

@@ -22,6 +22,8 @@ use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executabl
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
+const DISABLE_HOME_AGENTS_SKILLS_ENV: &str = "CODEX_DISABLE_HOME_AGENTS_SKILLS";
+
 fn extract_thread_id(value: &Value) -> Option<String> {
     fn extract_from_container(container: Option<&Value>) -> Option<String> {
         let container = container?;
@@ -686,6 +688,7 @@ pub(crate) fn build_codex_command_with_bin(
     if let Some(path_env) = path_env {
         command.env("PATH", path_env);
     }
+    command.env(DISABLE_HOME_AGENTS_SKILLS_ENV, "1");
     Ok(command)
 }
 
@@ -1102,7 +1105,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_initialize_params, extract_related_thread_ids,
+        build_codex_command_with_bin, build_initialize_params, extract_related_thread_ids,
         extract_thread_entries_from_thread_list_result, extract_thread_id, normalize_root_path,
         resolve_workspace_for_cwd, should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation,
@@ -1149,6 +1152,22 @@ mod tests {
                 .and_then(|caps| caps.get("experimentalApi"))
                 .and_then(|value| value.as_bool()),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn codex_commands_disable_home_agents_skills() {
+        let command = build_codex_command_with_bin(
+            "/tmp/codex-runtime".to_string(),
+            None,
+            vec!["app-server".to_string()],
+        )
+        .expect("build command");
+        let envs = command.as_std().get_envs().collect::<HashMap<_, _>>();
+
+        assert_eq!(
+            envs.get(std::ffi::OsStr::new("CODEX_DISABLE_HOME_AGENTS_SKILLS")),
+            Some(&Some(std::ffi::OsStr::new("1")))
         );
     }
 

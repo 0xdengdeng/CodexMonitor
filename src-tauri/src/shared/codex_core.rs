@@ -1,6 +1,7 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -16,6 +17,7 @@ use crate::codex::config as codex_config;
 use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::rules;
 use crate::shared::account::{build_account_response, read_auth_account};
+use crate::shared::config_toml_core;
 use crate::types::WorkspaceEntry;
 
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
@@ -49,6 +51,24 @@ fn build_thread_list_params(
         // (for example memory consolidation) do not leak back into app state.
         "sourceKinds": THREAD_LIST_SOURCE_KINDS
     })
+}
+
+fn build_skills_list_params(workspace_path: String, extra_user_roots: Vec<String>) -> Value {
+    let mut params = Map::new();
+    params.insert("cwds".to_string(), json!([workspace_path.clone()]));
+    params.insert("forceReload".to_string(), json!(true));
+
+    if !extra_user_roots.is_empty() {
+        params.insert(
+            "perCwdExtraUserRoots".to_string(),
+            json!([{
+                "cwd": workspace_path,
+                "extraUserRoots": extra_user_roots,
+            }]),
+        );
+    }
+
+    Value::Object(params)
 }
 
 #[allow(dead_code)]
@@ -409,6 +429,138 @@ pub(crate) async fn list_mcp_server_status_core(
     session
         .send_request_for_workspace(&workspace_id, "mcpServerStatus/list", params)
         .await
+}
+
+pub(crate) async fn codex_config_read_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    include_layers: bool,
+    cwd: Option<String>,
+) -> Result<Value, String> {
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let params = json!({
+        "includeLayers": include_layers,
+        "cwd": cwd,
+    });
+    session
+        .send_request_for_workspace(&workspace_id, "config/read", params)
+        .await
+}
+
+fn comparable_path(path: &Path) -> Result<PathBuf, String> {
+    if path.exists() {
+        return fs::canonicalize(path)
+            .map_err(|err| format!("Failed to resolve {}: {err}", path.display()));
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("Path has no parent: {}", path.display()))?;
+    let parent = if parent.exists() {
+        fs::canonicalize(parent)
+            .map_err(|err| format!("Failed to resolve {}: {err}", parent.display()))?
+    } else {
+        parent.to_path_buf()
+    };
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| format!("Path has no file name: {}", path.display()))?;
+    Ok(parent.join(file_name))
+}
+
+fn validate_mcp_config_path(
+    config_path: &Path,
+    global_config_path: &Path,
+    workspace_path: &Path,
+) -> Result<(), String> {
+    let config_path = comparable_path(config_path)?;
+    let global_config_path = comparable_path(global_config_path)?;
+    if config_path == global_config_path {
+        return Ok(());
+    }
+
+    let file_name = config_path.file_name().and_then(|value| value.to_str());
+    let dot_codex_folder = config_path.parent();
+    let dot_codex_name = dot_codex_folder
+        .and_then(|path| path.file_name())
+        .and_then(|value| value.to_str());
+    let project_root = dot_codex_folder.and_then(|path| path.parent());
+    if file_name != Some("config.toml") || dot_codex_name != Some(".codex") {
+        return Err(format!(
+            "MCP config writes are limited to CODEX_HOME/config.toml or project .codex/config.toml: {}",
+            config_path.display()
+        ));
+    }
+
+    let project_root =
+        project_root.ok_or_else(|| format!("Invalid project config path: {}", config_path.display()))?;
+    let workspace_path = comparable_path(workspace_path)?;
+    if !workspace_path.starts_with(project_root) {
+        return Err(format!(
+            "Project MCP config {} is outside workspace {}",
+            config_path.display(),
+            workspace_path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn read_config_document_at_path(path: &Path) -> Result<toml_edit::Document, String> {
+    match fs::read_to_string(path) {
+        Ok(contents) => config_toml_core::parse_document(&contents),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(toml_edit::Document::new()),
+        Err(err) => Err(format!("Failed to read {}: {err}", path.display())),
+    }
+}
+
+fn write_config_document_at_path(path: &Path, document: &toml_edit::Document) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("Failed to create {}: {err}", parent.display()))?;
+    }
+    let mut rendered = document.to_string();
+    if !rendered.ends_with('\n') {
+        rendered.push('\n');
+    }
+    fs::write(path, rendered).map_err(|err| format!("Failed to write {}: {err}", path.display()))
+}
+
+pub(crate) async fn mcp_server_config_write_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    name: String,
+    enabled: bool,
+    source_path: Option<String>,
+) -> Result<Value, String> {
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let (entry, parent_entry) = resolve_workspace_and_parent(workspaces, &workspace_id).await?;
+    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref())
+        .or_else(resolve_default_codex_home)
+        .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())?;
+    let global_config_path = codex_home.join("config.toml");
+    let config_path = source_path
+        .as_deref()
+        .filter(|path| !path.trim().is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| global_config_path.clone());
+
+    validate_mcp_config_path(
+        &config_path,
+        &global_config_path,
+        Path::new(entry.path.as_str()),
+    )?;
+
+    let mut document = read_config_document_at_path(&config_path)?;
+    config_toml_core::set_mcp_server_enabled(&mut document, &name, enabled)?;
+    write_config_document_at_path(&config_path, &document)?;
+
+    session
+        .send_request_for_workspace(&workspace_id, "config/mcpServer/reload", Value::Null)
+        .await?;
+    Ok(json!({
+        "ok": true,
+        "sourcePath": config_path.to_string_lossy().to_string(),
+    }))
 }
 
 pub(crate) async fn archive_thread_core(
@@ -897,11 +1049,7 @@ pub(crate) async fn skills_list_core(
         }
     }
 
-    let params = if source_paths.is_empty() {
-        json!({ "cwd": workspace_path })
-    } else {
-        json!({ "cwd": workspace_path, "skillsPaths": source_paths })
-    };
+    let params = build_skills_list_params(workspace_path, source_paths.clone());
 
     let mut response = session
         .send_request_for_workspace(&workspace_id, "skills/list", params)
@@ -914,6 +1062,30 @@ pub(crate) async fn skills_list_core(
     }
 
     Ok(response)
+}
+
+pub(crate) async fn skills_config_write_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    path: Option<String>,
+    name: Option<String>,
+    enabled: bool,
+) -> Result<Value, String> {
+    if path.as_deref().unwrap_or_default().trim().is_empty()
+        && name.as_deref().unwrap_or_default().trim().is_empty()
+    {
+        return Err("skill path or name is required".to_string());
+    }
+
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let params = json!({
+        "path": path,
+        "name": name,
+        "enabled": enabled,
+    });
+    session
+        .send_request_for_workspace(&workspace_id, "skills/config/write", params)
+        .await
 }
 
 pub(crate) async fn apps_list_core(
@@ -1220,5 +1392,37 @@ mod tests {
         let params = build_thread_start_params("/tmp/workspace".to_string(), true);
 
         assert!(params.pointer("/config/skills.config").is_none());
+    }
+
+    #[test]
+    fn skills_list_params_use_current_app_server_shape_without_extra_roots() {
+        let params = build_skills_list_params("/tmp/workspace".to_string(), Vec::new());
+
+        assert_eq!(params.get("cwds"), Some(&json!(["/tmp/workspace"])));
+        assert_eq!(params.get("forceReload"), Some(&json!(true)));
+        assert!(params.get("cwd").is_none());
+        assert!(params.get("skillsPaths").is_none());
+        assert!(params.get("perCwdExtraUserRoots").is_none());
+    }
+
+    #[test]
+    fn skills_list_params_pass_project_roots_as_per_cwd_extra_user_roots() {
+        let params = build_skills_list_params(
+            "/tmp/workspace".to_string(),
+            vec!["/tmp/workspace/.agents/skills".to_string()],
+        );
+
+        assert_eq!(params.get("cwds"), Some(&json!(["/tmp/workspace"])));
+        assert_eq!(params.get("forceReload"), Some(&json!(true)));
+        assert_eq!(
+            params.get("perCwdExtraUserRoots"),
+            Some(&json!([
+                {
+                    "cwd": "/tmp/workspace",
+                    "extraUserRoots": ["/tmp/workspace/.agents/skills"],
+                }
+            ]))
+        );
+        assert!(params.get("skillsPaths").is_none());
     }
 }

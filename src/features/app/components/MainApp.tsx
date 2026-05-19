@@ -1,4 +1,4 @@
-import { lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import successSoundUrl from "@/assets/success-notification.mp3";
 import errorSoundUrl from "@/assets/error-notification.mp3";
 import { MainAppShell } from "@app/components/MainAppShell";
@@ -10,6 +10,8 @@ import { useModels } from "@/features/models/hooks/useModels";
 import { useCollaborationModes } from "@/features/collaboration/hooks/useCollaborationModes";
 import { useCollaborationModeSelection } from "@/features/collaboration/hooks/useCollaborationModeSelection";
 import { useSkills } from "@/features/skills/hooks/useSkills";
+import { useMcpServers } from "@/features/capabilities/hooks/useMcpServers";
+import { useCapabilitiesDialog } from "@/features/capabilities/hooks/useCapabilitiesDialog";
 import { useApps } from "@/features/apps/hooks/useApps";
 import { useCustomPrompts } from "@/features/prompts/hooks/useCustomPrompts";
 import { useBranchSwitcherShortcut } from "@/features/git/hooks/useBranchSwitcherShortcut";
@@ -94,6 +96,12 @@ import {
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
     default: module.SettingsView,
+  })),
+);
+
+const CapabilitiesView = lazy(() =>
+  import("@/features/capabilities/components/CapabilitiesView").then((module) => ({
+    default: module.CapabilitiesView,
   })),
 );
 
@@ -394,7 +402,28 @@ export default function MainApp() {
     reasoningSupported,
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
-  const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
+  const {
+    capabilitiesOpen,
+    capabilitiesRuntimeWorkspace,
+    openCapabilities,
+    closeCapabilities,
+  } = useCapabilitiesDialog({
+    activeWorkspace,
+    workspaces,
+    connectWorkspace,
+  });
+  const { skills, allSkills, refreshSkills, setSkillEnabled } = useSkills({
+    activeWorkspace,
+    fallbackWorkspace: capabilitiesRuntimeWorkspace,
+    onDebug: addDebugEntry,
+  });
+  const { mcpServers, refreshMcpServers, setMcpServerEnabled } = useMcpServers({
+    activeWorkspace,
+    fallbackWorkspace: capabilitiesRuntimeWorkspace,
+  });
+  const refreshCapabilities = useCallback(async () => {
+    await Promise.all([refreshSkills(), refreshMcpServers()]);
+  }, [refreshMcpServers, refreshSkills]);
   const {
     prompts,
     createPrompt,
@@ -1703,6 +1732,7 @@ export default function MainApp() {
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
     onOpenEnterpriseAiSettings: openEnterpriseAiEntry,
+    onOpenCapabilities: openCapabilities,
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,
     composerWorkspaceState,
@@ -1939,6 +1969,19 @@ export default function MainApp() {
   return (
     <I18nProvider languagePreference={appSettings.interfaceLanguage}>
       <MainAppShell {...mainAppShellProps} />
+      {capabilitiesOpen && (
+        <Suspense fallback={null}>
+          <CapabilitiesView
+            activeWorkspace={activeWorkspace}
+            skills={allSkills}
+            mcpServers={mcpServers}
+            onClose={closeCapabilities}
+            onRefreshCapabilities={refreshCapabilities}
+            onSetSkillEnabled={setSkillEnabled}
+            onSetMcpServerEnabled={setMcpServerEnabled}
+          />
+        </Suspense>
+      )}
     </I18nProvider>
   );
 }

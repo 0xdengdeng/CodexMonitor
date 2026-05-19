@@ -38,6 +38,7 @@ import "./styles/branch-switcher-modal.css";
 import "./styles/git-init-modal.css";
 import "./styles/enterprise-ai-login-modal.css";
 import "./styles/settings.css";
+import "./styles/capabilities.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";

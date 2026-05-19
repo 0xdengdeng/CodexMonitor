@@ -150,6 +150,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "apps_list"
             | "collaboration_mode_list"
             | "connect_workspace"
+            | "codex_config_read"
             | "experimental_feature_list"
             | "set_workspace_runtime_codex_args"
             | "file_read"
@@ -172,6 +173,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "local_usage_snapshot"
             | "list_workspace_files"
             | "list_workspaces"
+            | "mcp_server_config_write"
             | "model_list"
             | "runtime_image_model_list"
             | "runtime_model_list"
@@ -182,6 +184,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "thread_live_subscribe"
             | "thread_live_unsubscribe"
             | "skills_list"
+            | "skills_config_write"
             | "worktree_setup_status"
     )
 }

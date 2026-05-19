@@ -125,6 +125,7 @@ type SidebarProps = {
   onCancelSwitchAccount: () => void;
   accountSwitching: boolean;
   onOpenSettings: () => void;
+  onOpenCapabilities: () => void;
   onOpenEnterpriseAiSettings: () => void;
   onOpenDebug: () => void;
   showDebugButton: boolean;
@@ -183,6 +184,7 @@ export const Sidebar = memo(function Sidebar({
   usageShowRemaining,
   enterpriseAi,
   onOpenSettings,
+  onOpenCapabilities,
   onOpenEnterpriseAiSettings,
   onOpenDebug,
   showDebugButton,
@@ -887,6 +889,7 @@ export const Sidebar = memo(function Sidebar({
         threadListOrganizeMode={threadListOrganizeMode}
         onSetThreadListOrganizeMode={onSetThreadListOrganizeMode}
         onRefreshAllThreads={onRefreshAllThreads}
+        onOpenCapabilities={onOpenCapabilities}
         refreshDisabled={refreshDisabled || refreshInProgress}
         refreshInProgress={refreshInProgress}
       />

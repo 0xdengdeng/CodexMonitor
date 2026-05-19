@@ -310,6 +310,66 @@ pub(crate) async fn list_mcp_server_status(
 }
 
 #[tauri::command]
+pub(crate) async fn codex_config_read(
+    workspace_id: String,
+    include_layers: bool,
+    cwd: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "codex_config_read",
+            json!({
+                "workspaceId": workspace_id,
+                "includeLayers": include_layers,
+                "cwd": cwd,
+            }),
+        )
+        .await;
+    }
+
+    codex_core::codex_config_read_core(&state.sessions, workspace_id, include_layers, cwd).await
+}
+
+#[tauri::command]
+pub(crate) async fn mcp_server_config_write(
+    workspace_id: String,
+    name: String,
+    enabled: bool,
+    source_path: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "mcp_server_config_write",
+            json!({
+                "workspaceId": workspace_id,
+                "name": name,
+                "enabled": enabled,
+                "sourcePath": source_path,
+            }),
+        )
+        .await;
+    }
+
+    codex_core::mcp_server_config_write_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        name,
+        enabled,
+        source_path,
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn archive_thread(
     workspace_id: String,
     thread_id: String,
@@ -834,6 +894,33 @@ pub(crate) async fn skills_list(
     }
 
     codex_core::skills_list_core(&state.sessions, &state.workspaces, workspace_id).await
+}
+
+#[tauri::command]
+pub(crate) async fn skills_config_write(
+    workspace_id: String,
+    path: Option<String>,
+    name: Option<String>,
+    enabled: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "skills_config_write",
+            json!({
+                "workspaceId": workspace_id,
+                "path": path,
+                "name": name,
+                "enabled": enabled
+            }),
+        )
+        .await;
+    }
+
+    codex_core::skills_config_write_core(&state.sessions, workspace_id, path, name, enabled).await
 }
 
 #[tauri::command]

@@ -746,6 +746,22 @@ export type SkillOption = {
   name: string;
   path: string;
   description?: string;
+  scope?: "user" | "repo" | "system" | "admin" | string;
+  enabled?: boolean;
+  effectiveEnabled?: boolean;
+  sourcePath?: string;
+};
+
+export type McpServerOption = {
+  name: string;
+  scope?: "project" | "global" | "system" | "managed" | "runtime" | string;
+  enabled?: boolean;
+  configurable?: boolean;
+  sourcePath?: string;
+  toolsCount: number;
+  resourcesCount: number;
+  resourceTemplatesCount: number;
+  authStatus?: string;
 };
 
 export type AppOption = {

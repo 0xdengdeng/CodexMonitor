@@ -854,6 +854,41 @@ export async function getSkillsList(workspaceId: string) {
   return invoke<any>("skills_list", { workspaceId });
 }
 
+export async function setSkillEnabled(
+  workspaceId: string,
+  input: { path?: string | null; name?: string | null; enabled: boolean },
+) {
+  return invoke<any>("skills_config_write", {
+    workspaceId,
+    path: input.path ?? null,
+    name: input.name ?? null,
+    enabled: input.enabled,
+  });
+}
+
+export async function readCodexConfig(
+  workspaceId: string,
+  input: { includeLayers: boolean; cwd?: string | null },
+) {
+  return invoke<any>("codex_config_read", {
+    workspaceId,
+    includeLayers: input.includeLayers,
+    cwd: input.cwd ?? null,
+  });
+}
+
+export async function setMcpServerEnabled(
+  workspaceId: string,
+  input: { name: string; enabled: boolean; sourcePath?: string | null },
+) {
+  return invoke<any>("mcp_server_config_write", {
+    workspaceId,
+    name: input.name,
+    enabled: input.enabled,
+    sourcePath: input.sourcePath ?? null,
+  });
+}
+
 export async function getAppsList(
   workspaceId: string,
   cursor?: string | null,

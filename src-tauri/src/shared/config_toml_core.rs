@@ -69,6 +69,26 @@ pub(crate) fn set_feature_flag(
     Ok(())
 }
 
+pub(crate) fn set_mcp_server_enabled(
+    document: &mut Document,
+    server_name: &str,
+    enabled: bool,
+) -> Result<(), String> {
+    let trimmed = server_name.trim();
+    if trimmed.is_empty() {
+        return Err("MCP server name must not be empty".to_string());
+    }
+    let servers = ensure_table(document, "mcp_servers")?;
+    if servers.get(trimmed).is_none() {
+        servers[trimmed] = Item::Table(Table::new());
+    }
+    let server = servers[trimmed]
+        .as_table_mut()
+        .ok_or_else(|| format!("`mcp_servers.{trimmed}` must be a table in config.toml"))?;
+    server["enabled"] = value(enabled);
+    Ok(())
+}
+
 pub(crate) fn read_top_level_string(document: &Document, key: &str) -> Option<String> {
     let value = document.get(key).and_then(Item::as_str)?;
     let trimmed = value.trim();
@@ -90,4 +110,28 @@ pub(crate) fn set_top_level_string(document: &mut Document, key: &str, value_raw
         return;
     }
     document[key] = value(trimmed);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_mcp_server_enabled_preserves_existing_server_fields() {
+        let mut document = parse_document(
+            r#"[mcp_servers.github]
+command = "github-mcp"
+args = ["serve"]
+"#,
+        )
+        .expect("parse document");
+
+        set_mcp_server_enabled(&mut document, "github", false).expect("set enabled");
+
+        let rendered = document.to_string();
+        assert!(rendered.contains("[mcp_servers.github]"));
+        assert!(rendered.contains("command = \"github-mcp\""));
+        assert!(rendered.contains("args = [\"serve\"]"));
+        assert!(rendered.contains("enabled = false"));
+    }
 }

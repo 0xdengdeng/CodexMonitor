@@ -43,6 +43,7 @@ const baseProps = {
   onCancelSwitchAccount: vi.fn(),
   accountSwitching: false,
   onOpenSettings: vi.fn(),
+  onOpenCapabilities: vi.fn(),
   onOpenEnterpriseAiSettings: vi.fn(),
   onOpenDebug: vi.fn(),
   showDebugButton: false,
@@ -691,6 +692,27 @@ describe("Sidebar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh all workspace threads" }));
     expect(onRefreshAllThreads).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens capabilities from the header button", () => {
+    const onOpenCapabilities = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        onOpenCapabilities={onOpenCapabilities}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Capabilities" }));
+    expect(onOpenCapabilities).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the capabilities entry icon-only with hover tooltip text", () => {
+    render(<Sidebar {...baseProps} />);
+
+    const button = screen.getByRole("button", { name: "Capabilities" });
+    expect(button.textContent).toBe("");
+    expect(button.getAttribute("data-tooltip")).toBe("Capabilities");
   });
 
   it("spins the refresh icon while workspace threads are refreshing", () => {

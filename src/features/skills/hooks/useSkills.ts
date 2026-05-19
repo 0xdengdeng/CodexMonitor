@@ -1,21 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DebugEntry, SkillOption, WorkspaceInfo } from "../../../types";
-import { getSkillsList } from "../../../services/tauri";
+import { getSkillsList, setSkillEnabled as writeSkillEnabled } from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import { isSkillsUpdateAvailableEvent } from "../../../utils/appServerEvents";
 
 type UseSkillsOptions = {
   activeWorkspace: WorkspaceInfo | null;
+  fallbackWorkspace?: WorkspaceInfo | null;
   onDebug?: (entry: DebugEntry) => void;
 };
 
-export function useSkills({ activeWorkspace, onDebug }: UseSkillsOptions) {
-  const [skills, setSkills] = useState<SkillOption[]>([]);
+function shouldWriteSkillConfigByPath(
+  skill: SkillOption,
+  activeWorkspace: WorkspaceInfo | null,
+) {
+  const scope = skill.scope?.toLowerCase();
+  return Boolean(
+    scope === "repo" ||
+      (activeWorkspace && skill.path.startsWith(`${activeWorkspace.path}/.agents/skills`)),
+  );
+}
+
+export function useSkills({
+  activeWorkspace,
+  fallbackWorkspace = null,
+  onDebug,
+}: UseSkillsOptions) {
+  const [allSkills, setAllSkills] = useState<SkillOption[]>([]);
   const lastFetchedWorkspaceId = useRef<string | null>(null);
   const inFlight = useRef(false);
 
-  const workspaceId = activeWorkspace?.id ?? null;
-  const isConnected = Boolean(activeWorkspace?.connected);
+  const catalogWorkspace = activeWorkspace ?? fallbackWorkspace;
+  const workspaceId = catalogWorkspace?.id ?? null;
+  const isConnected = Boolean(catalogWorkspace?.connected);
 
   const refreshSkills = useCallback(async () => {
     if (!workspaceId || !isConnected) {
@@ -52,8 +69,12 @@ export function useSkills({ activeWorkspace, onDebug }: UseSkillsOptions) {
         name: String(item.name ?? ""),
         path: String(item.path ?? ""),
         description: item.description ? String(item.description) : undefined,
+        scope: item.scope ? String(item.scope) : undefined,
+        enabled: item.enabled !== false,
+        effectiveEnabled: item.effectiveEnabled ?? item.enabled ?? true,
+        sourcePath: item.sourcePath ? String(item.sourcePath) : undefined,
       }));
-      setSkills(data);
+      setAllSkills(data);
       lastFetchedWorkspaceId.current = workspaceId;
     } catch (error) {
       onDebug?.({
@@ -72,11 +93,11 @@ export function useSkills({ activeWorkspace, onDebug }: UseSkillsOptions) {
     if (!workspaceId || !isConnected) {
       return;
     }
-    if (lastFetchedWorkspaceId.current === workspaceId && skills.length > 0) {
+    if (lastFetchedWorkspaceId.current === workspaceId && allSkills.length > 0) {
       return;
     }
     refreshSkills();
-  }, [isConnected, refreshSkills, skills.length, workspaceId]);
+  }, [allSkills.length, isConnected, refreshSkills, workspaceId]);
 
   useEffect(() => {
     if (!workspaceId || !isConnected) {
@@ -103,12 +124,35 @@ export function useSkills({ activeWorkspace, onDebug }: UseSkillsOptions) {
   }, [isConnected, onDebug, refreshSkills, workspaceId]);
 
   const skillOptions = useMemo(
-    () => skills.filter((skill) => skill.name),
-    [skills],
+    () => allSkills.filter((skill) => skill.name && skill.enabled !== false),
+    [allSkills],
+  );
+
+  const manageableSkills = useMemo(
+    () => allSkills.filter((skill) => skill.name),
+    [allSkills],
+  );
+
+  const setSkillEnabled = useCallback(
+    async (skill: SkillOption, enabled: boolean) => {
+      if (!workspaceId || !isConnected) {
+        return;
+      }
+      const writeByPath = shouldWriteSkillConfigByPath(skill, activeWorkspace) || !skill.name;
+      await writeSkillEnabled(workspaceId, {
+        path: writeByPath ? skill.path : null,
+        name: writeByPath ? null : skill.name,
+        enabled,
+      });
+      await refreshSkills();
+    },
+    [activeWorkspace, isConnected, refreshSkills, workspaceId],
   );
 
   return {
     skills: skillOptions,
+    allSkills: manageableSkills,
     refreshSkills,
+    setSkillEnabled,
   };
 }

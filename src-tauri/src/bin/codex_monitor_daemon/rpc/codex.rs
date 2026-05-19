@@ -125,6 +125,39 @@ pub(super) async fn try_handle(
                     .await,
             )
         }
+        "codex_config_read" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let include_layers = parse_optional_bool(params, "includeLayers").unwrap_or(false);
+            let cwd = parse_optional_nullable_string(params, "cwd").unwrap_or(None);
+            Some(
+                state
+                    .codex_config_read(workspace_id, include_layers, cwd)
+                    .await,
+            )
+        }
+        "mcp_server_config_write" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let name = match parse_string(params, "name") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let enabled = match parse_optional_bool(params, "enabled") {
+                Some(value) => value,
+                None => return Some(Err("missing `enabled`".to_string())),
+            };
+            let source_path = parse_optional_nullable_string(params, "sourcePath").unwrap_or(None);
+            Some(
+                state
+                    .mcp_server_config_write(workspace_id, name, enabled, source_path)
+                    .await,
+            )
+        }
         "archive_thread" => {
             let workspace_id = match parse_string(params, "workspaceId") {
                 Ok(value) => value,
@@ -425,6 +458,23 @@ pub(super) async fn try_handle(
                 Err(err) => return Some(Err(err)),
             };
             Some(state.skills_list(workspace_id).await)
+        }
+        "skills_config_write" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let enabled = match parse_optional_bool(params, "enabled") {
+                Some(value) => value,
+                None => return Some(Err("missing `enabled`".to_string())),
+            };
+            let path = parse_optional_nullable_string(params, "path").unwrap_or(None);
+            let name = parse_optional_nullable_string(params, "name").unwrap_or(None);
+            Some(
+                state
+                    .skills_config_write(workspace_id, path, name, enabled)
+                    .await,
+            )
         }
         "apps_list" => {
             let workspace_id = match parse_string(params, "workspaceId") {

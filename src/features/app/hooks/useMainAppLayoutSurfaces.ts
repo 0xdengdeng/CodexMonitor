@@ -87,6 +87,7 @@ type UseMainAppLayoutSurfacesArgs = {
   usageWorkspaceOptions: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceOptions"];
   onUsageWorkspaceChange: LayoutNodesOptions["primary"]["homeProps"]["onUsageWorkspaceChange"];
   onOpenEnterpriseAiSettings: () => void;
+  onOpenCapabilities: SidebarProps["onOpenCapabilities"];
   gitState: ReturnType<typeof useMainAppGitState>;
   composerWorkspaceState: ReturnType<typeof useMainAppComposerWorkspaceState>;
   composerQuickActions: ComposerQuickActions;
@@ -282,6 +283,7 @@ export function useMainAppLayoutSurfaces({
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
   onOpenEnterpriseAiSettings,
+  onOpenCapabilities,
   gitState,
   composerWorkspaceState,
   composerQuickActions,
@@ -423,6 +425,7 @@ export function useMainAppLayoutSurfaces({
     onSwitchAccount,
     onCancelSwitchAccount,
     onOpenEnterpriseAiSettings,
+    onOpenCapabilities,
     onDecision,
     onRemember,
     onUserInputSubmit,
