@@ -73,6 +73,7 @@ import {
   generateAgentDescription,
   writeAgentConfigToml,
   writeAgentMd,
+  writeWorkspaceFile,
 } from "./tauri";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -377,9 +378,9 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce([{ id: "docs-writer" }]);
 
-    await expect(listSkillMarketItems()).resolves.toEqual([{ id: "docs-writer" }]);
+    await expect(listSkillMarketItems("zh-CN")).resolves.toEqual([{ id: "docs-writer" }]);
 
-    expect(invokeMock).toHaveBeenCalledWith("skill_market_list");
+    expect(invokeMock).toHaveBeenCalledWith("skill_market_list", { locale: "zh-CN" });
   });
 
   it("maps skill market installs to skill_market_install", async () => {
@@ -876,6 +877,20 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("write_agent_config_toml", {
       agentName: "researcher",
       content: "model = \"gpt-5-codex\"",
+    });
+  });
+
+  it("writes a workspace file", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await writeWorkspaceFile("workspace-1", "src/example.ts", "updated", "sha256:abc");
+
+    expect(invokeMock).toHaveBeenCalledWith("write_workspace_file", {
+      workspaceId: "workspace-1",
+      path: "src/example.ts",
+      content: "updated",
+      expectedRevision: "sha256:abc",
     });
   });
 

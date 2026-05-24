@@ -56,6 +56,7 @@ type MessagesProps = {
   onPlanAccept?: () => void;
   onPlanSubmitChanges?: (changes: string) => void;
   onOpenThreadLink?: (threadId: string, workspaceId?: string | null) => void;
+  onOpenWorkspaceFileLink?: (path: string) => void;
   onQuoteMessage?: (text: string) => void;
 };
 
@@ -97,6 +98,52 @@ function resolveMessageFilePath(path: string, workspacePath?: string | null) {
     return trimmed;
   }
   return joinWorkspacePath(workspacePath, trimmed);
+}
+
+function normalizePathSeparators(path: string) {
+  return path.trim().replace(/\\/g, "/");
+}
+
+function stripPathEdgeSeparators(path: string) {
+  return path.replace(/^\/+|\/+$/g, "");
+}
+
+function normalizeWorkspaceRelativePath(path: string) {
+  return stripPathEdgeSeparators(normalizePathSeparators(path).replace(/^\.\//, ""));
+}
+
+function getWorkspaceRelativeFileLinkPath(
+  fileLocation: ParsedFileLocation,
+  workspacePath?: string | null,
+) {
+  const rawPath = fileLocation.path.trim();
+  if (!rawPath) {
+    return null;
+  }
+  if (!workspacePath) {
+    if (isAbsolutePath(rawPath)) {
+      return null;
+    }
+    const relativePath = normalizeWorkspaceRelativePath(rawPath);
+    return relativePath && !relativePath.startsWith("../") ? relativePath : null;
+  }
+
+  const normalizedWorkspacePath = normalizePathSeparators(workspacePath).replace(/\/+$/, "");
+  const resolvedPath = normalizePathSeparators(
+    resolveMessageFilePath(rawPath, workspacePath),
+  );
+  const workspacePrefix = `${normalizedWorkspacePath}/`;
+
+  if (resolvedPath.startsWith(workspacePrefix)) {
+    const relativePath = resolvedPath.slice(workspacePrefix.length);
+    return relativePath || null;
+  }
+  if (resolvedPath === normalizedWorkspacePath || isAbsolutePath(rawPath)) {
+    return null;
+  }
+
+  const relativePath = normalizeWorkspaceRelativePath(rawPath);
+  return relativePath && !relativePath.startsWith("../") ? relativePath : null;
 }
 
 function buildMessageFilePreviewStyle(target: HTMLElement): React.CSSProperties {
@@ -146,6 +193,7 @@ export const Messages = memo(function Messages({
   onPlanAccept,
   onPlanSubmitChanges,
   onOpenThreadLink,
+  onOpenWorkspaceFileLink,
   onQuoteMessage,
 }: MessagesProps) {
   const { t } = useI18n();
@@ -195,6 +243,20 @@ export const Messages = memo(function Messages({
       return true;
     },
     [workspacePath],
+  );
+  const handleOpenFileLink = useCallback(
+    (fileLocation: ParsedFileLocation) => {
+      const workspaceRelativePath = getWorkspaceRelativeFileLinkPath(
+        fileLocation,
+        workspacePath,
+      );
+      if (workspaceRelativePath && onOpenWorkspaceFileLink) {
+        onOpenWorkspaceFileLink(workspaceRelativePath);
+        return;
+      }
+      openFileLink(fileLocation);
+    },
+    [onOpenWorkspaceFileLink, openFileLink, workspacePath],
   );
   const handleOpenThreadLink = useCallback(
     (threadId: string) => {
@@ -270,7 +332,7 @@ export const Messages = memo(function Messages({
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onPreviewFileLink={handlePreviewFileLink}
-          onOpenFileLink={openFileLink}
+          onOpenFileLink={handleOpenFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={handleOpenThreadLink}
         />
@@ -289,7 +351,7 @@ export const Messages = memo(function Messages({
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onPreviewFileLink={handlePreviewFileLink}
-          onOpenFileLink={openFileLink}
+          onOpenFileLink={handleOpenFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={handleOpenThreadLink}
         />
@@ -303,7 +365,7 @@ export const Messages = memo(function Messages({
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onPreviewFileLink={handlePreviewFileLink}
-          onOpenFileLink={openFileLink}
+          onOpenFileLink={handleOpenFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={handleOpenThreadLink}
         />
@@ -334,7 +396,7 @@ export const Messages = memo(function Messages({
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onPreviewFileLink={handlePreviewFileLink}
-          onOpenFileLink={openFileLink}
+          onOpenFileLink={handleOpenFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={handleOpenThreadLink}
           onRequestAutoScroll={requestAutoScroll}

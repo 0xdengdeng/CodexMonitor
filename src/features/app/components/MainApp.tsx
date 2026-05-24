@@ -433,30 +433,45 @@ export default function MainApp() {
   const refreshCapabilities = useCallback(async () => {
     await Promise.all([refreshSkills(), refreshMcpServers()]);
   }, [refreshMcpServers, refreshSkills]);
+  const refreshSkillMarket = useCallback(async () => {
+    try {
+      const items = await listSkillMarketItems(resolvedInterfaceLanguage);
+      setSkillMarketItems(items);
+    } catch (error) {
+      addDebugEntry({
+        id: `${Date.now()}-skill-market-list-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "skill market list error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+      setSkillMarketItems([]);
+    }
+  }, [addDebugEntry, resolvedInterfaceLanguage]);
   useEffect(() => {
     if (!capabilitiesOpen) {
       return;
     }
-    let cancelled = false;
-    void listSkillMarketItems().then((items) => {
-      if (!cancelled) {
-        setSkillMarketItems(items);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [capabilitiesOpen]);
+    void refreshSkillMarket();
+  }, [capabilitiesOpen, refreshSkillMarket]);
   const installSkill = useCallback(
     async (input: SkillMarketInstallInput) => {
       const workspaceId =
         input.target === "project"
           ? (activeWorkspace?.id ?? capabilitiesRuntimeWorkspace?.id ?? null)
           : null;
-      await installSkillFromMarket(workspaceId, input);
+      await installSkillFromMarket(workspaceId, {
+        ...input,
+        locale: resolvedInterfaceLanguage,
+      });
       await refreshSkills();
     },
-    [activeWorkspace?.id, capabilitiesRuntimeWorkspace?.id, refreshSkills],
+    [
+      activeWorkspace?.id,
+      capabilitiesRuntimeWorkspace?.id,
+      refreshSkills,
+      resolvedInterfaceLanguage,
+    ],
   );
   const removeSkill = useCallback(
     async (skill: SkillOption) => {
@@ -1229,6 +1244,30 @@ export default function MainApp() {
     filePanelMode,
     setFilePanelMode: gitState.setFilePanelMode,
   });
+  const fileTreeOpenRequestIdRef = useRef(0);
+  const [fileTreeOpenRequest, setFileTreeOpenRequest] = useState<{
+    id: number;
+    path: string;
+  } | null>(null);
+  const handleOpenWorkspaceFileLink = useCallback(
+    (path: string) => {
+      const trimmedPath = path.trim();
+      if (!trimmedPath) {
+        return;
+      }
+      fileTreeOpenRequestIdRef.current += 1;
+      setFileTreeOpenRequest({
+        id: fileTreeOpenRequestIdRef.current,
+        path: trimmedPath,
+      });
+      gitState.setFilePanelMode("files");
+      expandRightPanel();
+      if (isCompact) {
+        setActiveTab("git");
+      }
+    },
+    [expandRightPanel, gitState.setFilePanelMode, isCompact, setActiveTab],
+  );
   const composerWorkspaceState = useMainAppComposerWorkspaceState({
     view: {
       activeTab,
@@ -1759,7 +1798,9 @@ export default function MainApp() {
     onUserInputSubmit: handleUserInputSubmit,
     onPlanAccept: handlePlanAccept,
     onPlanSubmitChanges: handlePlanSubmitChanges,
+    onOpenWorkspaceFileLink: handleOpenWorkspaceFileLink,
     activePlan,
+    fileTreeOpenRequest,
     activeTokenUsage,
     latestAgentRuns,
     isLoadingLatestAgents,
@@ -2021,6 +2062,7 @@ export default function MainApp() {
             skillMarketItems={skillMarketItems}
             onClose={closeCapabilities}
             onRefreshCapabilities={refreshCapabilities}
+            onRefreshSkillMarket={refreshSkillMarket}
             onSetSkillEnabled={setSkillEnabled}
             onSetMcpServerEnabled={setMcpServerEnabled}
             onInstallSkill={installSkill}

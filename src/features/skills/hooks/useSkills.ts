@@ -29,6 +29,7 @@ export function useSkills({
   const [allSkills, setAllSkills] = useState<SkillOption[]>([]);
   const lastFetchedWorkspaceId = useRef<string | null>(null);
   const inFlight = useRef(false);
+  const pendingRefresh = useRef(false);
 
   const catalogWorkspace = activeWorkspace ?? fallbackWorkspace;
   const workspaceId = catalogWorkspace?.id ?? null;
@@ -39,51 +40,67 @@ export function useSkills({
       return;
     }
     if (inFlight.current) {
+      pendingRefresh.current = true;
       return;
     }
     inFlight.current = true;
-    onDebug?.({
-      id: `${Date.now()}-client-skills-list`,
-      timestamp: Date.now(),
-      source: "client",
-      label: "skills/list",
-      payload: { workspaceId },
-    });
     try {
-      const response = await getSkillsList(workspaceId);
-      onDebug?.({
-        id: `${Date.now()}-server-skills-list`,
-        timestamp: Date.now(),
-        source: "server",
-        label: "skills/list response",
-        payload: response,
-      });
-      const dataBuckets = response.result?.data ?? response.data ?? [];
-      const rawSkills =
-        response.result?.skills ??
-        response.skills ??
-        (Array.isArray(dataBuckets)
-          ? dataBuckets.flatMap((bucket: any) => bucket?.skills ?? [])
-          : []);
-      const data: SkillOption[] = rawSkills.map((item: any) => ({
-        name: String(item.name ?? ""),
-        path: String(item.path ?? ""),
-        description: item.description ? String(item.description) : undefined,
-        scope: item.scope ? String(item.scope) : undefined,
-        enabled: item.enabled !== false,
-        effectiveEnabled: item.effectiveEnabled ?? item.enabled ?? true,
-        sourcePath: item.sourcePath ? String(item.sourcePath) : undefined,
-      }));
-      setAllSkills(data);
-      lastFetchedWorkspaceId.current = workspaceId;
-    } catch (error) {
-      onDebug?.({
-        id: `${Date.now()}-client-skills-list-error`,
-        timestamp: Date.now(),
-        source: "error",
-        label: "skills/list error",
-        payload: error instanceof Error ? error.message : String(error),
-      });
+      do {
+        pendingRefresh.current = false;
+        onDebug?.({
+          id: `${Date.now()}-client-skills-list`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "skills/list",
+          payload: { workspaceId },
+        });
+        try {
+          const response = await getSkillsList(workspaceId);
+          onDebug?.({
+            id: `${Date.now()}-server-skills-list`,
+            timestamp: Date.now(),
+            source: "server",
+            label: "skills/list response",
+            payload: response,
+          });
+          const dataBuckets = response.result?.data ?? response.data ?? [];
+          const rawSkills =
+            response.result?.skills ??
+            response.skills ??
+            (Array.isArray(dataBuckets)
+              ? dataBuckets.flatMap((bucket: any) => bucket?.skills ?? [])
+              : []);
+          const data: SkillOption[] = rawSkills.map((item: any) => ({
+            name: String(item.name ?? ""),
+            path: String(item.path ?? ""),
+            description: item.description ? String(item.description) : undefined,
+            scope: item.scope ? String(item.scope) : undefined,
+            enabled: item.enabled !== false,
+            effectiveEnabled: item.effectiveEnabled ?? item.enabled ?? true,
+            sourcePath: item.sourcePath ? String(item.sourcePath) : undefined,
+            marketId: item.marketId ? String(item.marketId) : undefined,
+            installedVersion: item.installedVersion
+              ? String(item.installedVersion)
+              : undefined,
+            marketSourcePath: item.marketSourcePath
+              ? String(item.marketSourcePath)
+              : undefined,
+            installedAt: item.installedAt ? String(item.installedAt) : undefined,
+            uninstallable:
+              typeof item.uninstallable === "boolean" ? item.uninstallable : undefined,
+          }));
+          setAllSkills(data);
+          lastFetchedWorkspaceId.current = workspaceId;
+        } catch (error) {
+          onDebug?.({
+            id: `${Date.now()}-client-skills-list-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "skills/list error",
+            payload: error instanceof Error ? error.message : String(error),
+          });
+        }
+      } while (pendingRefresh.current);
     } finally {
       inFlight.current = false;
     }

@@ -130,6 +130,15 @@ pub(crate) fn write_text_file_within(
         }
         canonical_path
     } else {
+        let parent = candidate
+            .parent()
+            .ok_or_else(|| format!("Invalid {file_context} path"))?;
+        let canonical_parent = parent
+            .canonicalize()
+            .map_err(|err| format!("Failed to resolve {file_context}: {err}"))?;
+        if !canonical_parent.starts_with(&canonical_root) {
+            return Err(format!("Invalid {file_context} path"));
+        }
         candidate
     };
 
@@ -239,6 +248,34 @@ mod tests {
         )
         .expect_err("should reject symlink escape");
         assert!(error.contains("Invalid AGENTS.md path"));
+    }
+
+    #[test]
+    fn write_rejects_missing_path_escape() {
+        let root = temp_dir();
+        let outside = temp_dir();
+        std::fs::create_dir_all(&root).expect("create root");
+        std::fs::create_dir_all(&outside).expect("create outside");
+
+        let escape = format!(
+            "../{}/AGENTS.md",
+            outside
+                .file_name()
+                .and_then(|value| value.to_str())
+                .expect("outside dir name")
+        );
+        let error = write_text_file_within(
+            &root,
+            &escape,
+            "updated",
+            false,
+            "workspace root",
+            "AGENTS.md",
+            false,
+        )
+        .expect_err("should reject path escape");
+        assert!(error.contains("Invalid AGENTS.md path"));
+        assert!(!outside.join("AGENTS.md").exists());
     }
 
     #[cfg(unix)]

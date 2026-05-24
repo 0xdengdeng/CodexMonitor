@@ -12,6 +12,7 @@ import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
 import File from "lucide-react/dist/esm/icons/file";
 import Folder from "lucide-react/dist/esm/icons/folder";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
 import { PanelShell } from "../../layout/components/PanelShell";
@@ -19,7 +20,7 @@ import {
   PanelMeta,
   PanelSearchField,
 } from "../../design-system/components/panel/PanelPrimitives";
-import { readWorkspaceFile } from "../../../services/tauri";
+import { readWorkspaceFile, writeWorkspaceFile } from "../../../services/tauri";
 import type { OpenAppTarget } from "../../../types";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { languageFromPath } from "../../../utils/syntax";
@@ -41,6 +42,10 @@ type FileTreePanelProps = {
   files: string[];
   modifiedFiles: string[];
   isLoading: boolean;
+  openFileRequest?: {
+    id: number;
+    path: string;
+  } | null;
   filePanelMode: PanelTabId;
   onFilePanelModeChange: (mode: PanelTabId) => void;
   onInsertText?: (text: string) => void;
@@ -49,6 +54,7 @@ type FileTreePanelProps = {
   openAppIconById: Record<string, string>;
   selectedOpenAppId: string;
   onSelectOpenAppId: (id: string) => void;
+  onRefreshFiles: () => Promise<void>;
 };
 
 type FileTreeBuildNode = {
@@ -161,12 +167,22 @@ function isImagePath(path: string) {
   return imageExtensions.has(ext);
 }
 
+function normalizeFileTreeRequestPath(path: string) {
+  return path.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+}
+
+function ancestorFolderPaths(path: string) {
+  const segments = normalizeFileTreeRequestPath(path).split("/").filter(Boolean);
+  return segments.slice(0, -1).map((_, index) => segments.slice(0, index + 1).join("/"));
+}
+
 export function FileTreePanel({
   workspaceId,
   workspacePath,
   files,
   modifiedFiles,
   isLoading,
+  openFileRequest = null,
   filePanelMode,
   onFilePanelModeChange,
   onInsertText,
@@ -175,19 +191,15 @@ export function FileTreePanel({
   openAppIconById,
   selectedOpenAppId,
   onSelectOpenAppId,
+  onRefreshFiles,
 }: FileTreePanelProps) {
   const { t } = useI18n();
   const [filterMode, setFilterMode] = useState<"all" | "modified">("all");
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [previewPath, setPreviewPath] = useState<string | null>(null);
-  const [previewAnchor, setPreviewAnchor] = useState<{
-    top: number;
-    left: number;
-    arrowTop: number;
-    height: number;
-  } | null>(null);
   const [previewContent, setPreviewContent] = useState<string>("");
+  const [previewRevision, setPreviewRevision] = useState<string>("");
   const [previewTruncated, setPreviewTruncated] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -266,9 +278,9 @@ export function FileTreePanel({
 
   useEffect(() => {
     setPreviewPath(null);
-    setPreviewAnchor(null);
     setPreviewSelection(null);
     setPreviewContent("");
+    setPreviewRevision("");
     setPreviewTruncated(false);
     setPreviewError(null);
     setPreviewLoading(false);
@@ -279,9 +291,9 @@ export function FileTreePanel({
 
   const closePreview = useCallback(() => {
     setPreviewPath(null);
-    setPreviewAnchor(null);
     setPreviewSelection(null);
     setPreviewContent("");
+    setPreviewRevision("");
     setPreviewTruncated(false);
     setPreviewError(null);
     setPreviewLoading(false);
@@ -289,20 +301,6 @@ export function FileTreePanel({
     dragAnchorLineRef.current = null;
     dragMovedRef.current = false;
   }, []);
-
-  useEffect(() => {
-    if (!previewPath) {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closePreview();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [previewPath, closePreview]);
 
   const toggleAllFolders = () => {
     if (!hasFolders) {
@@ -350,31 +348,35 @@ export function FileTreePanel({
     }
   }, [previewPath, previewKind, resolvePath]);
 
-  const openPreview = useCallback((path: string, target: HTMLElement) => {
-    const rect = target.getBoundingClientRect();
-    const estimatedWidth = 640;
-    const estimatedHeight = 520;
-    const padding = 16;
-    const maxHeight = Math.min(estimatedHeight, window.innerHeight - padding * 2);
-    const left = Math.min(
-      Math.max(padding, rect.left - estimatedWidth - padding),
-      Math.max(padding, window.innerWidth - estimatedWidth - padding),
-    );
-    const top = Math.min(
-      Math.max(padding, rect.top - maxHeight * 0.35),
-      Math.max(padding, window.innerHeight - maxHeight - padding),
-    );
-    const arrowTop = Math.min(
-      Math.max(16, rect.top + rect.height / 2 - top),
-      Math.max(16, maxHeight - 16),
-    );
+  const openPreview = useCallback((path: string) => {
     setPreviewPath(path);
-    setPreviewAnchor({ top, left, arrowTop, height: maxHeight });
     setPreviewSelection(null);
+    setPreviewContent("");
+    setPreviewRevision("");
+    setPreviewTruncated(false);
+    setPreviewError(null);
     setIsDragSelecting(false);
     dragAnchorLineRef.current = null;
     dragMovedRef.current = false;
   }, []);
+
+  useEffect(() => {
+    const requestPath = openFileRequest?.path
+      ? normalizeFileTreeRequestPath(openFileRequest.path)
+      : "";
+    if (!requestPath) {
+      return;
+    }
+    const ancestors = ancestorFolderPaths(requestPath);
+    if (ancestors.length) {
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        ancestors.forEach((path) => next.add(path));
+        return next;
+      });
+    }
+    openPreview(requestPath);
+  }, [openFileRequest, openPreview]);
 
   useEffect(() => {
     if (!previewPath) {
@@ -383,6 +385,7 @@ export function FileTreePanel({
     let cancelled = false;
     if (previewKind === "image") {
       setPreviewContent("");
+      setPreviewRevision("");
       setPreviewTruncated(false);
       setPreviewError(null);
       setPreviewLoading(false);
@@ -398,6 +401,7 @@ export function FileTreePanel({
           return;
         }
         setPreviewContent(response.content ?? "");
+        setPreviewRevision(response.revision ?? "");
         setPreviewTruncated(Boolean(response.truncated));
       })
       .catch((error) => {
@@ -524,7 +528,7 @@ export function FileTreePanel({
     [previewKind, t],
   );
 
-  const handleAddSelection = useCallback(() => {
+  const handleAddSelection = useCallback((contentOverride?: string) => {
     if (
       !canInsertText ||
       previewKind !== "text" ||
@@ -534,7 +538,7 @@ export function FileTreePanel({
     ) {
       return;
     }
-    const lines = previewContent.split("\n");
+    const lines = (contentOverride ?? previewContent).split("\n");
     const selected = lines.slice(previewSelection.start, previewSelection.end + 1);
     const language = languageFromPath(previewPath);
     const fence = language ? `\`\`\`${language}` : "```";
@@ -553,6 +557,32 @@ export function FileTreePanel({
     onInsertText,
     closePreview,
   ]);
+
+  const handlePreviewTextSelectionChange = useCallback(
+    (selection: { start: number; end: number } | null) => {
+      setPreviewSelection(selection);
+    },
+    [],
+  );
+
+  const handleSavePreviewContent = useCallback(
+    async (nextContent: string) => {
+      if (!previewPath) {
+        throw new Error("No file selected");
+      }
+      if (!previewRevision) {
+        throw new Error("Missing file revision; reload before saving");
+      }
+      await writeWorkspaceFile(workspaceId, previewPath, nextContent, previewRevision);
+      const response = await readWorkspaceFile(workspaceId, previewPath);
+      setPreviewContent(response.content ?? "");
+      setPreviewRevision(response.revision ?? "");
+      setPreviewTruncated(Boolean(response.truncated));
+      setPreviewSelection(null);
+      await onRefreshFiles();
+    },
+    [onRefreshFiles, previewPath, previewRevision, workspaceId],
+  );
 
   const showMenu = useCallback(
     async (event: MouseEvent<HTMLButtonElement>, relativePath: string) => {
@@ -594,12 +624,12 @@ export function FileTreePanel({
           type="button"
           className={`file-tree-row${isFolder ? " is-folder" : " is-file"}`}
           style={{ paddingLeft: `${depth * 10}px` }}
-          onClick={(event) => {
+          onClick={() => {
             if (isFolder) {
               toggleFolder(node.path);
               return;
             }
-            openPreview(node.path, event.currentTarget);
+            openPreview(node.path);
           }}
           onContextMenu={(event) => {
             void showMenu(event, node.path);
@@ -682,25 +712,38 @@ export function FileTreePanel({
                   ? t("files.tree.noModifiedShort")
                   : t("files.tree.noFilesShort")}
           </div>
-          {hasFolders ? (
+          <div className="file-tree-toolbar-actions">
             <button
               type="button"
-              className="ghost icon-button file-tree-toggle"
-              onClick={toggleAllFolders}
-              aria-label={
-                allVisibleExpanded
-                  ? t("files.tree.collapseAll")
-                  : t("files.tree.expandAll")
-              }
-              title={
-                allVisibleExpanded
-                  ? t("files.tree.collapseAll")
-                  : t("files.tree.expandAll")
-              }
+              className={`ghost icon-button file-tree-refresh${isLoading ? " is-loading" : ""}`}
+              onClick={() => {
+                void onRefreshFiles();
+              }}
+              aria-label={t("files.tree.refresh")}
+              title={t("files.tree.refresh")}
             >
-              <ChevronsUpDown aria-hidden />
+              <RefreshCw aria-hidden />
             </button>
-          ) : null}
+            {hasFolders ? (
+              <button
+                type="button"
+                className="ghost icon-button file-tree-toggle"
+                onClick={toggleAllFolders}
+                aria-label={
+                  allVisibleExpanded
+                    ? t("files.tree.collapseAll")
+                    : t("files.tree.expandAll")
+                }
+                title={
+                  allVisibleExpanded
+                    ? t("files.tree.collapseAll")
+                    : t("files.tree.expandAll")
+                }
+              >
+                <ChevronsUpDown aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </PanelMeta>
       }
       search={
@@ -792,7 +835,7 @@ export function FileTreePanel({
           </div>
         )}
       </div>
-      {previewPath && previewAnchor
+      {previewPath
         ? createPortal(
             <FilePreviewPopover
               path={previewPath}
@@ -812,17 +855,16 @@ export function FileTreePanel({
               onLineMouseUp={handleLineMouseUp}
               onClearSelection={() => setPreviewSelection(null)}
               onAddSelection={handleAddSelection}
+              onSaveContent={
+                previewKind === "text" && !previewTruncated
+                  ? handleSavePreviewContent
+                  : undefined
+              }
+              onTextSelectionChange={handlePreviewTextSelectionChange}
               canInsertText={canInsertText}
               onClose={closePreview}
               selectionHints={selectionHints}
-              style={{
-                position: "fixed",
-                top: previewAnchor.top,
-                left: previewAnchor.left,
-                width: 640,
-                maxHeight: previewAnchor.height,
-                ["--file-preview-arrow-top" as string]: `${previewAnchor.arrowTop}px`,
-              }}
+              variant="modal"
               isLoading={previewLoading}
               error={previewError}
             />,

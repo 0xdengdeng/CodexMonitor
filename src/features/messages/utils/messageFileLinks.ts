@@ -365,7 +365,7 @@ function isLikelyFileHref(
     return parsedLocation.line !== null || hasLikelyFileName(pathOnly);
   }
   if (hasLikelyFileName(pathOnly)) {
-    return pathSegmentCount(pathOnly) >= 3;
+    return Boolean(workspacePath) || pathSegmentCount(pathOnly) >= 3;
   }
   return false;
 }
@@ -404,6 +404,28 @@ export function toFileLink(target: ParsedFileLocation | string) {
   const value =
     typeof target === "string" ? normalizeFileLinkPath(target) : formatParsedFileLocation(target);
   return `${FILE_LINK_PROTOCOL}${encodeURIComponent(value)}`;
+}
+
+function parseWorkspaceFileNameHref(
+  value: string,
+  workspacePath?: string | null,
+): ParsedFileLocation | null {
+  const normalizedPath = normalizeFileLinkPath(value).trim();
+  if (!workspacePath || !normalizedPath || isKnownLocalWorkspaceRoutePath(normalizedPath)) {
+    return null;
+  }
+  const parsedTarget = parseFileLocation(normalizedPath);
+  const pathOnly = parsedTarget.path.trim();
+  if (
+    !pathOnly ||
+    /[?#]/.test(pathOnly) ||
+    pathOnly.includes("/") ||
+    pathOnly.includes("\\") ||
+    !hasLikelyFileName(pathOnly)
+  ) {
+    return null;
+  }
+  return parsedTarget;
 }
 
 function findFilePathMatches(value: string) {
@@ -522,7 +544,9 @@ export function resolveMessageFileHref(
     }
     seenCandidates.add(candidate);
 
-    const parsedTarget = parseInlineFileTarget(candidate);
+    const parsedTarget =
+      parseInlineFileTarget(candidate) ??
+      parseWorkspaceFileNameHref(candidate, workspacePath);
     if (!parsedTarget) {
       continue;
     }

@@ -185,6 +185,16 @@
   color: var(--text-faint);
 }
 
+.capabilities-session-note.is-error {
+  border-color: color-mix(in srgb, var(--text-danger) 24%, var(--border-muted));
+  background: color-mix(in srgb, var(--text-danger) 7%, var(--surface-card));
+  color: var(--text-primary);
+}
+
+.capabilities-session-note.is-error svg {
+  color: var(--text-danger);
+}
+
 .capabilities-section {
   min-width: 0;
   flex-shrink: 0;
@@ -334,6 +344,54 @@
 }
 
 .capability-row-action:hover:not(:disabled) {
+  color: var(--text-danger);
+}
+
+.capability-uninstall-confirm {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--text-danger) 18%, var(--border-muted));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-danger) 5%, var(--surface-card));
+}
+
+.capability-uninstall-confirm div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capability-uninstall-confirm strong {
+  color: var(--text-strong);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.capability-uninstall-confirm span {
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.capability-uninstall-confirm-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.capability-uninstall-confirm-actions .ghost {
+  min-height: 30px;
+  padding: 5px 10px;
+}
+
+.capability-uninstall-confirm-danger {
   color: var(--text-danger);
 }
 

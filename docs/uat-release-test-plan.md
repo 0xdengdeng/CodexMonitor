@@ -16,11 +16,12 @@
 
 ## 测试目标
 
-上线前 UAT 用于确认待发布版本满足真实用户工作流要求，并具备稳定发布条件。验收重点包括应用启动、workspace 管理、thread 执行、composer follow-up、图片附件、生图、Git 状态、settings 持久化、daemon/RPC parity、事件同步、异常恢复和重启恢复。
+上线前 UAT 用于确认待发布版本满足真实用户工作流要求，并具备稳定发布条件。验收重点包括发布安装、OTA 更新、应用启动、workspace 管理、thread 执行、composer follow-up、图片附件、生图、Git 状态、settings 持久化、daemon/RPC parity、事件同步、异常恢复和重启恢复。
 
 通过 UAT 后，产品、研发和测试团队应能确认：
 
 - P0 主链路可以稳定完成。
+- 待发布安装包和 OTA 更新链路可被真实用户完成。
 - 用户可在真实 workspace 中创建和继续 Codex thread。
 - 文本任务、生图任务和图片附件相关能力可正常执行和展示。
 - Git、settings、thread 状态和生成图片记录在重启后保持一致。
@@ -30,6 +31,7 @@
 
 | 模块 | 验收内容 | 优先级 |
 | --- | --- | --- |
+| 发布安装与 OTA | 全新安装、旧版本升级、更新提示、下载安装、重启后版本确认、数据保留 | P0 |
 | 应用启动 | 首次启动、重复启动、重启恢复、异常配置启动 | P0 |
 | Workspace 管理 | 添加、切换、删除、重复路径、无效路径、权限不足路径 | P0 |
 | Thread 管理 | 创建、继续、恢复、隐藏、父子层级、处理中状态保留 | P0 |
@@ -58,6 +60,8 @@
 开始 UAT 前必须满足：
 
 - UAT 环境已安装待发布构建。
+- 发布安装包、签名产物、更新 manifest 和 release notes 已生成并可访问。
+- 已准备一个当前线上旧版本客户端，用于验证 OTA 更新链路。
 - 开发自测和基础系统测试已完成。
 - P0 已知缺陷已修复或有明确结论。
 - 测试 workspace、Git 仓库、账号、权限、网络和模型配置已准备完成。
@@ -81,6 +85,9 @@
 | --- | --- |
 | 操作系统 | 本次发布支持的 macOS 版本 |
 | 应用版本 | 待发布构建 |
+| 旧版本客户端 | 当前线上稳定版本，用于 OTA 更新验收 |
+| OTA manifest | `https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json` |
+| 发布产物目录 | `release-artifacts/` |
 | 测试仓库 | 有效 Git 仓库，包含至少一个未提交改动 |
 | Workspace 路径 | `/Users/test/project/demo-repo` |
 | 无效路径 | `/Users/test/project/not-exist` |
@@ -104,6 +111,7 @@
 
 | 案例编号 | 案例名称 | 模块 | 优先级 |
 | --- | --- | --- | --- |
+| UAT-REL-001 | 发布安装与 OTA 更新验收 | 发布 | P0 |
 | UAT-FULL-001 | 全功能主链路验收 | 全链路 | P0 |
 | UAT-WS-001 | Workspace 管理验收 | Workspace | P0 |
 | UAT-THREAD-001 | Thread 创建、恢复与隐藏验收 | Thread | P0 |
@@ -114,6 +122,36 @@
 | UAT-SET-001 | Settings 保存与重启恢复验收 | Settings | P1 |
 | UAT-RPC-001 | Daemon/RPC parity 验收 | Daemon/RPC | P1 |
 | UAT-ERR-001 | 异常恢复验收 | 异常恢复 | P1 |
+
+## UAT-REL-001：发布安装与 OTA 更新验收
+
+| 字段 | 内容 |
+| --- | --- |
+| 案例名称 | 发布安装与 OTA 更新验收 |
+| 优先级 | P0 |
+| 前置条件 | 待发布版本已完成签名、notarization 和 updater artifacts 生成；`latest.json` 已发布到 OTA manifest endpoint；本机已安装当前线上旧版本客户端；准备一个包含 workspace、thread 历史、settings 和未提交 Git 改动的真实测试数据集 |
+
+| 步骤 | 操作 | 预期结果 |
+| --- | --- | --- |
+| 1 | 打开发布产物目录并核对安装包、签名文件、`latest.json`、`release-notes.md` | 必要产物齐全；`latest.json.platforms.*.url` 指向本次版本目录；每个平台产物都有对应签名 |
+| 2 | 在干净测试账号或干净应用数据目录中安装待发布版本 | 安装成功；macOS 不提示应用损坏；首次启动无白屏、崩溃或权限异常 |
+| 3 | 在全新安装客户端中添加测试 workspace 并创建一个 thread | Workspace、thread、消息发送和基础输出正常 |
+| 4 | 卸载全新安装客户端但保留或清理数据后再次安装 | 行为符合预期的数据保留策略；应用可再次启动 |
+| 5 | 启动当前线上旧版本客户端 | 旧版本可正常打开；已有 workspace、thread、settings 和 Git 状态展示正常 |
+| 6 | 在旧版本客户端执行一次基础任务并修改一个 setting | 旧版本数据准备完成，可用于升级后对比 |
+| 7 | 使用应用内 `Check for Updates...` 检查更新 | 应用发现待发布版本；版本号、更新说明和下载入口展示正确 |
+| 8 | 执行更新下载和安装 | 下载进度正常；无签名校验失败、下载失败或安装失败 |
+| 9 | 按提示重启或重新打开应用 | 应用启动为待发布版本；版本号与 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 声明一致 |
+| 10 | 检查升级前已有 workspace、thread 历史、隐藏状态、图片附件、生图记录、settings 和面板尺寸 | 关键用户数据全部保留；无重复 workspace、丢失历史、设置回退或面板异常 |
+| 11 | 在升级后的客户端继续旧 thread 发送 follow-up | 消息成功发送；输出流、完成态和后续交互正常 |
+| 12 | 在升级后的客户端执行一次生图或图片附件任务 | 图片预览、资产保存、历史恢复链路正常 |
+| 13 | 检查 Git 状态和文件 diff | 分支、未提交变更、diff 内容与本地 Git 结果一致 |
+| 14 | 断网后再次触发检查更新 | 应用展示明确网络错误或无更新状态，不崩溃，不影响主功能 |
+| 15 | 恢复网络后重启应用 | 应用正常启动；升级后数据仍可恢复 |
+
+| 通过标准 |
+| --- |
+| 全新安装和旧版本 OTA 升级均可完成；签名、notarization、manifest、release notes、版本号和用户数据迁移均符合预期；升级后 P0 主链路可继续使用；不存在崩溃、白屏、签名校验失败、数据丢失或版本错配 |
 
 ## UAT-FULL-001：全功能主链路验收
 
@@ -272,6 +310,7 @@
 
 | 项目 | 结果 | 备注 |
 | --- | --- | --- |
+| 发布安装与 OTA 是否通过验收 | 是 / 否 |  |
 | P0 案例是否全部通过 | 是 / 否 |  |
 | 是否存在 Blocker 缺陷 | 是 / 否 |  |
 | 是否存在 Critical 缺陷 | 是 / 否 |  |
@@ -287,6 +326,7 @@
 
 | 案例编号 | 案例名称 | 优先级 | 执行结果 | 缺陷编号 | 备注 |
 | --- | --- | --- | --- | --- | --- |
+| UAT-REL-001 | 发布安装与 OTA 更新验收 | P0 | Pass / Fail |  |  |
 | UAT-FULL-001 | 全功能主链路验收 | P0 | Pass / Fail |  |  |
 | UAT-WS-001 | Workspace 管理验收 | P0 | Pass / Fail |  |  |
 | UAT-THREAD-001 | Thread 创建、恢复与隐藏验收 | P0 | Pass / Fail |  |  |

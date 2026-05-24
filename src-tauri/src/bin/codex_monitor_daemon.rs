@@ -66,13 +66,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
-use std::fs::File;
+use std::fs::{File, Metadata};
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::UNIX_EPOCH;
 
 use ignore::WalkBuilder;
+use sha2::{Digest, Sha256};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, Mutex, Semaphore};
@@ -178,6 +180,7 @@ struct DaemonState {
 struct WorkspaceFileResponse {
     content: String,
     truncated: bool,
+    revision: String,
 }
 
 impl DaemonState {
@@ -762,6 +765,26 @@ impl DaemonState {
         .await
     }
 
+    async fn write_workspace_file(
+        &self,
+        workspace_id: String,
+        path: String,
+        content: String,
+        expected_revision: Option<String>,
+    ) -> Result<(), String> {
+        workspaces_core::write_workspace_file_core(
+            &self.workspaces,
+            &workspace_id,
+            &path,
+            &content,
+            expected_revision.as_deref(),
+            |root, rel_path, next_content, expected| {
+                write_workspace_file_inner(root, rel_path, next_content, expected)
+            },
+        )
+        .await
+    }
+
     async fn file_read(
         &self,
         scope: file_policy::FileScope,
@@ -1057,9 +1080,9 @@ impl DaemonState {
             .await
     }
 
-    async fn skill_market_list(&self) -> Result<Value, String> {
-        serde_json::to_value(skills_market_core::skill_market_catalog())
-            .map_err(|err| err.to_string())
+    async fn skill_market_list(&self, locale: Option<String>) -> Result<Value, String> {
+        let catalog = skills_market_core::skill_market_catalog(locale).await?;
+        serde_json::to_value(catalog).map_err(|err| err.to_string())
     }
 
     async fn skill_market_install(
@@ -1614,6 +1637,20 @@ fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> Vec<String> {
 
 const MAX_WORKSPACE_FILE_BYTES: u64 = 400_000;
 
+fn workspace_file_revision(metadata: &Metadata, truncated: bool, content: &[u8]) -> String {
+    let digest = Sha256::digest(content);
+    let modified_nanos = metadata
+        .modified()
+        .ok()
+        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    format!(
+        "sha256:{digest:x}:len:{}:mtime:{modified_nanos}:truncated:{truncated}",
+        metadata.len()
+    )
+}
+
 fn read_workspace_file_inner(
     root: &PathBuf,
     relative_path: &str,
@@ -1645,8 +1682,41 @@ fn read_workspace_file_inner(
         buffer.truncate(MAX_WORKSPACE_FILE_BYTES as usize);
     }
 
+    let revision = workspace_file_revision(&metadata, truncated, &buffer);
     let content = String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".to_string())?;
-    Ok(WorkspaceFileResponse { content, truncated })
+    Ok(WorkspaceFileResponse {
+        content,
+        truncated,
+        revision,
+    })
+}
+
+fn write_workspace_file_inner(
+    root: &PathBuf,
+    relative_path: &str,
+    content: &str,
+    expected_revision: Option<&str>,
+) -> Result<(), String> {
+    let expected_revision = expected_revision
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "Missing expected file revision.".to_string())?;
+    let current = read_workspace_file_inner(root, relative_path)?;
+    if current.truncated {
+        return Err("File is too large to save from the preview editor.".to_string());
+    }
+    if current.revision != expected_revision {
+        return Err("File changed on disk. Reload before saving.".to_string());
+    }
+    file_io::write_text_file_within(
+        root,
+        relative_path,
+        content,
+        false,
+        "workspace root",
+        "workspace file",
+        false,
+    )
 }
 
 fn default_data_dir() -> PathBuf {

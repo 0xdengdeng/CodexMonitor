@@ -9,6 +9,7 @@ import type {
   SkillInstallTarget,
   SkillMarketInstallInput,
   SkillMarketItem,
+  SkillOption,
   WorkspaceInfo,
 } from "@/types";
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
@@ -24,7 +25,7 @@ const CATEGORY_ORDER = ["all", "writing", "engineering", "design", "images", "pr
 export type SkillMarketDialogProps = {
   activeWorkspace: WorkspaceInfo | null;
   items: SkillMarketItem[];
-  installedSkillNames: string[];
+  installedSkills: SkillOption[];
   onClose: () => void;
   onInstallSkill: (input: SkillMarketInstallInput) => Promise<void> | void;
 };
@@ -41,10 +42,74 @@ function categoryLabel(category: string, t: ReturnType<typeof useI18n>["t"]) {
   return t(`capabilities.market.category.${category}`);
 }
 
+function isProjectInstalledSkill(skill: SkillOption, workspace: WorkspaceInfo | null) {
+  if (skill.scope === "repo") {
+    return true;
+  }
+  return Boolean(workspace && skill.path.startsWith(`${workspace.path}/.agents/skills`));
+}
+
+function targetMatchesInstalledSkill(
+  skill: SkillOption,
+  target: SkillInstallTarget,
+  workspace: WorkspaceInfo | null,
+) {
+  const projectSkill = isProjectInstalledSkill(skill, workspace);
+  return target === "project" ? projectSkill : !projectSkill;
+}
+
+function compareVersionSegments(left: string, right: string) {
+  const leftParts = left.split(/[.-]/).map((part) => Number.parseInt(part, 10));
+  const rightParts = right.split(/[.-]/).map((part) => Number.parseInt(part, 10));
+  const maxLength = Math.max(leftParts.length, rightParts.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftValue = Number.isFinite(leftParts[index]) ? leftParts[index] : 0;
+    const rightValue = Number.isFinite(rightParts[index]) ? rightParts[index] : 0;
+    if (leftValue !== rightValue) {
+      return leftValue < rightValue ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+function isMarketManagedSkill(skill: SkillOption, item: SkillMarketItem) {
+  return skill.marketId === item.id;
+}
+
+function isUpdateAvailable(skill: SkillOption | undefined, item: SkillMarketItem) {
+  if (!skill || !isMarketManagedSkill(skill, item) || !item.version.trim()) {
+    return false;
+  }
+  const installedVersion = skill.installedVersion;
+  if (!installedVersion?.trim()) {
+    return true;
+  }
+  return compareVersionSegments(installedVersion, item.version) < 0;
+}
+
+function installedNote(
+  installedVersion: string | undefined,
+  marketVersion: string,
+  updateAvailable: boolean,
+  t: ReturnType<typeof useI18n>["t"],
+) {
+  if (!updateAvailable) {
+    return installedVersion
+      ? t("capabilities.market.alreadyInstalled", { version: installedVersion })
+      : t("capabilities.market.alreadyInstalledUnknownVersion");
+  }
+  return installedVersion
+    ? t("capabilities.market.updateAvailableNote", {
+        installedVersion,
+        marketVersion,
+      })
+    : t("capabilities.market.updateAvailableUnknownVersion", { marketVersion });
+}
+
 export function SkillMarketDialog({
   activeWorkspace,
   items,
-  installedSkillNames,
+  installedSkills,
   onClose,
   onInstallSkill,
 }: SkillMarketDialogProps) {
@@ -66,10 +131,19 @@ export function SkillMarketDialog({
   );
   const selectedItem =
     visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0] ?? null;
-  const installedNames = useMemo(
-    () => new Set(installedSkillNames.map((name) => name.trim()).filter(Boolean)),
-    [installedSkillNames],
-  );
+  const selectedInstalledSkill =
+    selectedItem
+      ? installedSkills.find(
+          (skill) =>
+            skill.name === selectedItem.name &&
+            targetMatchesInstalledSkill(skill, target, activeWorkspace),
+        )
+      : undefined;
+  const selectedItemInstalled = Boolean(selectedInstalledSkill);
+  const selectedItemUpdateAvailable = selectedItem
+    ? selectedItemInstalled && isUpdateAvailable(selectedInstalledSkill, selectedItem)
+    : false;
+  const installMode = selectedItemInstalled ? "update" : "install";
 
   const handleInstall = async () => {
     if (!selectedItem) {
@@ -80,6 +154,7 @@ export function SkillMarketDialog({
       await onInstallSkill({
         itemId: selectedItem.id,
         target,
+        mode: installMode,
       });
     } finally {
       setInstalling(false);
@@ -153,7 +228,12 @@ export function SkillMarketDialog({
             <div className="skill-market-list" aria-label={t("capabilities.market.results")}>
               {visibleItems.length > 0 ? (
                 visibleItems.map((item) => {
-                  const installed = installedNames.has(item.name);
+                  const installed = installedSkills.some((skill) => skill.name === item.name);
+                  const updateAvailable = installedSkills.some(
+                    (skill) =>
+                      skill.name === item.name &&
+                      isUpdateAvailable(skill, item),
+                  );
                   return (
                     <button
                       key={item.id}
@@ -164,7 +244,11 @@ export function SkillMarketDialog({
                       <span className="skill-market-card-main">
                         <span className="skill-market-card-title">
                           <strong>{item.title}</strong>
-                          {installed ? (
+                          {updateAvailable ? (
+                            <span className="capability-source">
+                              {t("capabilities.market.updateAvailable")}
+                            </span>
+                          ) : installed ? (
                             <span className="capability-source">
                               {t("capabilities.market.installed")}
                             </span>
@@ -204,6 +288,10 @@ export function SkillMarketDialog({
                   <strong>{selectedItem.publisher}</strong>
                 </div>
                 <div className="skill-market-detail-section">
+                  <span>{t("capabilities.market.version")}</span>
+                  <strong>{selectedItem.version}</strong>
+                </div>
+                <div className="skill-market-detail-section">
                   <span>{t("capabilities.market.installTarget")}</span>
                   <div className="skill-market-targets">
                     <button
@@ -235,10 +323,26 @@ export function SkillMarketDialog({
                   type="button"
                   className="button primary skill-market-install"
                   onClick={() => void handleInstall()}
-                  disabled={installing}
+                  disabled={
+                    installing || (selectedItemInstalled && !selectedItemUpdateAvailable)
+                  }
                 >
                   {installing ? (
-                    t("capabilities.market.installing")
+                    selectedItemInstalled && selectedItemUpdateAvailable ? (
+                      t("capabilities.market.updating")
+                    ) : (
+                      t("capabilities.market.installing")
+                    )
+                  ) : selectedItemInstalled && selectedItemUpdateAvailable ? (
+                    <>
+                      <Download aria-hidden />
+                      {t("capabilities.market.update")}
+                    </>
+                  ) : selectedItemInstalled ? (
+                    <>
+                      <Check aria-hidden />
+                      {t("capabilities.market.installed")}
+                    </>
                   ) : (
                     <>
                       <Download aria-hidden />
@@ -247,10 +351,17 @@ export function SkillMarketDialog({
                   )}
                 </button>
 
-                {installedNames.has(selectedItem.name) ? (
+                {selectedItemInstalled ? (
                   <div className="skill-market-installed-note">
                     <Check aria-hidden />
-                    <span>{t("capabilities.market.alreadyInstalled")}</span>
+                    <span>
+                      {installedNote(
+                        selectedInstalledSkill?.installedVersion,
+                        selectedItem.version,
+                        selectedItemUpdateAvailable,
+                        t,
+                      )}
+                    </span>
                   </div>
                 ) : null}
               </>

@@ -12,24 +12,26 @@ const marketItems: SkillMarketItem[] = [
   {
     id: "docs-writer",
     name: "docs-writer",
+    version: "0.2.0",
     title: "Docs Writer",
     description: "Draft READMEs and release notes.",
     categories: ["writing", "productivity"],
     tags: ["docs", "readme"],
     publisher: "AgentDesk",
     verified: true,
-    source: { type: "bundled" },
+    source: { type: "repo", path: "skills/docs-writer" },
   },
   {
     id: "code-review-assistant",
     name: "code-review-assistant",
+    version: "0.1.0",
     title: "Code Review Assistant",
     description: "Review code changes for regressions.",
     categories: ["engineering"],
     tags: ["review"],
     publisher: "AgentDesk",
     verified: true,
-    source: { type: "bundled" },
+    source: { type: "repo", path: "skills/code-review-assistant" },
   },
 ];
 
@@ -39,7 +41,7 @@ describe("SkillMarketDialog", () => {
       <SkillMarketDialog
         activeWorkspace={null}
         items={marketItems}
-        installedSkillNames={[]}
+        installedSkills={[]}
         onClose={vi.fn()}
         onInstallSkill={vi.fn()}
       />,
@@ -59,7 +61,7 @@ describe("SkillMarketDialog", () => {
       <SkillMarketDialog
         activeWorkspace={null}
         items={marketItems}
-        installedSkillNames={[]}
+        installedSkills={[]}
         onClose={vi.fn()}
         onInstallSkill={vi.fn()}
       />,
@@ -82,7 +84,7 @@ describe("SkillMarketDialog", () => {
       <SkillMarketDialog
         activeWorkspace={null}
         items={marketItems}
-        installedSkillNames={[]}
+        installedSkills={[]}
         onClose={vi.fn()}
         onInstallSkill={vi.fn()}
       />,
@@ -91,6 +93,95 @@ describe("SkillMarketDialog", () => {
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "Project" }).disabled).toBe(
       true,
     );
+  });
+
+  it("updates already installed skills", async () => {
+    const onInstallSkill = vi.fn();
+
+    render(
+      <SkillMarketDialog
+        activeWorkspace={null}
+        items={marketItems}
+        installedSkills={[
+          {
+            name: "docs-writer",
+            path: "/Users/me/.codex/skills/docs-writer/SKILL.md",
+            scope: "user",
+            marketId: "docs-writer",
+            installedVersion: "0.1.0",
+          },
+        ]}
+        onClose={vi.fn()}
+        onInstallSkill={onInstallSkill}
+      />,
+    );
+
+    const updateButton = screen.getByRole<HTMLButtonElement>("button", { name: "Update" });
+    expect(updateButton.disabled).toBe(false);
+    expect(
+      screen.getByText("Installed 0.1.0. Market version 0.2.0 is available."),
+    ).toBeTruthy();
+    expect(screen.getByText("Update available")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(updateButton);
+    });
+
+    expect(onInstallSkill).toHaveBeenCalledWith({
+      itemId: "docs-writer",
+      target: "global",
+      mode: "update",
+    });
+  });
+
+  it("does not offer an update when the installed version matches the market version", () => {
+    render(
+      <SkillMarketDialog
+        activeWorkspace={null}
+        items={marketItems}
+        installedSkills={[
+          {
+            name: "docs-writer",
+            path: "/Users/me/.codex/skills/docs-writer/SKILL.md",
+            scope: "user",
+            marketId: "docs-writer",
+            installedVersion: "0.2.0",
+          },
+        ]}
+        onClose={vi.fn()}
+        onInstallSkill={vi.fn()}
+      />,
+    );
+
+    const installedButton = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Installed",
+    });
+    expect(installedButton.disabled).toBe(true);
+    expect(screen.getByText("Installed 0.2.0.")).toBeTruthy();
+  });
+
+  it("does not offer an update for unmanaged same-name skills", () => {
+    render(
+      <SkillMarketDialog
+        activeWorkspace={null}
+        items={marketItems}
+        installedSkills={[
+          {
+            name: "docs-writer",
+            path: "/Users/me/.codex/skills/docs-writer/SKILL.md",
+            scope: "user",
+          },
+        ]}
+        onClose={vi.fn()}
+        onInstallSkill={vi.fn()}
+      />,
+    );
+
+    const installedButton = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Installed",
+    });
+    expect(installedButton.disabled).toBe(true);
+    expect(screen.queryByText("Update available")).toBeNull();
   });
 
   it("installs the selected skill into the chosen target", async () => {
@@ -106,7 +197,7 @@ describe("SkillMarketDialog", () => {
           settings: { sidebarCollapsed: false },
         }}
         items={marketItems}
-        installedSkillNames={[]}
+        installedSkills={[]}
         onClose={vi.fn()}
         onInstallSkill={onInstallSkill}
       />,
@@ -121,6 +212,7 @@ describe("SkillMarketDialog", () => {
     expect(onInstallSkill).toHaveBeenCalledWith({
       itemId: "docs-writer",
       target: "project",
+      mode: "install",
     });
   });
 });

@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import { formatFileLocation } from "../../../utils/fileLinks";
 import { resolveMessageFileHref } from "./messageFileLinks";
 
-function expectResolvedHref(url: string, expected: string | null) {
-  const resolved = resolveMessageFileHref(url);
+function expectResolvedHref(
+  url: string,
+  expected: string | null,
+  workspacePath?: string | null,
+) {
+  const resolved = resolveMessageFileHref(url, workspacePath);
   const formatted = resolved
     ? formatFileLocation(resolved.path, resolved.line, resolved.column)
     : null;
@@ -35,5 +39,10 @@ describe("resolveMessageFileHref", () => {
   it("keeps encoded #L-like filename endings intact for markdown hrefs", () => {
     expectResolvedHref("./report.md%23L12", "./report.md#L12");
     expectResolvedHref("./report.md%23L12C3", "./report.md#L12C3");
+  });
+
+  it("resolves single-segment file hrefs only when a workspace path is known", () => {
+    expectResolvedHref("index.html", null);
+    expectResolvedHref("index.html", "index.html", "/workspace/project");
   });
 });

@@ -9,6 +9,7 @@ import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ThreadListOrganizeMode, ThreadListSortKey } from "../../../types";
 import {
   MenuTrigger,
@@ -33,6 +34,14 @@ type SidebarHeaderProps = {
   refreshInProgress?: boolean;
 };
 
+const SORT_MENU_WIDTH = 196;
+const SORT_MENU_GAP = 8;
+const SORT_MENU_VIEWPORT_MARGIN = 8;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function SidebarHeader({
   onSelectHome,
   onAddWorkspace,
@@ -49,66 +58,116 @@ export function SidebarHeader({
 }: SidebarHeaderProps) {
   const { t } = useI18n();
   const sortMenu = useMenuController();
-  const { isOpen: sortMenuOpen, containerRef: sortMenuRef } = sortMenu;
+  const {
+    isOpen: sortMenuOpen,
+    containerRef: sortMenuRef,
+    open: openSortMenu,
+    close: closeSortMenu,
+  } = sortMenu;
   const sortMenuPopoverRef = useRef<HTMLDivElement | null>(null);
-  const [sortMenuShift, setSortMenuShift] = useState<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
+  const [sortMenuPosition, setSortMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
-  const recalculateSortMenuPosition = useCallback(() => {
-    const popover = sortMenuPopoverRef.current;
-    if (!popover || typeof window === "undefined") {
+  const calculateSortMenuPosition = useCallback(() => {
+    const trigger = sortMenuRef.current;
+    if (!trigger || typeof window === "undefined") {
+      return null;
+    }
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const availableWidth = Math.max(
+      0,
+      window.innerWidth - SORT_MENU_VIEWPORT_MARGIN * 2,
+    );
+    const menuWidth = Math.min(SORT_MENU_WIDTH, availableWidth);
+    const maxLeft = Math.max(
+      SORT_MENU_VIEWPORT_MARGIN,
+      window.innerWidth - menuWidth - SORT_MENU_VIEWPORT_MARGIN,
+    );
+
+    return {
+      top: Math.max(SORT_MENU_VIEWPORT_MARGIN, triggerRect.bottom + SORT_MENU_GAP),
+      left: clamp(
+        triggerRect.right - menuWidth,
+        SORT_MENU_VIEWPORT_MARGIN,
+        maxLeft,
+      ),
+    };
+  }, [sortMenuRef]);
+
+  const updateSortMenuPosition = useCallback(() => {
+    const nextPosition = calculateSortMenuPosition();
+    if (!nextPosition) {
       return;
     }
-    const popoverRect = popover.getBoundingClientRect();
-    const sidebarRect = sortMenuRef.current
-      ?.closest(".sidebar")
-      ?.getBoundingClientRect();
-    const minLeft = sidebarRect ? sidebarRect.left + 8 : 8;
-    const maxRight = sidebarRect
-      ? Math.min(window.innerWidth - 8, sidebarRect.right - 8)
-      : window.innerWidth - 8;
-    const minTop = 8;
-    const maxBottom = window.innerHeight - 8;
-
-    let shiftX = 0;
-    if (popoverRect.left < minLeft) {
-      shiftX += minLeft - popoverRect.left;
-    }
-    if (popoverRect.right + shiftX > maxRight) {
-      shiftX -= popoverRect.right + shiftX - maxRight;
-    }
-
-    let shiftY = 0;
-    if (popoverRect.bottom > maxBottom) {
-      shiftY -= popoverRect.bottom - maxBottom;
-    }
-    if (popoverRect.top + shiftY < minTop) {
-      shiftY += minTop - (popoverRect.top + shiftY);
-    }
-
-    setSortMenuShift((current) =>
-      current.x === shiftX && current.y === shiftY
+    setSortMenuPosition((current) =>
+      current?.top === nextPosition.top && current.left === nextPosition.left
         ? current
-        : { x: shiftX, y: shiftY },
+        : nextPosition,
     );
-  }, [sortMenuRef]);
+  }, [calculateSortMenuPosition]);
+
+  const handleSortMenuToggle = useCallback(() => {
+    if (sortMenuOpen) {
+      closeSortMenu();
+      return;
+    }
+    updateSortMenuPosition();
+    openSortMenu();
+  }, [closeSortMenu, openSortMenu, sortMenuOpen, updateSortMenuPosition]);
 
   useEffect(() => {
     if (!sortMenuOpen) {
-      setSortMenuShift({ x: 0, y: 0 });
+      setSortMenuPosition(null);
       return;
     }
-    recalculateSortMenuPosition();
-    const onWindowChange = () => recalculateSortMenuPosition();
+    updateSortMenuPosition();
+    const onWindowChange = () => updateSortMenuPosition();
     window.addEventListener("resize", onWindowChange);
     window.addEventListener("scroll", onWindowChange, true);
     return () => {
       window.removeEventListener("resize", onWindowChange);
       window.removeEventListener("scroll", onWindowChange, true);
     };
-  }, [recalculateSortMenuPosition, sortMenuOpen]);
+  }, [sortMenuOpen, updateSortMenuPosition]);
+
+  useEffect(() => {
+    const popover = sortMenuPopoverRef.current;
+    if (
+      !sortMenuOpen ||
+      !sortMenuPosition ||
+      !popover ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const popoverRect = popover.getBoundingClientRect();
+    const maxLeft = Math.max(
+      SORT_MENU_VIEWPORT_MARGIN,
+      window.innerWidth - popoverRect.width - SORT_MENU_VIEWPORT_MARGIN,
+    );
+    const maxTop = Math.max(
+      SORT_MENU_VIEWPORT_MARGIN,
+      window.innerHeight - popoverRect.height - SORT_MENU_VIEWPORT_MARGIN,
+    );
+    const nextLeft = clamp(
+      sortMenuPosition.left,
+      SORT_MENU_VIEWPORT_MARGIN,
+      maxLeft,
+    );
+    const nextTop = clamp(
+      sortMenuPosition.top,
+      SORT_MENU_VIEWPORT_MARGIN,
+      maxTop,
+    );
+
+    if (nextTop !== sortMenuPosition.top || nextLeft !== sortMenuPosition.left) {
+      setSortMenuPosition({ top: nextTop, left: nextLeft });
+    }
+  }, [sortMenuOpen, sortMenuPosition]);
 
   const handleSelectSort = (sortKey: ThreadListSortKey) => {
     sortMenu.close();
@@ -158,7 +217,7 @@ export function SidebarHeader({
             isOpen={sortMenuOpen}
             activeClassName="is-active"
             className="ghost sidebar-sort-toggle ds-tooltip-trigger"
-            onClick={sortMenu.toggle}
+            onClick={handleSortMenuToggle}
             data-tauri-drag-region="false"
             aria-label={t("sidebar.header.organizeSort")}
             title={t("sidebar.header.organizeSort")}
@@ -168,77 +227,81 @@ export function SidebarHeader({
           >
             <ListFilter aria-hidden />
           </MenuTrigger>
-          {sortMenuOpen && (
-            <PopoverSurface
-              className="sidebar-sort-dropdown"
-              role="menu"
-              ref={sortMenuPopoverRef}
-              style={
-                sortMenuShift.x !== 0 || sortMenuShift.y !== 0
-                  ? { transform: `translate(${sortMenuShift.x}px, ${sortMenuShift.y}px)` }
-                  : undefined
-              }
-            >
-              <div className="sidebar-sort-section-label">{t("sidebar.header.organize")}</div>
-              <PopoverMenuItem
-                className="sidebar-sort-option"
-                role="menuitemradio"
-                aria-checked={threadListOrganizeMode === "by_project"}
-                onClick={() => handleSelectOrganize("by_project")}
-                data-tauri-drag-region="false"
-                icon={<FolderTree aria-hidden />}
-                active={threadListOrganizeMode === "by_project"}
-              >
-                {t("sidebar.header.byProject")}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                className="sidebar-sort-option"
-                role="menuitemradio"
-                aria-checked={threadListOrganizeMode === "by_project_activity"}
-                onClick={() => handleSelectOrganize("by_project_activity")}
-                data-tauri-drag-region="false"
-                icon={<BetweenHorizontalStart aria-hidden />}
-                active={threadListOrganizeMode === "by_project_activity"}
-              >
-                {t("sidebar.header.byProjectActivity")}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                className="sidebar-sort-option"
-                role="menuitemradio"
-                aria-checked={threadListOrganizeMode === "threads_only"}
-                onClick={() => handleSelectOrganize("threads_only")}
-                data-tauri-drag-region="false"
-                icon={<ListTree aria-hidden />}
-                active={threadListOrganizeMode === "threads_only"}
-              >
-                {t("sidebar.header.threadList")}
-              </PopoverMenuItem>
-              <div className="sidebar-sort-divider" aria-hidden />
-              <div className="sidebar-sort-section-label">{t("sidebar.header.sortBy")}</div>
-              <PopoverMenuItem
-                className="sidebar-sort-option"
-                role="menuitemradio"
-                aria-checked={threadListSortKey === "updated_at"}
-                onClick={() => handleSelectSort("updated_at")}
-                data-tauri-drag-region="false"
-                icon={<ArrowDownUp aria-hidden />}
-                active={threadListSortKey === "updated_at"}
-              >
-                {t("sidebar.header.updated")}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                className="sidebar-sort-option"
-                role="menuitemradio"
-                aria-checked={threadListSortKey === "created_at"}
-                onClick={() => handleSelectSort("created_at")}
-                data-tauri-drag-region="false"
-                icon={<Calendar aria-hidden />}
-                active={threadListSortKey === "created_at"}
-              >
-                {t("sidebar.header.created")}
-              </PopoverMenuItem>
-            </PopoverSurface>
-          )}
+          {sortMenuOpen && sortMenuPosition
+            ? createPortal(
+                <PopoverSurface
+                  className="sidebar-sort-dropdown"
+                  role="menu"
+                  ref={sortMenuPopoverRef}
+                  style={sortMenuPosition}
+                  onMouseDownCapture={(event) => event.stopPropagation()}
+                >
+                  <div className="sidebar-sort-section-label">
+                    {t("sidebar.header.organize")}
+                  </div>
+                  <PopoverMenuItem
+                    className="sidebar-sort-option"
+                    role="menuitemradio"
+                    aria-checked={threadListOrganizeMode === "by_project"}
+                    onClick={() => handleSelectOrganize("by_project")}
+                    data-tauri-drag-region="false"
+                    icon={<FolderTree aria-hidden />}
+                    active={threadListOrganizeMode === "by_project"}
+                  >
+                    {t("sidebar.header.byProject")}
+                  </PopoverMenuItem>
+                  <PopoverMenuItem
+                    className="sidebar-sort-option"
+                    role="menuitemradio"
+                    aria-checked={threadListOrganizeMode === "by_project_activity"}
+                    onClick={() => handleSelectOrganize("by_project_activity")}
+                    data-tauri-drag-region="false"
+                    icon={<BetweenHorizontalStart aria-hidden />}
+                    active={threadListOrganizeMode === "by_project_activity"}
+                  >
+                    {t("sidebar.header.byProjectActivity")}
+                  </PopoverMenuItem>
+                  <PopoverMenuItem
+                    className="sidebar-sort-option"
+                    role="menuitemradio"
+                    aria-checked={threadListOrganizeMode === "threads_only"}
+                    onClick={() => handleSelectOrganize("threads_only")}
+                    data-tauri-drag-region="false"
+                    icon={<ListTree aria-hidden />}
+                    active={threadListOrganizeMode === "threads_only"}
+                  >
+                    {t("sidebar.header.threadList")}
+                  </PopoverMenuItem>
+                  <div className="sidebar-sort-divider" aria-hidden />
+                  <div className="sidebar-sort-section-label">
+                    {t("sidebar.header.sortBy")}
+                  </div>
+                  <PopoverMenuItem
+                    className="sidebar-sort-option"
+                    role="menuitemradio"
+                    aria-checked={threadListSortKey === "updated_at"}
+                    onClick={() => handleSelectSort("updated_at")}
+                    data-tauri-drag-region="false"
+                    icon={<ArrowDownUp aria-hidden />}
+                    active={threadListSortKey === "updated_at"}
+                  >
+                    {t("sidebar.header.updated")}
+                  </PopoverMenuItem>
+                  <PopoverMenuItem
+                    className="sidebar-sort-option"
+                    role="menuitemradio"
+                    aria-checked={threadListSortKey === "created_at"}
+                    onClick={() => handleSelectSort("created_at")}
+                    data-tauri-drag-region="false"
+                    icon={<Calendar aria-hidden />}
+                    active={threadListSortKey === "created_at"}
+                  >
+                    {t("sidebar.header.created")}
+                  </PopoverMenuItem>
+                </PopoverSurface>,
+                document.body,
+              )
+            : null}
         </div>
         <button
           className="ghost sidebar-capabilities-toggle ds-tooltip-trigger"

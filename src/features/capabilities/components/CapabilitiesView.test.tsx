@@ -82,7 +82,58 @@ describe("CapabilitiesView", () => {
     expect(capabilitiesWindow?.contains(marketDialog)).toBe(false);
   });
 
-  it("shows uninstall only for user installed skills", async () => {
+  it("refreshes market items when opening the skill market", async () => {
+    const onRefreshSkillMarket = vi.fn();
+
+    render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[]}
+        mcpServers={[]}
+        skillMarketItems={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={vi.fn()}
+        onRefreshSkillMarket={onRefreshSkillMarket}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+        onInstallSkill={vi.fn()}
+        onUninstallSkill={vi.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Open skill market" }));
+    });
+
+    expect(onRefreshSkillMarket).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes market data from the capabilities refresh button", async () => {
+    const onRefreshCapabilities = vi.fn();
+    const onRefreshSkillMarket = vi.fn();
+
+    render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[]}
+        mcpServers={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={onRefreshCapabilities}
+        onRefreshSkillMarket={onRefreshSkillMarket}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Refresh capabilities" }));
+    });
+
+    expect(onRefreshCapabilities).toHaveBeenCalledTimes(1);
+    expect(onRefreshSkillMarket).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirms uninstall only for user installed skills", async () => {
     const onUninstallSkill = vi.fn();
 
     render(
@@ -95,6 +146,7 @@ describe("CapabilitiesView", () => {
             description: "Docs helper.",
             scope: "user",
             enabled: true,
+            uninstallable: true,
           },
           {
             name: "imagegen",
@@ -102,6 +154,7 @@ describe("CapabilitiesView", () => {
             description: "Image helper.",
             scope: "system",
             enabled: true,
+            uninstallable: false,
           },
         ]}
         mcpServers={[]}
@@ -119,10 +172,124 @@ describe("CapabilitiesView", () => {
       fireEvent.click(screen.getByRole("button", { name: "Uninstall docs-writer" }));
     });
 
+    expect(onUninstallSkill).not.toHaveBeenCalled();
+    expect(screen.getByText("Uninstall docs-writer?")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm uninstall docs-writer" }),
+      );
+    });
+
     expect(onUninstallSkill).toHaveBeenCalledWith(
       expect.objectContaining({ name: "docs-writer" }),
     );
     expect(screen.queryByRole("button", { name: "Uninstall imagegen" })).toBeNull();
+  });
+
+  it("does not show uninstall for unmanaged machine-local skills", () => {
+    render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[
+          {
+            name: "external-skill",
+            path: "/Users/me/.agents/skills/external-skill/SKILL.md",
+            description: "External local helper.",
+            scope: "user",
+            enabled: true,
+            uninstallable: false,
+          },
+        ]}
+        mcpServers={[]}
+        skillMarketItems={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={vi.fn()}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+        onInstallSkill={vi.fn()}
+        onUninstallSkill={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("external-skill")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Uninstall external-skill" })).toBeNull();
+  });
+
+  it("shows an error when uninstall fails", async () => {
+    const onUninstallSkill = vi
+      .fn()
+      .mockRejectedValue(new Error("Skill uninstall is limited to installed Skills."));
+
+    render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[
+          {
+            name: "docs-writer",
+            path: "/Users/me/Library/Application Support/com.agentdesk.app/codex-home/skills/docs-writer/SKILL.md",
+            description: "Docs helper.",
+            scope: "user",
+            enabled: true,
+            uninstallable: true,
+          },
+        ]}
+        mcpServers={[]}
+        skillMarketItems={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={vi.fn()}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+        onInstallSkill={vi.fn()}
+        onUninstallSkill={onUninstallSkill}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Uninstall docs-writer" }));
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm uninstall docs-writer" }),
+      );
+    });
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Skill action failed: Skill uninstall is limited to installed Skills.",
+    );
+  });
+
+  it("cancels a pending uninstall confirmation", () => {
+    const onUninstallSkill = vi.fn();
+
+    render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[
+          {
+            name: "docs-writer",
+            path: "/Users/me/Library/Application Support/com.agentdesk.app/codex-home/skills/docs-writer/SKILL.md",
+            description: "Docs helper.",
+            scope: "user",
+            enabled: true,
+            uninstallable: true,
+          },
+        ]}
+        mcpServers={[]}
+        skillMarketItems={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={vi.fn()}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+        onInstallSkill={vi.fn()}
+        onUninstallSkill={onUninstallSkill}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Uninstall docs-writer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel uninstall docs-writer" }));
+
+    expect(onUninstallSkill).not.toHaveBeenCalled();
+    expect(screen.queryByText("Uninstall docs-writer?")).toBeNull();
   });
 
   it("shows current project and global ability scopes with skills and MCP groups", () => {
@@ -160,6 +327,31 @@ describe("CapabilitiesView", () => {
     expect(screen.getByRole("heading", { name: "MCP" })).toBeTruthy();
     expect(screen.getByText("imagegen")).toBeTruthy();
     expect(screen.getByText("Generate or edit images.")).toBeTruthy();
+  });
+
+  it("shows installed skill versions when market metadata is available", () => {
+    render(
+      <CapabilitiesView
+        activeWorkspace={null}
+        skills={[
+          {
+            name: "docs-writer",
+            path: "/Users/me/.codex/skills/docs-writer/SKILL.md",
+            description: "Docs helper.",
+            scope: "user",
+            enabled: true,
+            installedVersion: "0.2.0",
+          },
+        ]}
+        mcpServers={[]}
+        onClose={vi.fn()}
+        onRefreshCapabilities={vi.fn()}
+        onSetSkillEnabled={vi.fn()}
+        onSetMcpServerEnabled={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("v0.2.0")).toBeTruthy();
   });
 
   it("uses localized built-in skill descriptions", () => {

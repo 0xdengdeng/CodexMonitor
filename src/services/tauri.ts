@@ -871,8 +871,8 @@ export async function setSkillEnabled(
   });
 }
 
-export async function listSkillMarketItems() {
-  return invoke<SkillMarketItem[]>("skill_market_list");
+export async function listSkillMarketItems(locale?: string) {
+  return invoke<SkillMarketItem[]>("skill_market_list", { locale: locale ?? null });
 }
 
 export async function installSkillFromMarket(
@@ -1088,10 +1088,24 @@ export async function getWorkspaceFiles(workspaceId: string) {
 export async function readWorkspaceFile(
   workspaceId: string,
   path: string,
-): Promise<{ content: string; truncated: boolean }> {
-  return invoke<{ content: string; truncated: boolean }>("read_workspace_file", {
+): Promise<{ content: string; truncated: boolean; revision: string }> {
+  return invoke<{ content: string; truncated: boolean; revision: string }>("read_workspace_file", {
     workspaceId,
     path,
+  });
+}
+
+export async function writeWorkspaceFile(
+  workspaceId: string,
+  path: string,
+  content: string,
+  expectedRevision: string,
+): Promise<void> {
+  return invoke("write_workspace_file", {
+    workspaceId,
+    path,
+    content,
+    expectedRevision,
   });
 }
 

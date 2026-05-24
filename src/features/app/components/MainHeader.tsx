@@ -13,7 +13,6 @@ import {
   MenuTrigger,
   PopoverSurface,
 } from "../../design-system/components/popover/PopoverPrimitives";
-import { OpenAppMenu } from "./OpenAppMenu";
 import { LaunchScriptButton } from "./LaunchScriptButton";
 import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
 import type { WorkspaceLaunchScriptsState } from "../hooks/useWorkspaceLaunchScripts";
@@ -80,10 +79,6 @@ export function MainHeader({
   disableBranchMenu = false,
   parentPath = null,
   worktreePath = null,
-  openTargets,
-  openAppIconById,
-  selectedOpenAppId,
-  onSelectOpenAppId,
   branchName,
   branches,
   onCheckoutBranch,
@@ -545,15 +540,6 @@ export function MainHeader({
               ))}
             </div>
           )}
-        {showWorkspaceTools ? (
-          <OpenAppMenu
-            path={resolvedWorktreePath}
-            openTargets={openTargets}
-            selectedOpenAppId={selectedOpenAppId}
-            onSelectOpenAppId={onSelectOpenAppId}
-            iconById={openAppIconById}
-          />
-        ) : null}
         {showTerminalButton && (
           <button
             type="button"

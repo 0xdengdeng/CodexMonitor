@@ -18,6 +18,7 @@ use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_hom
 use crate::rules;
 use crate::shared::account::{build_account_response, read_auth_account};
 use crate::shared::config_toml_core;
+use crate::shared::skills_market_core;
 use crate::types::WorkspaceEntry;
 
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
@@ -491,8 +492,8 @@ fn validate_mcp_config_path(
         ));
     }
 
-    let project_root =
-        project_root.ok_or_else(|| format!("Invalid project config path: {}", config_path.display()))?;
+    let project_root = project_root
+        .ok_or_else(|| format!("Invalid project config path: {}", config_path.display()))?;
     let workspace_path = comparable_path(workspace_path)?;
     if !workspace_path.starts_with(project_root) {
         return Err(format!(
@@ -512,7 +513,10 @@ fn read_config_document_at_path(path: &Path) -> Result<toml_edit::Document, Stri
     }
 }
 
-fn write_config_document_at_path(path: &Path, document: &toml_edit::Document) -> Result<(), String> {
+fn write_config_document_at_path(
+    path: &Path,
+    document: &toml_edit::Document,
+) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|err| format!("Failed to create {}: {err}", parent.display()))?;
@@ -1048,12 +1052,19 @@ pub(crate) async fn skills_list_core(
             source_paths.push(p.to_string());
         }
     }
+    let mut uninstall_allowed_roots = Vec::new();
+    if let Some(codex_home) = resolve_default_codex_home() {
+        uninstall_allowed_roots.push(codex_home.join("skills"));
+    }
+    uninstall_allowed_roots.push(project_skills_dir);
 
     let params = build_skills_list_params(workspace_path, source_paths.clone());
 
     let mut response = session
         .send_request_for_workspace(&workspace_id, "skills/list", params)
         .await?;
+    enrich_skills_list_response_with_install_metadata(&mut response);
+    enrich_skills_list_response_with_uninstallability(&mut response, &uninstall_allowed_roots);
 
     // Attach diagnostics for the UI (non-breaking: keep original response fields).
     if let Value::Object(ref mut obj) = response {
@@ -1062,6 +1073,87 @@ pub(crate) async fn skills_list_core(
     }
 
     Ok(response)
+}
+
+fn enrich_skill_with_install_metadata(skill: &mut Value) {
+    let Value::Object(skill) = skill else {
+        return;
+    };
+    let Some(path) = skill.get("path").and_then(Value::as_str) else {
+        return;
+    };
+    let Some(metadata) = skills_market_core::read_skill_install_metadata(Path::new(path)) else {
+        return;
+    };
+    skill.insert("marketId".to_string(), json!(metadata.id));
+    skill.insert("installedVersion".to_string(), json!(metadata.version));
+    skill.insert("marketSourcePath".to_string(), json!(metadata.source.path));
+    skill.insert("installedAt".to_string(), json!(metadata.installed_at));
+}
+
+fn enrich_skill_with_uninstallability(skill: &mut Value, allowed_roots: &[PathBuf]) {
+    let Value::Object(skill) = skill else {
+        return;
+    };
+    let Some(path) = skill.get("path").and_then(Value::as_str) else {
+        return;
+    };
+    skill.insert(
+        "uninstallable".to_string(),
+        json!(skills_market_core::is_skill_uninstall_target_allowed(
+            path,
+            allowed_roots,
+        )),
+    );
+}
+
+fn enrich_skills_container_with_install_metadata(value: &mut Value) {
+    let Value::Object(object) = value else {
+        return;
+    };
+    if let Some(Value::Array(skills)) = object.get_mut("skills") {
+        for skill in skills {
+            enrich_skill_with_install_metadata(skill);
+        }
+    }
+    if let Some(Value::Array(buckets)) = object.get_mut("data") {
+        for bucket in buckets {
+            enrich_skills_container_with_install_metadata(bucket);
+        }
+    }
+}
+
+fn enrich_skills_container_with_uninstallability(value: &mut Value, allowed_roots: &[PathBuf]) {
+    let Value::Object(object) = value else {
+        return;
+    };
+    if let Some(Value::Array(skills)) = object.get_mut("skills") {
+        for skill in skills {
+            enrich_skill_with_uninstallability(skill, allowed_roots);
+        }
+    }
+    if let Some(Value::Array(buckets)) = object.get_mut("data") {
+        for bucket in buckets {
+            enrich_skills_container_with_uninstallability(bucket, allowed_roots);
+        }
+    }
+}
+
+fn enrich_skills_list_response_with_install_metadata(response: &mut Value) {
+    enrich_skills_container_with_install_metadata(response);
+    if let Some(result) = response.get_mut("result") {
+        enrich_skills_container_with_install_metadata(result);
+    }
+}
+
+fn enrich_skills_list_response_with_uninstallability(
+    response: &mut Value,
+    allowed_roots: &[PathBuf],
+) {
+    enrich_skills_container_with_uninstallability(response, allowed_roots);
+    if let Some(result) = response.get_mut("result") {
+        enrich_skills_container_with_uninstallability(result, allowed_roots);
+    }
 }
 
 pub(crate) async fn skills_config_write_core(
@@ -1424,5 +1516,101 @@ mod tests {
             ]))
         );
         assert!(params.get("skillsPaths").is_none());
+    }
+
+    #[test]
+    fn skills_list_response_includes_market_install_metadata() {
+        let root = std::env::temp_dir().join(format!(
+            "agentdesk-skills-list-metadata-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let skill_dir = root.join("skills").join("docs-writer");
+        fs::create_dir_all(&skill_dir).expect("create skill dir");
+        fs::write(skill_dir.join("SKILL.md"), "---\nname: docs-writer\n---\n")
+            .expect("write skill");
+        fs::write(
+            skill_dir.join(".agentdesk-install.json"),
+            r#"{
+              "schemaVersion": 1,
+              "id": "docs-writer",
+              "version": "0.2.0",
+              "target": "global",
+              "source": { "type": "repo", "path": "skills/docs-writer" },
+              "installedAt": "2026-05-20T00:00:00Z"
+            }"#,
+        )
+        .expect("write metadata");
+        let mut response = json!({
+            "result": {
+                "skills": [
+                    {
+                        "name": "docs-writer",
+                        "path": skill_dir.join("SKILL.md").to_string_lossy()
+                    }
+                ]
+            }
+        });
+
+        enrich_skills_list_response_with_install_metadata(&mut response);
+
+        let skill = response
+            .pointer("/result/skills/0")
+            .and_then(Value::as_object)
+            .expect("skill object");
+        assert_eq!(skill.get("marketId"), Some(&json!("docs-writer")));
+        assert_eq!(skill.get("installedVersion"), Some(&json!("0.2.0")));
+        assert_eq!(
+            skill.get("marketSourcePath"),
+            Some(&json!("skills/docs-writer"))
+        );
+    }
+
+    #[test]
+    fn skills_list_response_marks_only_managed_roots_uninstallable() {
+        let root = std::env::temp_dir().join(format!(
+            "agentdesk-skills-list-uninstallable-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let managed_root = root.join("codex-home").join("skills");
+        let managed_skill = managed_root.join("docs-writer");
+        let system_skill = managed_root.join(".system").join("imagegen");
+        let external_skill = root.join("external").join("skills").join("local-helper");
+        for dir in [&managed_skill, &system_skill, &external_skill] {
+            fs::create_dir_all(dir).expect("create skill dir");
+            fs::write(dir.join("SKILL.md"), "---\nname: test\n---\n").expect("write skill");
+        }
+        let mut response = json!({
+            "result": {
+                "skills": [
+                    {
+                        "name": "docs-writer",
+                        "path": managed_skill.join("SKILL.md").to_string_lossy()
+                    },
+                    {
+                        "name": "imagegen",
+                        "path": system_skill.join("SKILL.md").to_string_lossy()
+                    },
+                    {
+                        "name": "local-helper",
+                        "path": external_skill.join("SKILL.md").to_string_lossy()
+                    }
+                ]
+            }
+        });
+
+        enrich_skills_list_response_with_uninstallability(&mut response, &[managed_root]);
+
+        assert_eq!(
+            response.pointer("/result/skills/0/uninstallable"),
+            Some(&json!(true))
+        );
+        assert_eq!(
+            response.pointer("/result/skills/1/uninstallable"),
+            Some(&json!(false))
+        );
+        assert_eq!(
+            response.pointer("/result/skills/2/uninstallable"),
+            Some(&json!(false))
+        );
     }
 }

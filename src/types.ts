@@ -750,13 +750,20 @@ export type SkillOption = {
   enabled?: boolean;
   effectiveEnabled?: boolean;
   sourcePath?: string;
+  marketId?: string;
+  installedVersion?: string;
+  marketSourcePath?: string;
+  installedAt?: string;
+  uninstallable?: boolean;
 };
 
 export type SkillInstallTarget = "global" | "project";
+export type SkillMarketInstallMode = "install" | "update";
 
 export type SkillMarketItem = {
   id: string;
   name: string;
+  version: string;
   title: string;
   description: string;
   categories: string[];
@@ -765,17 +772,22 @@ export type SkillMarketItem = {
   verified: boolean;
   source: {
     type: string;
+    path: string;
+    files?: { path: string; executable?: boolean }[];
   };
 };
 
 export type SkillMarketInstallInput = {
   itemId: string;
   target: SkillInstallTarget;
+  locale?: string | null;
+  mode?: SkillMarketInstallMode;
 };
 
 export type SkillMarketInstallResult = {
   ok: boolean;
   name: string;
+  version: string;
   path: string;
   target: SkillInstallTarget;
 };

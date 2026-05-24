@@ -926,15 +926,22 @@ pub(crate) async fn skills_config_write(
 
 #[tauri::command]
 pub(crate) async fn skill_market_list(
+    locale: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
     if remote_backend::is_remote_mode(&*state).await {
-        return remote_backend::call_remote(&*state, app, "skill_market_list", json!({})).await;
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "skill_market_list",
+            json!({ "locale": locale }),
+        )
+        .await;
     }
 
-    serde_json::to_value(skills_market_core::skill_market_catalog())
-        .map_err(|err| err.to_string())
+    let catalog = skills_market_core::skill_market_catalog(locale).await?;
+    serde_json::to_value(catalog).map_err(|err| err.to_string())
 }
 
 #[tauri::command]

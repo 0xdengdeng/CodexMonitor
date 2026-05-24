@@ -42,6 +42,7 @@ export function buildCodexSurface({
   onUserInputSubmit,
   onPlanAccept,
   onPlanSubmitChanges,
+  onOpenWorkspaceFileLink,
   activeTokenUsage,
   latestAgentRuns,
   isLoadingLatestAgents,
@@ -219,6 +220,7 @@ export function buildCodexSurface({
       onPlanAccept,
       onPlanSubmitChanges,
       onOpenThreadLink: handleOpenThreadLink,
+      onOpenWorkspaceFileLink,
       onQuoteMessage: composerWorkspaceState.canInsertComposerText
         ? composerWorkspaceState.handleInsertComposerText
         : undefined,

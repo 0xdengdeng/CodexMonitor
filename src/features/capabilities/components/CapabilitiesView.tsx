@@ -31,6 +31,7 @@ export type CapabilitiesViewProps = {
   mcpServers: McpServerOption[];
   onClose: () => void;
   onRefreshCapabilities: () => Promise<void> | void;
+  onRefreshSkillMarket?: () => Promise<void> | void;
   onSetSkillEnabled: (skill: SkillOption, enabled: boolean) => Promise<void> | void;
   onSetMcpServerEnabled: (
     server: McpServerOption,
@@ -58,6 +59,14 @@ function isProjectSkill(skill: SkillOption, workspace: WorkspaceInfo | null) {
 
 function isProjectMcpServer(server: McpServerOption) {
   return server.scope === "project";
+}
+
+function normalizedPath(path: string) {
+  return path.replace(/\\/g, "/");
+}
+
+function isManagedCodexHomeSkillPath(path: string) {
+  return normalizedPath(path).includes("/codex-home/skills/");
 }
 
 function skillScopeLabel(
@@ -89,16 +98,22 @@ function shouldUseLocalizedSkillDescription(skill: SkillOption) {
 
 function canUninstallSkill(skill: SkillOption, workspace: WorkspaceInfo | null) {
   const scope = skill.scope?.toLowerCase();
+  const path = normalizedPath(skill.path);
   if (scope === "system" || scope === "admin") {
     return false;
   }
-  if (skill.path.includes("/.system/") || skill.path.includes("/.codex/plugins/cache/")) {
+  if (path.includes("/.system/") || path.includes("/.codex/plugins/cache/")) {
     return false;
   }
-  return (
-    scope === "user" ||
-    scope === "repo" ||
-    Boolean(workspace && skill.path.startsWith(`${workspace.path}/.agents/skills`))
+  if (typeof skill.uninstallable === "boolean") {
+    return skill.uninstallable;
+  }
+  return Boolean(
+    isProjectSkill(skill, workspace) ||
+      skill.marketId ||
+      skill.installedVersion ||
+      skill.marketSourcePath ||
+      isManagedCodexHomeSkillPath(skill.path),
   );
 }
 
@@ -153,12 +168,20 @@ function mcpInventoryLabel(server: McpServerOption, t: ReturnType<typeof useI18n
   return parts.join(" · ");
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 export function CapabilitiesView({
   activeWorkspace,
   skills,
   mcpServers,
   onClose,
   onRefreshCapabilities,
+  onRefreshSkillMarket,
   onSetSkillEnabled,
   onSetMcpServerEnabled,
   skillMarketItems = [],
@@ -174,8 +197,12 @@ export function CapabilitiesView({
   const [pendingUninstallSkillId, setPendingUninstallSkillId] = useState<string | null>(
     null,
   );
+  const [pendingUninstallConfirmSkillId, setPendingUninstallConfirmSkillId] = useState<
+    string | null
+  >(null);
   const [pendingMcpServerId, setPendingMcpServerId] = useState<string | null>(null);
   const [skillSessionNoticeVisible, setSkillSessionNoticeVisible] = useState(false);
+  const [skillActionError, setSkillActionError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [skillMarketOpen, setSkillMarketOpen] = useState(false);
   const normalizedQuery = query.trim().toLowerCase();
@@ -236,34 +263,62 @@ export function CapabilitiesView({
     const id = skillId(skill);
     const enabled = skill.enabled !== false;
     setPendingSkillId(id);
+    setSkillActionError(null);
     try {
       await onSetSkillEnabled(skill, !enabled);
       setSkillSessionNoticeVisible(true);
+    } catch (error) {
+      setSkillSessionNoticeVisible(false);
+      setSkillActionError(errorMessage(error));
     } finally {
       setPendingSkillId((current) => (current === id ? null : current));
     }
   };
   const handleInstallSkill = async (input: SkillMarketInstallInput) => {
-    await onInstallSkill?.(input);
-    setSkillSessionNoticeVisible(true);
+    setSkillActionError(null);
+    try {
+      await onInstallSkill?.(input);
+      setSkillSessionNoticeVisible(true);
+    } catch (error) {
+      setSkillSessionNoticeVisible(false);
+      setSkillActionError(errorMessage(error));
+    }
   };
   const handleUninstallSkill = async (skill: SkillOption) => {
     const id = skillId(skill);
     setPendingUninstallSkillId(id);
+    setSkillActionError(null);
     try {
       await onUninstallSkill?.(skill);
       setSkillSessionNoticeVisible(true);
+      setPendingUninstallConfirmSkillId(null);
+    } catch (error) {
+      setSkillSessionNoticeVisible(false);
+      setSkillActionError(errorMessage(error));
     } finally {
       setPendingUninstallSkillId((current) => (current === id ? null : current));
     }
   };
+  const handleRequestUninstallSkill = (skill: SkillOption) => {
+    setSkillActionError(null);
+    setPendingUninstallConfirmSkillId(skillId(skill));
+  };
+  const handleCancelUninstallSkill = (skill: SkillOption) => {
+    setPendingUninstallConfirmSkillId((current) =>
+      current === skillId(skill) ? null : current,
+    );
+  };
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await onRefreshCapabilities();
+      await Promise.all([onRefreshCapabilities(), onRefreshSkillMarket?.()]);
     } finally {
       setRefreshing(false);
     }
+  };
+  const handleOpenSkillMarket = async () => {
+    setSkillMarketOpen(true);
+    await onRefreshSkillMarket?.();
   };
   const handleToggleMcpServer = async (server: McpServerOption) => {
     const id = mcpServerId(server);
@@ -292,7 +347,7 @@ export function CapabilitiesView({
             <button
               type="button"
               className="ghost icon-button"
-              onClick={() => setSkillMarketOpen(true)}
+              onClick={() => void handleOpenSkillMarket()}
               aria-label={t("capabilities.market.open")}
               title={t("capabilities.market.open")}
             >
@@ -387,7 +442,14 @@ export function CapabilitiesView({
                 />
               </label>
 
-              {skillSessionNoticeVisible ? (
+              {skillActionError ? (
+                <div className="capabilities-session-note is-error" role="alert">
+                  <Info aria-hidden />
+                  <span>
+                    {t("capabilities.skillActionError", { message: skillActionError })}
+                  </span>
+                </div>
+              ) : skillSessionNoticeVisible ? (
                 <div className="capabilities-session-note" role="status">
                   <Info aria-hidden />
                   <span>{t("capabilities.skillSessionNotice")}</span>
@@ -400,7 +462,11 @@ export function CapabilitiesView({
                 </div>
                 <div className="capabilities-list">
                   {scopedSkills.length > 0 ? (
-                    scopedSkills.map((skill) => (
+                    scopedSkills.map((skill) => {
+                      const isConfirmingUninstall =
+                        pendingUninstallConfirmSkillId === skillId(skill);
+                      const isUninstalling = pendingUninstallSkillId === skillId(skill);
+                      return (
                       <article
                         key={`${skill.name}:${skill.path}`}
                         className={`capability-row${skill.enabled === false ? " is-disabled" : ""}`}
@@ -411,6 +477,11 @@ export function CapabilitiesView({
                             <span className="capability-source">
                               {skillScopeLabel(skill, activeWorkspace, t)}
                             </span>
+                            {skill.installedVersion ? (
+                              <span className="capability-source">
+                                v{skill.installedVersion}
+                              </span>
+                            ) : null}
                           </div>
                           <p>{skillDescription(skill, t)}</p>
                           <code>{skill.path}</code>
@@ -439,8 +510,8 @@ export function CapabilitiesView({
                             <button
                               type="button"
                               className="ghost icon-button capability-row-action"
-                              onClick={() => void handleUninstallSkill(skill)}
-                              disabled={pendingUninstallSkillId === skillId(skill)}
+                              onClick={() => handleRequestUninstallSkill(skill)}
+                              disabled={isUninstalling}
                               aria-label={t("capabilities.uninstallSkill", {
                                 name: skill.name,
                               })}
@@ -450,8 +521,47 @@ export function CapabilitiesView({
                             </button>
                           ) : null}
                         </div>
+                        {isConfirmingUninstall ? (
+                          <div className="capability-uninstall-confirm">
+                            <div>
+                              <strong>
+                                {t("capabilities.uninstallConfirmTitle", {
+                                  name: skill.name,
+                                })}
+                              </strong>
+                              <span>{t("capabilities.uninstallConfirmDetail")}</span>
+                            </div>
+                            <div className="capability-uninstall-confirm-actions">
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() => handleCancelUninstallSkill(skill)}
+                                disabled={isUninstalling}
+                                aria-label={t("capabilities.cancelUninstallSkill", {
+                                  name: skill.name,
+                                })}
+                              >
+                                {t("settings.common.cancel")}
+                              </button>
+                              <button
+                                type="button"
+                                className="ghost capability-uninstall-confirm-danger"
+                                onClick={() => void handleUninstallSkill(skill)}
+                                disabled={isUninstalling}
+                                aria-label={t("capabilities.confirmUninstallSkill", {
+                                  name: skill.name,
+                                })}
+                              >
+                                {isUninstalling
+                                  ? t("capabilities.uninstalling")
+                                  : t("capabilities.uninstallConfirmAction")}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="capabilities-empty">{t("capabilities.noSkills")}</div>
                   )}
@@ -525,7 +635,7 @@ export function CapabilitiesView({
         <SkillMarketDialog
           activeWorkspace={activeWorkspace}
           items={skillMarketItems}
-          installedSkillNames={skills.map((skill) => skill.name)}
+          installedSkills={skills}
           onClose={() => setSkillMarketOpen(false)}
           onInstallSkill={handleInstallSkill}
         />

@@ -8,6 +8,7 @@ export function buildGitSurface({
   gitState,
   composerWorkspaceState,
   activePlan,
+  fileTreeOpenRequest,
   promptActions,
   worktreeState,
   pullRequestComposer,
@@ -55,6 +56,7 @@ export function buildGitSurface({
             ]),
           ],
           isLoading: composerWorkspaceState.isFilesLoading,
+          openFileRequest: fileTreeOpenRequest,
           filePanelMode: gitState.filePanelMode,
           onFilePanelModeChange: gitState.setFilePanelMode,
           onInsertText: composerWorkspaceState.handleInsertComposerText,
@@ -63,6 +65,7 @@ export function buildGitSurface({
           openAppIconById,
           selectedOpenAppId: appSettings.selectedOpenAppId,
           onSelectOpenAppId: handleSelectOpenAppId,
+          onRefreshFiles: composerWorkspaceState.refreshFiles,
         }
       : null,
     promptPanelProps: {

@@ -118,6 +118,15 @@ describe("Sidebar", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("renders the header sort menu outside the clipped sidebar shell", () => {
+    render(<Sidebar {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Organize and sort threads" }));
+
+    const menu = screen.getByRole("menu");
+    expect(menu.closest(".sidebar")).toBeNull();
+  });
+
   it("changes organize mode from the header filter menu", () => {
     const onSetThreadListOrganizeMode = vi.fn();
     render(

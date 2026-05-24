@@ -29,13 +29,16 @@ const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   go: "go",
   h: "c",
   hpp: "cpp",
+  htm: "markup",
   html: "markup",
   java: "java",
   js: "javascript",
   json: "json",
   jsx: "jsx",
   kt: "kotlin",
+  markdown: "markdown",
   md: "markdown",
+  mdx: "markdown",
   mjs: "javascript",
   rs: "rust",
   sass: "scss",
@@ -50,14 +53,17 @@ const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   yml: "yaml",
 };
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+export type RenderPreviewKind = "html" | "markdown";
 
-export function languageFromPath(path?: string | null) {
+const EXTENSION_TO_RENDER_PREVIEW_KIND: Record<string, RenderPreviewKind> = {
+  htm: "html",
+  html: "html",
+  markdown: "markdown",
+  md: "markdown",
+  mdx: "markdown",
+};
+
+function extensionFromPath(path?: string | null) {
   if (!path) {
     return null;
   }
@@ -66,8 +72,47 @@ export function languageFromPath(path?: string | null) {
   if (dotIndex <= 0 || dotIndex === fileName.length - 1) {
     return null;
   }
-  const ext = fileName.slice(dotIndex + 1).toLowerCase();
+  return fileName.slice(dotIndex + 1).toLowerCase();
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function languageFromPath(path?: string | null) {
+  const ext = extensionFromPath(path);
+  if (!ext) {
+    return null;
+  }
   return EXTENSION_TO_LANGUAGE[ext] ?? null;
+}
+
+export function renderPreviewKindFromPath(path?: string | null) {
+  const ext = extensionFromPath(path);
+  if (!ext) {
+    return null;
+  }
+  return EXTENSION_TO_RENDER_PREVIEW_KIND[ext] ?? null;
+}
+
+export function monacoLanguageFromPath(path?: string | null) {
+  const language = languageFromPath(path);
+  switch (language) {
+    case "markup":
+      return "html";
+    case "bash":
+      return "shell";
+    case "cpp":
+      return "cpp";
+    case "text":
+    case null:
+      return "plaintext";
+    default:
+      return language;
+  }
 }
 
 export function highlightLine(text: string, language?: string | null) {

@@ -23,6 +23,7 @@ type UseWorkspaceFileListingArgs = {
 type UseWorkspaceFileListingResult = {
   files: string[];
   isLoading: boolean;
+  refreshFiles: () => Promise<void>;
   setFileAutocompleteActive: (active: boolean) => void;
 };
 
@@ -59,12 +60,12 @@ export function useWorkspaceFileListing({
     }
   }, [hasComposerSurface]);
 
-  const { files, isLoading } = useWorkspaceFiles({
+  const { files, isLoading, refreshFiles } = useWorkspaceFiles({
     activeWorkspace,
     onDebug,
     enabled: shouldFetchFiles,
     pollingEnabled: filePanelVisible,
   });
 
-  return { files, isLoading, setFileAutocompleteActive };
+  return { files, isLoading, refreshFiles, setFileAutocompleteActive };
 }

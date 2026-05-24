@@ -73,7 +73,11 @@ type UseMainAppLayoutSurfacesArgs = {
   onUserInputSubmit: LayoutNodesOptions["primary"]["messagesProps"]["onUserInputSubmit"];
   onPlanAccept: LayoutNodesOptions["primary"]["messagesProps"]["onPlanAccept"];
   onPlanSubmitChanges: LayoutNodesOptions["primary"]["messagesProps"]["onPlanSubmitChanges"];
+  onOpenWorkspaceFileLink: LayoutNodesOptions["primary"]["messagesProps"]["onOpenWorkspaceFileLink"];
   activePlan: LayoutNodesOptions["secondary"]["planPanelProps"]["plan"];
+  fileTreeOpenRequest: NonNullable<
+    LayoutNodesOptions["git"]["fileTreeProps"]
+  >["openFileRequest"];
   activeTokenUsage: ComposerProps["contextUsage"];
   latestAgentRuns: LayoutNodesOptions["primary"]["homeProps"]["latestAgentRuns"];
   isLoadingLatestAgents: LayoutNodesOptions["primary"]["homeProps"]["isLoadingLatestAgents"];
@@ -269,7 +273,9 @@ export function useMainAppLayoutSurfaces({
   onUserInputSubmit,
   onPlanAccept,
   onPlanSubmitChanges,
+  onOpenWorkspaceFileLink,
   activePlan,
+  fileTreeOpenRequest,
   activeTokenUsage,
   latestAgentRuns,
   isLoadingLatestAgents,
@@ -431,7 +437,9 @@ export function useMainAppLayoutSurfaces({
     onUserInputSubmit,
     onPlanAccept,
     onPlanSubmitChanges,
+    onOpenWorkspaceFileLink,
     activePlan,
+    fileTreeOpenRequest,
     activeTokenUsage,
     latestAgentRuns,
     isLoadingLatestAgents,

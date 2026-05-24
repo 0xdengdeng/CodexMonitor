@@ -401,6 +401,36 @@ describe("Messages", () => {
     );
   });
 
+  it("routes workspace file links to the internal file tree opener when available", () => {
+    const onOpenWorkspaceFileLink = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-internal-workspace-link",
+        kind: "message",
+        role: "assistant",
+        text: "Open [index.html](index.html)",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        workspacePath="/Users/xiaodeng/project/test-fold"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onOpenWorkspaceFileLink={onOpenWorkspaceFileLink}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("index.html"));
+
+    expect(onOpenWorkspaceFileLink).toHaveBeenCalledWith("index.html");
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
   it("routes absolute non-whitelisted file href paths through the file opener", () => {
     const linkedPath = "/custom/project/src/App.tsx:12";
     const items: ConversationItem[] = [

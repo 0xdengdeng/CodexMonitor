@@ -105,6 +105,39 @@ describe("useSkills", () => {
     });
   });
 
+  it("maps market metadata and uninstallability from the runtime response", async () => {
+    vi.mocked(getSkillsList).mockResolvedValueOnce({
+      result: {
+        skills: [
+          {
+            name: "docs-writer",
+            path: "/Users/me/Library/Application Support/com.agentdesk.app.dev/codex-home/skills/docs-writer/SKILL.md",
+            scope: "user",
+            enabled: true,
+            marketId: "docs-writer",
+            installedVersion: "0.2.0",
+            marketSourcePath: "skills/docs-writer",
+            installedAt: "2026-05-20T00:00:00Z",
+            uninstallable: true,
+          },
+        ],
+      },
+    });
+
+    const { result } = renderHook(() => useSkills({ activeWorkspace: workspace }));
+
+    await waitFor(() => {
+      expect(result.current.allSkills[0]).toMatchObject({
+        name: "docs-writer",
+        marketId: "docs-writer",
+        installedVersion: "0.2.0",
+        marketSourcePath: "skills/docs-writer",
+        installedAt: "2026-05-20T00:00:00Z",
+        uninstallable: true,
+      });
+    });
+  });
+
   it("writes project skill enablement by path and refreshes the catalog", async () => {
     vi.mocked(getSkillsList)
       .mockResolvedValueOnce({
@@ -274,6 +307,52 @@ describe("useSkills", () => {
     await waitFor(() => {
       expect(getSkillsList).toHaveBeenCalledTimes(2);
       expect(result.current.skills.map((skill) => skill.name)).toEqual(["first", "second"]);
+    });
+  });
+
+  it("queues a second refresh when a refresh is already in flight", async () => {
+    let resolveFirst: (value: unknown) => void = () => {};
+    vi.mocked(getSkillsList)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        result: {
+          skills: [
+            {
+              name: "docs-writer",
+              path: "/Users/me/Library/Application Support/com.agentdesk.app.dev/codex-home/skills/docs-writer/SKILL.md",
+              scope: "user",
+              enabled: true,
+            },
+          ],
+        },
+      });
+
+    const { result } = renderHook(() => useSkills({ activeWorkspace: workspace }));
+
+    await waitFor(() => {
+      expect(getSkillsList).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      void result.current.refreshSkills();
+    });
+
+    expect(getSkillsList).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirst({ result: { skills: [] } });
+    });
+
+    await waitFor(() => {
+      expect(getSkillsList).toHaveBeenCalledTimes(2);
+      expect(result.current.allSkills.map((skill) => skill.name)).toEqual([
+        "docs-writer",
+      ]);
     });
   });
 
