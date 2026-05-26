@@ -11,6 +11,13 @@ Detailed navigation/runbooks live in:
 - `docs/multi-agent-sync-runbook.md` (upstream `../Codex` sync checklist for multi-agent/config behavior)
 - `README.md` (setup, build, release, and broader project docs)
 
+## Documentation Language
+
+- New or materially updated design/spec documents under `docs/superpowers/specs/`
+  must have both English and Chinese versions. Use the original `.md` path for
+  English and a matching `.zh.md` path for Chinese. Existing specs without a
+  Chinese counterpart may remain as-is until they are next updated.
+
 ## Project Snapshot
 
 CodexMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
