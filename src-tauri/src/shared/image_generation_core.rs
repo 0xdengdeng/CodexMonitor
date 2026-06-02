@@ -275,6 +275,17 @@ fn extension_for_mime_type(mime_type: &str) -> &'static str {
     }
 }
 
+fn model_visible_data_url(mime_type: &str, bytes: &[u8]) -> String {
+    format!("data:{mime_type};base64,{}", STANDARD.encode(bytes))
+}
+
+fn apply_downloaded_image(parsed: &mut ParsedAdgImage, bytes: Vec<u8>, mime_type: String) {
+    parsed.model_visible_image_url = Some(model_visible_data_url(&mime_type, &bytes));
+    parsed.bytes = bytes;
+    parsed.mime_type = mime_type;
+    parsed.url = None;
+}
+
 fn normalize_reference_image_ids(
     reference_image_ids: Option<&[String]>,
 ) -> Result<Vec<String>, String> {
@@ -622,8 +633,7 @@ pub(crate) async fn generate_image_core(
     })?;
     if let Some(url) = parsed.url.as_deref() {
         let downloaded = download_image_url(&client, url).await?;
-        parsed.bytes = downloaded.0;
-        parsed.mime_type = downloaded.1;
+        apply_downloaded_image(&mut parsed, downloaded.0, downloaded.1);
     }
     let mime_type =
         detect_image_mime_type(&parsed.bytes).unwrap_or_else(|| parsed.mime_type.clone());
@@ -855,6 +865,27 @@ mod tests {
         assert_eq!(
             parsed.model_visible_image_url,
             Some(format!("data:image/png;base64,{encoded}"))
+        );
+    }
+
+    #[test]
+    fn downloaded_url_response_becomes_model_visible_data_url() {
+        let mut parsed = ParsedAdgImage {
+            bytes: Vec::new(),
+            mime_type: "image/png".to_string(),
+            url: Some("https://files.example.test/generated.png".to_string()),
+            model_visible_image_url: Some("https://files.example.test/generated.png".to_string()),
+        };
+        let bytes = [137, 80, 78, 71, 13, 10, 26, 10];
+
+        apply_downloaded_image(&mut parsed, bytes.to_vec(), "image/png".to_string());
+
+        assert_eq!(parsed.bytes, bytes);
+        assert_eq!(parsed.mime_type, "image/png");
+        assert_eq!(parsed.url, None);
+        assert_eq!(
+            parsed.model_visible_image_url,
+            Some(format!("data:image/png;base64,{}", STANDARD.encode(bytes)))
         );
     }
 
