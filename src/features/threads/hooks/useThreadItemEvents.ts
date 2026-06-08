@@ -58,6 +58,7 @@ export function useThreadItemEvents({
       threadId: string,
       item: Record<string, unknown>,
       shouldMarkProcessing: boolean,
+      turnId?: string | null,
     ) => {
       dispatch({ type: "ensureThread", workspaceId, threadId });
       if (shouldMarkProcessing) {
@@ -74,7 +75,7 @@ export function useThreadItemEvents({
           onReviewExited?.(workspaceId, threadId);
         }
       }
-      const itemForDisplay = buildItemForDisplay(item, shouldMarkProcessing);
+      const itemForDisplay = buildItemForDisplay(item, shouldMarkProcessing, turnId);
       const conversionOptions = imageGenerationModel
         ? { imageGenerationModel }
         : undefined;
@@ -217,15 +218,25 @@ export function useThreadItemEvents({
   );
 
   const onItemStarted = useCallback(
-    (workspaceId: string, threadId: string, item: Record<string, unknown>) => {
-      handleItemUpdate(workspaceId, threadId, item, true);
+    (
+      workspaceId: string,
+      threadId: string,
+      item: Record<string, unknown>,
+      turnId?: string | null,
+    ) => {
+      handleItemUpdate(workspaceId, threadId, item, true, turnId);
     },
     [handleItemUpdate],
   );
 
   const onItemCompleted = useCallback(
-    (workspaceId: string, threadId: string, item: Record<string, unknown>) => {
-      handleItemUpdate(workspaceId, threadId, item, false);
+    (
+      workspaceId: string,
+      threadId: string,
+      item: Record<string, unknown>,
+      turnId?: string | null,
+    ) => {
+      handleItemUpdate(workspaceId, threadId, item, false, turnId);
     },
     [handleItemUpdate],
   );

@@ -1,10 +1,11 @@
-import { buildConversationItem } from "@utils/threadItems";
+import { buildConversationItem, scopeImageGenerationItemForTurn } from "@utils/threadItems";
 import type { CollabAgentRef } from "@/types";
 import { asString } from "@threads/utils/threadNormalize";
 
 export function buildItemForDisplay(
   item: Record<string, unknown>,
   shouldMarkProcessing: boolean,
+  turnId?: string | null,
 ) {
   const itemType = asString(item?.type ?? "");
   if (
@@ -17,7 +18,7 @@ export function buildItemForDisplay(
   }
 
   return {
-    ...item,
+    ...scopeImageGenerationItemForTurn(item, turnId),
     status: shouldMarkProcessing ? "inProgress" : "completed",
   } as Record<string, unknown>;
 }

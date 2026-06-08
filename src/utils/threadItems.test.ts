@@ -1151,6 +1151,41 @@ describe("threadItems", () => {
     });
   });
 
+  it("keeps same image generation call ids from different turns as separate items", () => {
+    const items = buildItemsFromThread(
+      {
+        turns: [
+          {
+            id: "turn-1",
+            items: [
+              {
+                type: "image_generation_call",
+                id: "ig_1",
+                status: "completed",
+                result: "AAA",
+              },
+            ],
+          },
+          {
+            id: "turn-2",
+            items: [
+              {
+                type: "image_generation_call",
+                id: "ig_1",
+                status: "completed",
+                result: "BBB",
+              },
+            ],
+          },
+        ],
+      },
+      { imageGenerationModel: "gpt-image-2" },
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items.map((item) => item.id)).toEqual(["turn-1:ig_1", "turn-2:ig_1"]);
+  });
+
   it("coalesces duplicate image generation records during thread replay", () => {
     const result =
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";

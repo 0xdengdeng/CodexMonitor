@@ -100,6 +100,7 @@ import {
   resolveInterfaceLanguage,
   translate,
 } from "@/features/i18n/i18n";
+import { resolveImageGenerationRuntime } from "@app/utils/imageGenerationRuntime";
 
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
@@ -203,6 +204,9 @@ export default function MainApp() {
     refreshWorkspaces,
   });
   const updaterEnabled = !isMobileRuntime;
+  const imageGenerationRuntime = resolveImageGenerationRuntime(
+    appSettings.managedRuntime,
+  );
 
   const workspacesById = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
@@ -603,11 +607,8 @@ export default function MainApp() {
       ? null
       : appSettings.chatHistoryScrollbackItems,
     nativeImageGenerationEnabled:
-      appSettings.managedRuntime.nativeImageGeneration !== false,
-    imageGenerationModel:
-      appSettings.managedRuntime.nativeImageGeneration !== false
-        ? appSettings.managedRuntime.imageModel
-        : null,
+      imageGenerationRuntime.nativeImageGenerationEnabled,
+    imageGenerationModel: imageGenerationRuntime.imageGenerationModel,
     customPrompts: prompts,
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,

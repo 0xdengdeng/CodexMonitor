@@ -6,6 +6,28 @@ import { useThreadItemEvents } from "./useThreadItemEvents";
 
 vi.mock("@utils/threadItems", () => ({
   buildConversationItem: vi.fn(),
+  scopeImageGenerationItemForTurn: (
+    item: Record<string, unknown>,
+    turnId?: string | null,
+  ) => {
+    const type = String(item.type ?? "");
+    const id = String(item.id ?? "").trim();
+    const normalizedTurnId = String(turnId ?? "").trim();
+    if (
+      (type !== "imageGeneration" && type !== "image_generation_call") ||
+      !normalizedTurnId ||
+      !id
+    ) {
+      return item;
+    }
+    const callId = String(item.callId ?? item.call_id ?? id).trim() || id;
+    return {
+      ...item,
+      id: `${normalizedTurnId}:${id}`,
+      callId,
+      call_id: callId,
+    };
+  },
 }));
 
 type ItemPayload = Record<string, unknown>;
@@ -252,6 +274,29 @@ describe("useThreadItemEvents", () => {
       expect.objectContaining({
         type: "image_generation_call",
         id: "image-raw-1",
+        status: "completed",
+      }),
+    );
+  });
+
+  it("scopes raw image generation item ids by turn", () => {
+    const { result } = makeOptions();
+    const item: ItemPayload = {
+      type: "image_generation_call",
+      id: "ig_1",
+      result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
+    };
+
+    act(() => {
+      result.current.onItemCompleted("ws-1", "thread-1", item, "turn-1");
+    });
+
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "image_generation_call",
+        id: "turn-1:ig_1",
+        callId: "ig_1",
+        call_id: "ig_1",
         status: "completed",
       }),
     );

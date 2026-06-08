@@ -403,7 +403,7 @@ describe("useAppServerEvents", () => {
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
-  it("routes raw image generation response items as completed items", async () => {
+  it("routes raw image generation response items as completed items with turn id", async () => {
     const handlers: Handlers = {
       onItemCompleted: vi.fn(),
     };
@@ -430,14 +430,19 @@ describe("useAppServerEvents", () => {
       });
     });
 
-    expect(handlers.onItemCompleted).toHaveBeenCalledWith("ws-1", "thread-1", {
-      type: "image_generation_call",
-      id: "ig-1",
-      status: "generating",
-      size: "1024x1536",
-      revised_prompt: "A generated image",
-      result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
-    });
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      {
+        type: "image_generation_call",
+        id: "ig-1",
+        status: "generating",
+        size: "1024x1536",
+        revised_prompt: "A generated image",
+        result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
+      },
+      "turn-1",
+    );
 
     await act(async () => {
       root.unmount();

@@ -312,6 +312,11 @@ pub(crate) fn build_thread_start_params(
         "approvalPolicy": "on-request"
     });
     if !native_image_generation {
+        params["config"] = json!({
+            "features": {
+                "image_generation": false
+            }
+        });
         params["dynamicTools"] = json!([image_generation_dynamic_tool()]);
     }
     params
@@ -321,7 +326,7 @@ fn image_generation_dynamic_tool() -> Value {
     json!({
         "namespace": "codex_monitor",
         "name": "generate_image",
-        "description": "Generate a new image from text, or edit a previously generated image when referenceImageIds are provided. Use referenceImageIds when the user asks to modify, restyle, or base the result on a previous generated image.",
+        "description": "Generate or edit an image only when the user explicitly asks for an image, picture, poster, icon, illustration, visual, or image edit. Do not use this tool for ordinary chat, code, text answers, explanations, file edits, or ambiguous requests that can be answered in text. Use referenceImageIds when the user asks to modify, restyle, or base the result on a previous generated image.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1425,6 +1430,11 @@ mod tests {
     #[test]
     fn thread_start_params_include_image_generation_dynamic_tool() {
         let params = build_thread_start_params("/tmp/workspace".to_string(), false);
+        assert_eq!(
+            params.pointer("/config/features/image_generation"),
+            Some(&json!(false))
+        );
+        assert!(params.pointer("/config/features.image_generation").is_none());
         let tool = params
             .get("dynamicTools")
             .and_then(Value::as_array)
@@ -1437,6 +1447,8 @@ mod tests {
             .get("description")
             .and_then(Value::as_str)
             .expect("tool should describe its image generation scope");
+        assert!(tool_description.contains("only when the user explicitly asks"));
+        assert!(tool_description.contains("ordinary chat"));
         assert!(tool_description.contains("referenceImageIds"));
         assert!(tool_description.contains("previous generated image"));
         let prompt_description = tool
@@ -1476,6 +1488,7 @@ mod tests {
         let params = build_thread_start_params("/tmp/workspace".to_string(), true);
 
         assert_eq!(params.get("cwd"), Some(&json!("/tmp/workspace")));
+        assert!(params.pointer("/config/features/image_generation").is_none());
         assert!(params.get("dynamicTools").is_none());
     }
 

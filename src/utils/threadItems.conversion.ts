@@ -75,6 +75,36 @@ function getTurnCreatedAt(turn: Record<string, unknown>) {
   return timestamp > 0 ? timestamp : undefined;
 }
 
+function getTurnId(turn: Record<string, unknown>) {
+  return asString(turn.id ?? turn.turnId ?? turn.turn_id).trim();
+}
+
+function isImageGenerationItemType(type: string) {
+  return type === "imageGeneration" || type === "image_generation_call";
+}
+
+export function scopeImageGenerationItemForTurn(
+  item: Record<string, unknown>,
+  turnId?: string | null,
+) {
+  const type = asString(item.type);
+  if (!isImageGenerationItemType(type)) {
+    return item;
+  }
+  const normalizedTurnId = asString(turnId).trim();
+  const id = asString(item.id).trim();
+  if (!normalizedTurnId || !id || id.startsWith(`${normalizedTurnId}:`)) {
+    return item;
+  }
+  const callId = asString(item.callId ?? item.call_id).trim() || id;
+  return {
+    ...item,
+    id: `${normalizedTurnId}:${id}`,
+    callId,
+    call_id: callId,
+  };
+}
+
 function normalizeImageGenerationStatus(value: unknown, hasGeneratedImage = false) {
   const status = asString(value).trim();
   const normalized = status.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
@@ -570,6 +600,7 @@ export function buildItemsFromThread(
   let items: ConversationItem[] = [];
   turns.forEach((turn) => {
     const turnRecord = turn as Record<string, unknown>;
+    const turnId = getTurnId(turnRecord);
     const turnCreatedAt = getTurnCreatedAt(turnRecord);
     const turnItems = Array.isArray(turnRecord.items)
       ? (turnRecord.items as Record<string, unknown>[])
@@ -591,8 +622,9 @@ export function buildItemsFromThread(
           dynamicFunctionCallsById,
           turnCreatedAt,
         ) ?? item;
+      const displayItem = scopeImageGenerationItemForTurn(normalizedItem, turnId);
       const converted = buildConversationItemFromThreadItem(
-        normalizedItem,
+        displayItem,
         turnCreatedAt,
         options,
       );
