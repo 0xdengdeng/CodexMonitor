@@ -11,6 +11,8 @@ pub(crate) const MANAGED_RUNTIME_ENV_KEY: &str = runtime_secret_core::RUNTIME_AP
 
 const MANAGED_RUNTIME_PROVIDER_NAME: &str = "agentDesk Managed Runtime";
 const MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS: i64 = 300_000;
+const MANAGED_RUNTIME_USER_AGENT: &str =
+    concat!("CodexMonitor/", env!("CARGO_PKG_VERSION"), " AgentDesk");
 
 fn normalized_optional(value: Option<&str>) -> Option<String> {
     let trimmed = value?.trim();
@@ -105,11 +107,12 @@ pub(crate) fn apply_managed_runtime_config_to_document(
     provider["requires_openai_auth"] = value(false);
     provider["supports_websockets"] = value(false);
     provider["stream_idle_timeout_ms"] = value(MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS);
+    let mut http_headers = Table::new();
+    http_headers["User-Agent"] = value(MANAGED_RUNTIME_USER_AGENT);
     if let Some(image_model) = config.image_model.as_deref() {
-        let mut http_headers = Table::new();
         http_headers["X-ADG-Image-Model"] = value(image_model);
-        provider["http_headers"] = Item::Table(http_headers);
     }
+    provider["http_headers"] = Item::Table(http_headers);
     providers[MANAGED_RUNTIME_PROVIDER_ID] = Item::Table(provider);
 
     Ok(())
@@ -198,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_managed_runtime_config_omits_image_model_header_when_unset() {
+    fn sync_managed_runtime_config_writes_adg_user_agent_header() {
         let codex_home =
             std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
         fs::create_dir_all(&codex_home).expect("create temp codex home");
@@ -215,7 +218,36 @@ mod tests {
 
         let contents =
             fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
-        assert!(!contents.contains("[model_providers.agentdesk_managed.http_headers]"));
+        assert!(contents.contains("[model_providers.agentdesk_managed.http_headers]"));
+        assert!(contents.contains(&format!(
+            "User-Agent = \"CodexMonitor/{} AgentDesk\"",
+            env!("CARGO_PKG_VERSION")
+        )));
+    }
+
+    #[test]
+    fn sync_managed_runtime_config_keeps_user_agent_header_when_image_model_unset() {
+        let codex_home =
+            std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
+        fs::create_dir_all(&codex_home).expect("create temp codex home");
+
+        let settings = ManagedRuntimeConfig {
+            enabled: true,
+            base_url: Some("https://runtime.example.com/v1".to_string()),
+            model: Some("qihang-ultra-5.5".to_string()),
+            image_model: None,
+            native_image_generation: true,
+        };
+
+        sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
+
+        let contents =
+            fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
+        assert!(contents.contains("[model_providers.agentdesk_managed.http_headers]"));
+        assert!(contents.contains(&format!(
+            "User-Agent = \"CodexMonitor/{} AgentDesk\"",
+            env!("CARGO_PKG_VERSION")
+        )));
         assert!(!contents.contains("X-ADG-Image-Model"));
     }
 

@@ -250,6 +250,9 @@ jobs:
     env:
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
+      WINDOWS_CERTIFICATE_B64: ${{ secrets.WINDOWS_CERTIFICATE_B64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -348,6 +351,61 @@ jobs:
           (target / "agentdesk.key").write_bytes(raw)
           PY
 
+      - name: Import Windows code signing certificate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $required = @(
+            "WINDOWS_CERTIFICATE_B64",
+            "WINDOWS_CERTIFICATE_PASSWORD",
+            "WINDOWS_CERTIFICATE_THUMBPRINT"
+          )
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing required secret-backed environment variable: $name"
+            }
+          }
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign.pfx"
+          [IO.File]::WriteAllBytes(
+            $certificatePath,
+            [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_B64)
+          )
+          $password = ConvertTo-SecureString `
+            -String $env:WINDOWS_CERTIFICATE_PASSWORD `
+            -AsPlainText `
+            -Force
+          Import-PfxCertificate `
+            -FilePath $certificatePath `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -Password $password | Out-Null
+
+          $thumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT.Replace(" ", "").ToUpperInvariant()
+          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
+          if ($null -eq $cert) {
+            throw "Imported Windows code signing certificate was not found by the configured thumbprint."
+          }
+          "WINDOWS_CERTIFICATE_THUMBPRINT=$thumbprint" |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Write Windows signing config
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $thumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT.Replace(" ", "").ToUpperInvariant()
+          $config = @{
+            bundle = @{
+              windows = @{
+                certificateThumbprint = $thumbprint
+                digestAlgorithm = "sha256"
+                timestampUrl = "http://timestamp.digicert.com"
+              }
+            }
+          }
+          $config |
+            ConvertTo-Json -Depth 5 |
+            Set-Content -Path "src-tauri/tauri.windows.signing.conf.json" -Encoding UTF8
+
       - name: build windows bundles
         shell: bash
         run: |
@@ -356,7 +414,31 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
           # NSIS only — OTA uses the .exe installer, MSI's WiX light.exe has
           # been flaky on the runner.
-          npm run tauri:build:win -- --bundles nsis
+          npm run tauri:build:win -- --bundles nsis --config src-tauri/tauri.windows.signing.conf.json
+
+      - name: Verify Windows installer Authenticode signature
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $expectedThumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT.Replace(" ", "").ToUpperInvariant()
+          $installers = Get-ChildItem `
+            -Path "src-tauri/target/release/bundle/nsis" `
+            -Filter "*.exe" `
+            -File
+          if ($installers.Count -eq 0) {
+            throw "No NSIS installer exe was produced."
+          }
+
+          foreach ($installer in $installers) {
+            $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+            if ($signature.Status -ne "Valid") {
+              throw "Invalid Authenticode signature for $($installer.Name): $($signature.Status)"
+            }
+            $actualThumbprint = $signature.SignerCertificate.Thumbprint.ToUpperInvariant()
+            if ($actualThumbprint -ne $expectedThumbprint) {
+              throw "Unexpected signer for $($installer.Name)."
+            }
+          }
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4

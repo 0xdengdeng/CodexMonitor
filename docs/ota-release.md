@@ -20,6 +20,9 @@ Repository or release-environment secrets:
 
 - `TAURI_SIGNING_PRIVATE_KEY_B64`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- `WINDOWS_CERTIFICATE_B64`
+- `WINDOWS_CERTIFICATE_PASSWORD`
+- `WINDOWS_CERTIFICATE_THUMBPRINT`
 - `APPLE_CERTIFICATE_P12`
 - `APPLE_CERTIFICATE_PASSWORD`
 - `APPLE_API_KEY_ID`
@@ -67,6 +70,16 @@ base64 < ~/.tauri/agentdesk.key
 
 Set that output as `TAURI_SIGNING_PRIVATE_KEY_B64`, and set the generation password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 
+For Windows release builds, export the Authenticode code signing certificate as
+a password-protected `.pfx`, base64-encode it, and store it as
+`WINDOWS_CERTIFICATE_B64`. Store the `.pfx` password in
+`WINDOWS_CERTIFICATE_PASSWORD`, and store the certificate thumbprint without
+spaces in `WINDOWS_CERTIFICATE_THUMBPRINT`. The Windows release job imports the
+certificate into the current user's certificate store, writes a temporary Tauri
+signing config, signs the NSIS installer with SHA-256 and a timestamp, and then
+fails the workflow if `Get-AuthenticodeSignature` does not report a valid
+signature from the expected certificate.
+
 ## Release Flow
 
 1. Merge the release branch into `main`.
@@ -85,6 +98,8 @@ Set that output as `TAURI_SIGNING_PRIVATE_KEY_B64`, and set the generation passw
 - Every platform artifact referenced by `latest.json` has a matching signature.
 - `release-notes.md` is available at `codexmonitor/releases/<version>/release-notes.md`.
 - macOS app is signed, notarized, and stapled.
+- Windows NSIS installer has a valid Authenticode signature from the expected
+  certificate thumbprint.
 - Existing installed client updates without visiting the download page.
 
 ## Important Notes

@@ -1,15 +1,15 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
@@ -23,6 +23,51 @@ use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executabl
 use std::os::windows::process::CommandExt;
 
 const DISABLE_HOME_AGENTS_SKILLS_ENV: &str = "CODEX_DISABLE_HOME_AGENTS_SKILLS";
+const RUNTIME_DIAGNOSTIC_STREAM_LIMIT: usize = 4_000;
+
+fn truncate_runtime_diagnostic(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return "<empty>".to_string();
+    }
+    let mut truncated = String::new();
+    let mut count = 0;
+    for ch in trimmed.chars() {
+        if count >= RUNTIME_DIAGNOSTIC_STREAM_LIMIT {
+            truncated.push_str("\n<truncated>");
+            return truncated;
+        }
+        truncated.push(ch);
+        count += 1;
+    }
+    truncated
+}
+
+fn runtime_start_diagnostic(
+    context: &str,
+    codex_bin: &str,
+    exit_status: &str,
+    stdout: &str,
+    stderr: &str,
+    extra: Option<&str>,
+) -> String {
+    let mut lines = vec![
+        "Bundled Codex runtime failed to start.".to_string(),
+        format!("Context: {context}"),
+        format!("Runtime path: {codex_bin}"),
+        format!("Exit status: {exit_status}"),
+        format!("stdout: {}", truncate_runtime_diagnostic(stdout)),
+        format!("stderr: {}", truncate_runtime_diagnostic(stderr)),
+    ];
+    if let Some(extra) = extra.map(str::trim).filter(|value| !value.is_empty()) {
+        lines.push(extra.to_string());
+    }
+    lines.push(
+        "Please copy this diagnostic and try running the runtime path with `--version` on the affected machine."
+            .to_string(),
+    );
+    lines.join("\n")
+}
 
 fn extract_thread_id(value: &Value) -> Option<String> {
     fn extract_from_container(container: Option<&Value>) -> Option<String> {
@@ -693,6 +738,7 @@ pub(crate) fn build_codex_command_with_bin(
 }
 
 pub(crate) async fn check_codex_installation(codex_bin: String) -> Result<Option<String>, String> {
+    let codex_bin_for_error = codex_bin.clone();
     let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
@@ -700,31 +746,46 @@ pub(crate) async fn check_codex_installation(codex_bin: String) -> Result<Option
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Bundled Codex runtime not found. Run `npm run sync:codex-runtime` before starting AgentDesk.".to_string()
+                format!("Bundled Codex runtime not found.\nRuntime path: {codex_bin_for_error}")
             } else {
-                e.to_string()
+                runtime_start_diagnostic(
+                    "version check spawn",
+                    &codex_bin_for_error,
+                    &format!("spawn error: {e}"),
+                    "",
+                    "",
+                    None,
+                )
             }
         })?,
         Err(_) => {
-            return Err(
-                "Timed out while checking the bundled Codex runtime."
-                    .to_string(),
-            );
+            return Err(runtime_start_diagnostic(
+                "version check timeout",
+                &codex_bin_for_error,
+                "timeout after 5s",
+                "",
+                "",
+                None,
+            ));
         }
     };
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let detail = if stderr.trim().is_empty() {
-            stdout.trim()
+        let exit_status = if let Some(code) = output.status.code() {
+            format!("exit code {code}")
         } else {
-            stderr.trim()
+            output.status.to_string()
         };
-        if detail.is_empty() {
-            return Err("Bundled Codex runtime failed to start.".to_string());
-        }
-        return Err(format!("Bundled Codex runtime failed to start: {detail}."));
+        return Err(runtime_start_diagnostic(
+            "version check",
+            &codex_bin_for_error,
+            &exit_status,
+            &stdout,
+            &stderr,
+            None,
+        ));
     }
 
     let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -744,6 +805,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
+    let codex_bin_for_error = codex_bin.clone();
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
     let mut command = build_codex_command_with_bin(
@@ -762,7 +824,16 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
-    let mut child = command.spawn().map_err(|e| e.to_string())?;
+    let mut child = command.spawn().map_err(|e| {
+        runtime_start_diagnostic(
+            "app-server spawn",
+            &codex_bin_for_error,
+            &format!("spawn error: {e}"),
+            "",
+            "",
+            Some(&format!("Workspace path: {}", entry.path)),
+        )
+    })?;
     let stdin = child.stdin.take().ok_or("missing stdin")?;
     let stdout = child.stdout.take().ok_or("missing stdout")?;
     let stderr = child.stderr.take().ok_or("missing stderr")?;
@@ -1081,10 +1152,14 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         Err(_) => {
             let mut child = session.child.lock().await;
             kill_child_process_tree(&mut child).await;
-            return Err(
-                "Codex app-server did not respond to initialize. Check that `codex app-server` works in Terminal."
-                    .to_string(),
-            );
+            return Err(runtime_start_diagnostic(
+                "app-server initialize timeout",
+                &codex_bin_for_error,
+                "timeout after 15s",
+                "",
+                "",
+                Some(&format!("Workspace path: {}", entry.path)),
+            ));
         }
     };
     init_response?;
@@ -1105,13 +1180,66 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_codex_command_with_bin, build_initialize_params, extract_related_thread_ids,
-        extract_thread_entries_from_thread_list_result, extract_thread_id, normalize_root_path,
-        resolve_workspace_for_cwd, should_suppress_hidden_thread_event, source_subagent_kind,
+        build_codex_command_with_bin, build_initialize_params, check_codex_installation,
+        extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
+        extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
+        should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation,
     };
     use serde_json::json;
     use std::collections::HashMap;
+
+    #[test]
+    fn failed_codex_version_check_includes_runtime_diagnostics() {
+        let runtime = tokio::runtime::Runtime::new().expect("build tokio runtime");
+        runtime.block_on(async {
+            let temp_dir = std::env::temp_dir().join(format!(
+                "agentdesk-runtime-diagnostics-{}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+
+            #[cfg(target_os = "windows")]
+            let script_path = {
+                let path = temp_dir.join("codex-runtime.cmd");
+                std::fs::write(
+                    &path,
+                    "@echo off\r\necho runtime stderr detail 1>&2\r\nexit /b 42\r\n",
+                )
+                .expect("write failing runtime");
+                path
+            };
+
+            #[cfg(not(target_os = "windows"))]
+            let script_path = {
+                use std::os::unix::fs::PermissionsExt;
+
+                let path = temp_dir.join("codex-runtime");
+                std::fs::write(
+                    &path,
+                    "#!/bin/sh\necho runtime stderr detail >&2\nexit 42\n",
+                )
+                .expect("write failing runtime");
+                let mut permissions = std::fs::metadata(&path).expect("metadata").permissions();
+                permissions.set_mode(0o755);
+                std::fs::set_permissions(&path, permissions).expect("chmod runtime");
+                path
+            };
+
+            let error = check_codex_installation(script_path.to_string_lossy().into_owned())
+                .await
+                .expect_err("runtime should fail");
+
+            assert!(error.contains("Bundled Codex runtime failed to start."));
+            assert!(error.contains("Runtime path:"));
+            assert!(error.contains(script_path.to_string_lossy().as_ref()));
+            assert!(error.contains("Exit status:"));
+            assert!(error.contains("stderr: runtime stderr detail"));
+            assert!(error.contains("stdout: <empty>"));
+
+            let _ = std::fs::remove_dir_all(&temp_dir);
+        });
+    }
 
     #[test]
     fn extract_thread_id_reads_camel_case() {
