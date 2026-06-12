@@ -16,6 +16,7 @@ import {
 import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
 import { useI18n } from "@/features/i18n/i18n";
+import { buildReasoningEffortOptions } from "@/features/models/utils/reasoningLabels";
 import { normalizePublicImageModel } from "@/utils/imageModels";
 
 type SettingsCodexSectionProps = {
@@ -251,6 +252,11 @@ export function SettingsCodexSection({
     }
     return reasoningOptions[0] ?? "";
   }, [reasoningOptions, reasoningSupported, savedEffort, selectedModel]);
+  const reasoningSelectOptions = buildReasoningEffortOptions(
+    reasoningOptions,
+    selectedEffort,
+    t,
+  );
 
   const didNormalizeDefaultsRef = useRef(false);
 
@@ -719,10 +725,7 @@ export function SettingsCodexSection({
           options={
             !reasoningSupported
               ? [{ value: "", label: t("settings.codex.notSupported"), disabled: true }]
-              : reasoningOptions.map((effort) => ({
-                  value: effort,
-                  label: effort,
-                }))
+              : reasoningSelectOptions
           }
         />
       </SettingsToggleRow>

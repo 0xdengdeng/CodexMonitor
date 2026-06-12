@@ -17,7 +17,7 @@ function managedRuntime(
 }
 
 describe("resolveImageGenerationRuntime", () => {
-  it("uses the dynamic app image tool for managed runtime sessions", () => {
+  it("keeps native image generation for managed runtime sessions so ADG can route image capability", () => {
     expect(
       resolveImageGenerationRuntime(
         managedRuntime({
@@ -28,7 +28,7 @@ describe("resolveImageGenerationRuntime", () => {
         }),
       ),
     ).toEqual({
-      nativeImageGenerationEnabled: false,
+      nativeImageGenerationEnabled: true,
       imageGenerationModel: "doubao-seedream-4-0-250828",
     });
   });
@@ -44,6 +44,8 @@ describe("resolveImageGenerationRuntime", () => {
     expect(
       resolveImageGenerationRuntime(
         managedRuntime({
+          enabled: true,
+          baseUrl: "https://adg-uat.zhaozhunai.com/v1",
           nativeImageGeneration: false,
           imageModel: "gpt-image-2",
         }),

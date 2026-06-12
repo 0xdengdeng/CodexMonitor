@@ -227,18 +227,18 @@ function GeneratedImagesSection({
           aria-label={t("files.preview.image")}
           onClick={() => setPreviewImageId(null)}
         >
-          <button
-            type="button"
-            className="message-image-lightbox-close"
-            onClick={() => setPreviewImageId(null)}
-            aria-label={t("messages.closeImagePreview")}
-          >
-            <X size={18} aria-hidden />
-          </button>
           <div
             className="message-image-lightbox-content"
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              className="message-image-lightbox-close"
+              onClick={() => setPreviewImageId(null)}
+              aria-label={t("messages.closeImagePreview")}
+            >
+              <X size={18} aria-hidden />
+            </button>
             <img src={previewSrc} alt={t("messages.generatedImageAlt")} />
           </div>
         </div>

@@ -5,16 +5,11 @@ type ImageGenerationRuntime = {
   imageGenerationModel: string | null;
 };
 
-function hasManagedRuntime(runtime: AppSettings["managedRuntime"]) {
-  return runtime.enabled && Boolean(runtime.baseUrl?.trim());
-}
-
 export function resolveImageGenerationRuntime(
   runtime: AppSettings["managedRuntime"],
 ): ImageGenerationRuntime {
   const imageGenerationModel = runtime.imageModel?.trim() || null;
-  const nativeImageGenerationEnabled =
-    runtime.nativeImageGeneration !== false && !hasManagedRuntime(runtime);
+  const nativeImageGenerationEnabled = runtime.nativeImageGeneration !== false;
 
   return {
     nativeImageGenerationEnabled,

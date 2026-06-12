@@ -4,6 +4,7 @@ import type { AccessMode, ServiceTier, ThreadTokenUsage } from "../../../types";
 import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
 import { SelectMenu } from "../../design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
+import { buildReasoningEffortOptions } from "@/features/models/utils/reasoningLabels";
 
 type ComposerMetaBarProps = {
   disabled: boolean;
@@ -138,6 +139,12 @@ export function ComposerMetaBar({
         reasoning: formatTokenCount(contextUsage?.last.reasoningOutputTokens),
       })
     : t("composer.contextUsageUnknownDetail");
+  const effectiveSelectedEffort = reasoningSupported ? selectedEffort : null;
+  const reasoningSelectOptions = buildReasoningEffortOptions(
+    reasoningOptions,
+    effectiveSelectedEffort,
+    t,
+  );
   const planMode =
     collaborationModes.find((mode) => mode.id === "plan") ?? null;
   const defaultMode =
@@ -171,26 +178,6 @@ export function ComposerMetaBar({
       return t("composer.collaboration.review");
     }
     return mode.label || mode.id;
-  };
-  const formatReasoningEffortLabel = (effort: string) => {
-    const normalizedEffort = normalizeLabelValue(effort).replace(/[\s_-]+/g, "");
-    switch (normalizedEffort) {
-      case "none":
-        return t("composer.reasoning.none");
-      case "minimal":
-        return t("composer.reasoning.minimal");
-      case "low":
-        return t("composer.reasoning.low");
-      case "medium":
-        return t("composer.reasoning.medium");
-      case "high":
-        return t("composer.reasoning.high");
-      case "xhigh":
-      case "extrahigh":
-        return t("composer.reasoning.xhigh");
-      default:
-        return effort;
-    }
   };
   return (
     <div className="composer-bar">
@@ -326,16 +313,13 @@ export function ComposerMetaBar({
           <SelectMenu
             className="composer-select composer-select--effort"
             aria-label={t("composer.thinkingMode")}
-            value={selectedEffort ?? ""}
+            value={effectiveSelectedEffort ?? ""}
             disabled={disabled || !reasoningSupported}
             onValueChange={onSelectEffort}
             options={
-              reasoningOptions.length === 0
+              reasoningSelectOptions.length === 0
                 ? [{ value: "", label: t("composer.default"), disabled: true }]
-                : reasoningOptions.map((effort) => ({
-                    value: effort,
-                    label: formatReasoningEffortLabel(effort),
-                  }))
+                : reasoningSelectOptions
             }
             popoverClassName="composer-select-popover"
             popoverAlign="end"

@@ -12,6 +12,7 @@ import {
 } from "../../design-system/components/popover/PopoverPrimitives";
 import { SelectMenu } from "../../design-system/components/select/SelectMenu";
 import { useMenuController } from "../../app/hooks/useMenuController";
+import { buildReasoningEffortOptions } from "@/features/models/utils/reasoningLabels";
 import {
   buildModelSummary,
   INSTANCE_OPTIONS,
@@ -80,6 +81,12 @@ export function WorkspaceHomeRunControls({
   const selectedModelLabel = resolveModelLabel(
     selectedModel,
     t("workspace.home.defaultModel"),
+  );
+  const effectiveSelectedEffort = reasoningSupported ? selectedEffort : null;
+  const reasoningSelectOptions = buildReasoningEffortOptions(
+    reasoningOptions,
+    effectiveSelectedEffort,
+    t,
   );
   const modelSummary = buildModelSummary(models, modelSelections, {
     defaultModel: t("workspace.home.defaultModel"),
@@ -303,16 +310,13 @@ export function WorkspaceHomeRunControls({
           <SelectMenu
             className="composer-select composer-select--effort"
             aria-label={t("workspace.home.thinkingMode")}
-            value={selectedEffort ?? ""}
+            value={effectiveSelectedEffort ?? ""}
             disabled={isSubmitting || !reasoningSupported}
             onValueChange={onSelectEffort}
             options={
-              reasoningOptions.length === 0
+              reasoningSelectOptions.length === 0
                 ? [{ value: "", label: t("workspace.home.default"), disabled: true }]
-                : reasoningOptions.map((effortOption) => ({
-                    value: effortOption,
-                    label: effortOption,
-                  }))
+                : reasoningSelectOptions
             }
             popoverClassName="composer-select-popover workspace-home-select-popover"
             popoverAlign="end"

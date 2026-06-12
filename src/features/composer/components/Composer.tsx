@@ -674,7 +674,7 @@ export const Composer = memo(function Composer({
         onReviewPromptConfirmCustom={onReviewPromptConfirmCustom}
       />
       <ComposerMetaBar
-        disabled={disabled}
+        disabled={false}
         collaborationModes={collaborationModes}
         selectedCollaborationModeId={selectedCollaborationModeId}
         onSelectCollaborationMode={onSelectCollaborationMode}

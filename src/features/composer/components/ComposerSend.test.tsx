@@ -37,18 +37,22 @@ type HarnessProps = {
     submitIntent?: ComposerSendIntent,
   ) => void;
   apps?: AppOption[];
+  disabled?: boolean;
   isProcessing?: boolean;
   followUpMessageBehavior?: FollowUpMessageBehavior;
   steerAvailable?: boolean;
+  selectedEffort?: string | null;
   selectedServiceTier?: "fast" | "flex" | null;
 };
 
 function ComposerHarness({
   onSend,
   apps = [],
+  disabled = false,
   isProcessing = false,
   followUpMessageBehavior = "queue",
   steerAvailable = false,
+  selectedEffort = null,
   selectedServiceTier = null,
 }: HarnessProps) {
   const [draftText, setDraftText] = useState("");
@@ -59,6 +63,7 @@ function ComposerHarness({
       onSend={onSend}
       onStop={() => {}}
       canStop={false}
+      disabled={disabled}
       isProcessing={isProcessing}
       appsEnabled={true}
       steerAvailable={steerAvailable}
@@ -67,11 +72,14 @@ function ComposerHarness({
       collaborationModes={[]}
       selectedCollaborationModeId={null}
       onSelectCollaborationMode={() => {}}
-      models={[]}
-      selectedModelId={null}
+      models={[
+        { id: "gpt-5", displayName: "GPT-5", model: "gpt-5" },
+        { id: "gpt-5.5", displayName: "GPT-5.5", model: "gpt-5.5" },
+      ]}
+      selectedModelId="gpt-5"
       onSelectModel={() => {}}
       reasoningOptions={[]}
-      selectedEffort={null}
+      selectedEffort={selectedEffort}
       onSelectEffort={() => {}}
       selectedServiceTier={selectedServiceTier}
       reasoningSupported={false}
@@ -117,6 +125,33 @@ describe("Composer send triggers", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith("from button", [], undefined, "default");
+  });
+
+  it("keeps composer metadata menus available when message input is disabled", () => {
+    const onSend = vi.fn();
+    render(<ComposerHarness onSend={onSend} disabled />);
+
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).disabled).toBe(
+      true,
+    );
+
+    const modelSelect = screen.getByRole("combobox", { name: "Model" });
+    expect((modelSelect as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(modelSelect);
+
+    expect(screen.getByRole("option", { name: "GPT-5.5" })).toBeTruthy();
+  });
+
+  it("does not show a stale reasoning effort when reasoning is unsupported", () => {
+    const onSend = vi.fn();
+    render(<ComposerHarness onSend={onSend} selectedEffort="medium" />);
+
+    const reasoningSelect = screen.getByRole("combobox", {
+      name: "Thinking mode",
+    });
+
+    expect(reasoningSelect.textContent).toContain("Default");
+    expect((reasoningSelect as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("shows the fast-mode indicator when enabled", () => {

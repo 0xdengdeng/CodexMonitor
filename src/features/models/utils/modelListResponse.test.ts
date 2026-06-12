@@ -80,6 +80,71 @@ describe("parseModelListResponse", () => {
     });
   });
 
+  it("maps runtime model catalog entries from top-level models", () => {
+    const response = {
+      fetched_at: "2026-06-10T03:13:21.815954Z",
+      data: [{ id: "gpt-5.5", object: "model" }],
+      models: [
+        {
+          slug: "gpt-5.5",
+          display_name: "GPT-5.5",
+          supported_reasoning_levels: [
+            { effort: "low", description: "Fast" },
+            { effort: "medium", description: "Balanced" },
+            { effort: "high", description: "Deep" },
+          ],
+          default_reasoning_level: "medium",
+        },
+      ],
+    };
+
+    const [model] = parseModelListResponse(response);
+
+    expect(model).toMatchObject({
+      id: "gpt-5.5",
+      model: "gpt-5.5",
+      displayName: "GPT-5.5",
+      supportedReasoningEfforts: [
+        { reasoningEffort: "low", description: "Fast" },
+        { reasoningEffort: "medium", description: "Balanced" },
+        { reasoningEffort: "high", description: "Deep" },
+      ],
+      defaultReasoningEffort: "medium",
+    });
+  });
+
+  it("prefers runtime model catalog metadata from JSON-RPC result models", () => {
+    const response = {
+      result: {
+        data: [{ id: "gpt-5.4", object: "model" }],
+        models: [
+          {
+            slug: "gpt-5.4",
+            display_name: "GPT-5.4",
+            supported_reasoning_levels: [
+              { effort: "low", description: "Fast" },
+              { effort: "xhigh", description: "Extra deep" },
+            ],
+            default_reasoning_level: "xhigh",
+          },
+        ],
+      },
+    };
+
+    const [model] = parseModelListResponse(response);
+
+    expect(model).toMatchObject({
+      id: "gpt-5.4",
+      model: "gpt-5.4",
+      displayName: "GPT-5.4",
+      supportedReasoningEfforts: [
+        { reasoningEffort: "low", description: "Fast" },
+        { reasoningEffort: "xhigh", description: "Extra deep" },
+      ],
+      defaultReasoningEffort: "xhigh",
+    });
+  });
+
   it("maps ADG image model metadata from app image catalog", () => {
     const response = {
       object: "list",

@@ -255,6 +255,64 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
+  it("forwards the selected model and reasoning effort to turn/start", async () => {
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: "gpt-5.5",
+        effort: "high",
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello");
+    });
+
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "hello",
+      expect.objectContaining({
+        model: "gpt-5.5",
+        effort: "high",
+      }),
+    );
+    expect(Sentry.metrics.count).toHaveBeenCalledWith(
+      "prompt_sent",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          model: "gpt-5.5",
+          effort: "high",
+        }),
+      }),
+    );
+  });
+
   it("omits service tier when no override is selected", async () => {
     const { result } = renderHook(() =>
       useThreadMessaging({

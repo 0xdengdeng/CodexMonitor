@@ -73,7 +73,8 @@ tool is only a fallback path for providers that do not support native Responses
 ## Managed Provider Requirements
 
 The AgentDesk managed provider should be configured as a Responses provider with
-native image generation and WebSocket support:
+native image generation over HTTP/SSE. Do not enable Responses WebSockets for the
+managed provider while ADG routes OpenAI through OAuth accounts.
 
 ```toml
 [model_providers.agentdesk_managed]
@@ -82,18 +83,19 @@ base_url = "https://..."
 wire_api = "responses"
 env_key = "AGENTDESK_RUNTIME_API_KEY"
 requires_openai_auth = false
-supports_websockets = true
+supports_websockets = false
 stream_idle_timeout_ms = 300000
 
 [model_providers.agentdesk_managed.http_headers]
 X-ADG-Image-Model = "gpt-image-2"
 ```
 
-`supports_websockets = true` is important. Native Codex follow-up chat over a
-Responses WebSocket can send an incremental `response.create` with
-`previous_response_id`. Without WebSocket support, Codex falls back to HTTP/SSE
-and must resend the full prompt history. Full-history resend can include large
-`image_generation_call.result` payloads for image-capable models.
+`supports_websockets = false` is intentional for the managed runtime. ADG's
+OpenAI OAuth accounts do not support the upstream Responses WebSocket path
+reliably, so CodexMonitor must use HTTP/SSE directly instead of paying a failed
+WebSocket attempt and fallback on every fresh session. Full-history HTTP/SSE
+requests can be larger; Codex mitigates this by pruning empty image calls and
+rehydrating completed generated images from local artifacts when needed.
 
 `stream_idle_timeout_ms = 300000` prevents long image generations from being
 retried as idle streams. A too-short idle timeout can cause the whole sampling
@@ -314,14 +316,17 @@ The common signature is:
 - provider returns `502 Bad Gateway` or an upstream error;
 - UI sees task completion/error state but no visible assistant text.
 
-Preferred fix:
+Current managed-runtime fix:
 
-- Enable Responses WebSocket for the managed provider.
+- Keep Responses WebSocket disabled for the managed provider while ADG routes
+  OpenAI via OAuth accounts.
+- Reduce HTTP/SSE payload pressure in Codex history handling instead of
+  re-enabling WS.
 - Keep native image history semantics unchanged.
 - Do not clear `image_generation_call.result` globally, because that breaks
   native image edits.
 
-Fallback-only mitigation:
+Fallback mitigation:
 
 - If WebSocket is unavailable for a provider, text-only model normalization may
   clear result bytes.
@@ -333,21 +338,25 @@ Fallback-only mitigation:
 Use this checklist before claiming image behavior is fixed:
 
 - Managed provider config includes `wire_api = "responses"`.
-- Managed provider config includes `supports_websockets = true`.
+- Managed provider config includes `supports_websockets = false`.
 - Managed provider config includes `stream_idle_timeout_ms = 300000` or a value
   high enough for image generation streams.
 - Native image mode does not expose the legacy dynamic image tool as the primary
   generation/edit path.
-- `image_generation_call.result` is preserved for image-capable models.
-- `image_generation_call.result` is serialized as `""` for text-only normalized
-  history.
+- `image_generation_call.result` is preserved when native `image_generation`
+  is available, even if the main text model does not accept user image input.
+- If a stored `image_generation_call.result` is missing but the local generated
+  image artifact still exists, Codex rehydrates the result from local disk before
+  sending the next native image request.
+- `image_generation_call.result` is serialized as `""` only for text-only
+  normalized history where native image generation is unavailable.
 - Native `item/started` and `item/completed` image items merge by id.
 - Live raw `rawResponseItem/completed` image results update the same frontend
   image card shape.
 - Raw rollout `image_generation_call` replay normalizes into the same frontend
   image card shape.
-- Follow-up chat uses WebSocket incremental continuation when the provider
-  supports it.
+- Follow-up chat uses HTTP/SSE for the managed provider while OpenAI OAuth is
+  routed by ADG.
 - Image edit prompts remain in the native conversation flow instead of being
   diverted to the legacy ADG edit endpoint.
 
@@ -388,7 +397,7 @@ Expected managed-runtime shape:
 
 ```text
 wire_api = "responses"
-supports_websockets = true
+supports_websockets = false
 stream_idle_timeout_ms = 300000
 X-ADG-Image-Model = "..."
 ```

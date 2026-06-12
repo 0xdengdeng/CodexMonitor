@@ -19,6 +19,16 @@ function extractModelItems(response: unknown): unknown[] {
       ? (record.result as Record<string, unknown>)
       : null;
 
+  const resultModels = result?.models;
+  if (Array.isArray(resultModels)) {
+    return resultModels;
+  }
+
+  const topLevelModels = record.models;
+  if (Array.isArray(topLevelModels)) {
+    return topLevelModels;
+  }
+
   const resultData = result?.data;
   if (Array.isArray(resultData)) {
     return resultData;
@@ -69,6 +79,37 @@ function parseReasoningEfforts(item: Record<string, unknown>): ModelOption["supp
       );
   }
 
+  const levels = item.supportedReasoningLevels ?? item.supported_reasoning_levels;
+  if (Array.isArray(levels)) {
+    return levels
+      .map((effort) => {
+        if (typeof effort === "string") {
+          return {
+            reasoningEffort: effort,
+            description: "",
+          };
+        }
+        if (!effort || typeof effort !== "object") {
+          return null;
+        }
+        const entry = effort as Record<string, unknown>;
+        return {
+          reasoningEffort: String(
+            entry.reasoningEffort ??
+              entry.reasoning_effort ??
+              entry.reasoningLevel ??
+              entry.reasoning_level ??
+              entry.effort ??
+              "",
+          ),
+          description: String(entry.description ?? ""),
+        };
+      })
+      .filter((effort): effort is { reasoningEffort: string; description: string } =>
+        effort !== null && effort.reasoningEffort.trim().length > 0,
+      );
+  }
+
   return [];
 }
 
@@ -105,18 +146,21 @@ export function parseModelListResponse(response: unknown): ModelOption[] {
         return null;
       }
       const record = item as Record<string, unknown>;
-      const modelSlug = String(record.model ?? record.id ?? "");
+      const modelSlug = String(record.model ?? record.id ?? record.slug ?? "");
       const rawDisplayName = String(record.displayName || record.display_name || "");
       const displayName = rawDisplayName.trim().length > 0 ? rawDisplayName : modelSlug;
       const rawType = typeof record.type === "string" ? record.type.trim() : "";
       const model: ModelOption = {
-        id: String(record.id ?? record.model ?? ""),
+        id: String(record.id ?? record.model ?? record.slug ?? ""),
         model: modelSlug,
         displayName,
         description: String(record.description ?? ""),
         supportedReasoningEfforts: parseReasoningEfforts(record),
         defaultReasoningEffort: normalizeEffortValue(
-          record.defaultReasoningEffort ?? record.default_reasoning_effort,
+          record.defaultReasoningEffort ??
+            record.default_reasoning_effort ??
+            record.defaultReasoningLevel ??
+            record.default_reasoning_level,
         ),
         isDefault: Boolean(record.isDefault ?? record.is_default ?? false),
         type: rawType.length > 0 ? rawType : null,

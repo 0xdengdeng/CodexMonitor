@@ -103,7 +103,7 @@ pub(crate) fn apply_managed_runtime_config_to_document(
     provider["wire_api"] = value("responses");
     provider["env_key"] = value(MANAGED_RUNTIME_ENV_KEY);
     provider["requires_openai_auth"] = value(false);
-    provider["supports_websockets"] = value(true);
+    provider["supports_websockets"] = value(false);
     provider["stream_idle_timeout_ms"] = value(MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS);
     if let Some(image_model) = config.image_model.as_deref() {
         let mut http_headers = Table::new();
@@ -170,7 +170,7 @@ mod tests {
         assert!(contents.contains("wire_api = \"responses\""));
         assert!(contents.contains(&format!("env_key = \"{MANAGED_RUNTIME_ENV_KEY}\"")));
         assert!(contents.contains("requires_openai_auth = false"));
-        assert!(contents.contains("supports_websockets = true"));
+        assert!(contents.contains("supports_websockets = false"));
         assert!(contents.contains("stream_idle_timeout_ms = 300000"));
         assert!(!contents.contains("sk-secret"));
     }

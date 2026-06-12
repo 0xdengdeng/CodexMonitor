@@ -15,9 +15,13 @@ const emptyBreakdown = {
   reasoningOutputTokens: 0,
 };
 
-function renderMetaBar(contextUsage: ThreadTokenUsage | null, overrides = {}) {
+function renderMetaBar(
+  contextUsage: ThreadTokenUsage | null,
+  overrides = {},
+  languagePreference: "en" | "zh-CN" = "en",
+) {
   return render(
-    <I18nProvider languagePreference="en">
+    <I18nProvider languagePreference={languagePreference}>
       <ComposerMetaBar
         disabled={false}
         collaborationModes={[{ id: "default", label: "Default" }]}
@@ -86,6 +90,30 @@ describe("ComposerMetaBar", () => {
     fireEvent.click(screen.getByRole("option", { name: "GPT-5.5" }));
 
     expect(onSelectModel).toHaveBeenCalledWith("gpt-5.5");
+  });
+
+  it("localizes reasoning effort labels", () => {
+    renderMetaBar(null, {}, "zh-CN");
+
+    fireEvent.click(screen.getByRole("combobox", { name: "思考深度" }));
+
+    expect(screen.getByRole("option", { name: "中等" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "高" })).toBeTruthy();
+  });
+
+  it("localizes the selected reasoning fallback when it is not in options", () => {
+    renderMetaBar(
+      null,
+      {
+        reasoningOptions: [],
+        selectedEffort: "medium",
+      },
+      "zh-CN",
+    );
+
+    expect(screen.getByRole("combobox", { name: "思考深度" }).textContent).toContain(
+      "中等",
+    );
   });
 
   it("marks every composer meta control for shared sizing", () => {

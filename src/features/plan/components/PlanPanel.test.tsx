@@ -114,6 +114,35 @@ describe("PlanPanel", () => {
     expect(onOpenGeneratedImage).toHaveBeenCalledWith("image-1");
   });
 
+  it("anchors the generated image preview close button to the image content", () => {
+    render(
+      <PlanPanel
+        plan={null}
+        isProcessing={false}
+        generatedImages={[
+          {
+            id: "image-1",
+            kind: "imageGeneration",
+            status: "completed",
+            prompt: "wide banner",
+            revisedPrompt: null,
+            model: "adg-image",
+            size: "1792x768",
+            assetId: "asset-1",
+            savedPath: "/tmp/generated-images/asset-1.png",
+            imageSrc: "data:image/png;base64,AAA",
+            error: null,
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Open generated image/ }));
+
+    const closeButton = screen.getByRole("button", { name: "Close image preview" });
+    expect(closeButton.closest(".message-image-lightbox-content")).toBeTruthy();
+  });
+
   it("shows a readable label for in-progress generated images", () => {
     render(
       <PlanPanel

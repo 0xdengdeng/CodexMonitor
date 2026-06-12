@@ -22,6 +22,16 @@ describe("message image generation styles", () => {
     expect(thumbnailBlock).toBeTruthy();
     expect(thumbnailBlock).not.toMatch(/aspect-ratio\s*:/);
   });
+
+  it("keeps the image lightbox close button inside the preview surface", () => {
+    const closeBlock = cssBlock(messagesCss(), ".message-image-lightbox-close");
+
+    expect(closeBlock).toContain("top: 12px");
+    expect(closeBlock).toContain("right: 12px");
+    expect(closeBlock).toContain("z-index: 1");
+    expect(closeBlock).not.toContain("top: -");
+    expect(closeBlock).not.toContain("right: -");
+  });
 });
 
 describe("message file link styles", () => {
