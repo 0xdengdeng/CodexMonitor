@@ -171,19 +171,21 @@ describe("UpdateDemoGuideModal", () => {
 
     expect(
       screen.getByRole("dialog", {
-        name: "Run Codex work from one focused console",
+        name: "Welcome to Qihang AI Platform",
       }),
     ).toBeTruthy();
     expect(screen.getByText("Welcome")).toBeTruthy();
+    expect(screen.getByText("Add one local project")).toBeTruthy();
+    expect(screen.getByText("Talk with project-aware agents")).toBeTruthy();
+    expect(screen.getByText("Generate images when you need visuals")).toBeTruthy();
     expect(screen.queryByText("First official release")).toBeNull();
     expect(screen.queryByRole("button", { name: "Release notes" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Start guide" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Explore on my own" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "See how it works" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add first project" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "See how it works" }));
     expect(
-      screen.queryByRole("button", { name: "Start using Qihang AI Platform" }),
-    ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Start guide" }));
-    expect(
-      screen.getByRole("button", { name: "Start using Qihang AI Platform" }),
+      screen.getByRole("button", { name: "Add first project" }),
     ).toBeTruthy();
   });
 

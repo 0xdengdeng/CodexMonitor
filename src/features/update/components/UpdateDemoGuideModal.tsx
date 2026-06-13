@@ -72,9 +72,9 @@ function getIntroItems(guide: UpdateDemoGuide): IntroItem[] {
         icon: Image,
       },
       {
-        titleKey: "updateDemo.firstLaunch.reviewWorkTitle",
-        bodyKey: "updateDemo.firstLaunch.reviewWorkBody",
-        icon: GitPullRequest,
+        titleKey: "updateDemo.firstLaunch.generateImageTitle",
+        bodyKey: "updateDemo.firstLaunch.generateImageBody",
+        icon: WandSparkles,
       },
     ];
   }
@@ -330,27 +330,47 @@ export function UpdateDemoGuideModal({
             </div>
 
             <footer className="update-demo-actions">
-              <button className="secondary" type="button" onClick={onDismiss}>
-                {t("updateDemo.skip")}
-              </button>
-              {releaseNotesUrl && (
-                <button
-                  className="secondary"
-                  type="button"
-                  onClick={() => {
-                    void openUrl(releaseNotesUrl);
-                  }}
-                >
-                  {t("updateDemo.releaseNotes")}
-                </button>
+              {isFirstLaunch ? (
+                <>
+                  <button className="secondary" type="button" onClick={onDismiss}>
+                    {t("updateDemo.firstLaunch.exploreLater")}
+                  </button>
+                  <button
+                    className="secondary"
+                    type="button"
+                    onClick={() => setPhase("tour")}
+                  >
+                    {t("updateDemo.firstLaunch.watchGuide")}
+                  </button>
+                  <button className="primary" type="button" onClick={onTryIt}>
+                    {t("updateDemo.firstLaunch.start")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="secondary" type="button" onClick={onDismiss}>
+                    {t("updateDemo.skip")}
+                  </button>
+                  {releaseNotesUrl && (
+                    <button
+                      className="secondary"
+                      type="button"
+                      onClick={() => {
+                        void openUrl(releaseNotesUrl);
+                      }}
+                    >
+                      {t("updateDemo.releaseNotes")}
+                    </button>
+                  )}
+                  <button
+                    className="primary"
+                    type="button"
+                    onClick={() => setPhase("tour")}
+                  >
+                    {t("updateDemo.startTour")}
+                  </button>
+                </>
               )}
-              <button
-                className="primary"
-                type="button"
-                onClick={() => setPhase("tour")}
-              >
-                {t("updateDemo.startTour")}
-              </button>
             </footer>
           </>
         ) : (

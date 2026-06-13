@@ -133,13 +133,13 @@ const firstLaunchDemoGuide: UpdateDemoGuide = {
       focus: "workspace-home.composer",
     },
     {
-      id: "review-work",
-      labelKey: "updateDemo.firstLaunch.stepReviewWork",
-      captionTitleKey: "updateDemo.firstLaunch.reviewWorkTitle",
-      captionBodyKey: "updateDemo.firstLaunch.reviewWorkBody",
+      id: "generate-image",
+      labelKey: "updateDemo.firstLaunch.stepGenerateImage",
+      captionTitleKey: "updateDemo.firstLaunch.generateImageTitle",
+      captionBodyKey: "updateDemo.firstLaunch.generateImageBody",
       startMs: 16000,
       endMs: 24000,
-      focus: "workspace-home.run-mode",
+      focus: "workspace-home.image-generation",
     },
   ],
 };
