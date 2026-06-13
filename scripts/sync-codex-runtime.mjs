@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  assertReleaseRuntimeSourceIsClean,
+  isTruthyEnv,
+} from "./sync-codex-runtime-utils.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -81,12 +85,23 @@ const sourceBinary = explicitCodexBin
       binaryName,
     );
 const targetBinary = path.join(binariesDir, sidecarName);
+const sourceCommit = gitValue(codexRepo, ["rev-parse", "HEAD"]);
+const sourceDirty = Boolean(gitValue(codexRepo, ["status", "--porcelain"]));
+const allowDirtyRelease = isTruthyEnv(process.env.AGENTDESK_ALLOW_DIRTY_CODEX_RUNTIME_RELEASE);
 
 if (!explicitCodexBin && !fs.existsSync(codexRsDir)) {
   throw new Error(
     `Codex runtime source not found at ${codexRsDir}. Set AGENTDESK_CODEX_REPO to your Codex fork, or AGENTDESK_CODEX_BIN to a prebuilt binary.`,
   );
 }
+
+assertReleaseRuntimeSourceIsClean({
+  release,
+  explicitCodexBin,
+  sourceDirty,
+  allowDirtyRelease,
+  codexRepo,
+});
 
 if (!skipBuild && !explicitCodexBin) {
   const args = ["build", "-p", "codex-cli", "--bin", "codex"];
@@ -113,8 +128,8 @@ if (process.platform !== "win32") {
 
 const manifest = {
   sourceRepo: codexRepo,
-  sourceCommit: gitValue(codexRepo, ["rev-parse", "HEAD"]),
-  sourceDirty: Boolean(gitValue(codexRepo, ["status", "--porcelain"])),
+  sourceCommit,
+  sourceDirty,
   sourceBinary,
   targetBinary,
   targetTriple,
