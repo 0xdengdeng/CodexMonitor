@@ -12,7 +12,12 @@ pub(crate) const MANAGED_RUNTIME_ENV_KEY: &str = runtime_secret_core::RUNTIME_AP
 const MANAGED_RUNTIME_PROVIDER_NAME: &str = "agentDesk Managed Runtime";
 const MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS: i64 = 300_000;
 const MANAGED_RUNTIME_USER_AGENT: &str =
-    concat!("CodexMonitor/", env!("CARGO_PKG_VERSION"), " AgentDesk");
+    concat!(
+        "CodexMonitor/",
+        env!("CARGO_PKG_VERSION"),
+        " AgentDesk codex_cli_rs/",
+        env!("CARGO_PKG_VERSION")
+    );
 
 fn normalized_optional(value: Option<&str>) -> Option<String> {
     let trimmed = value?.trim();
@@ -220,7 +225,8 @@ mod tests {
             fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
         assert!(contents.contains("[model_providers.agentdesk_managed.http_headers]"));
         assert!(contents.contains(&format!(
-            "User-Agent = \"CodexMonitor/{} AgentDesk\"",
+            "User-Agent = \"CodexMonitor/{} AgentDesk codex_cli_rs/{}\"",
+            env!("CARGO_PKG_VERSION"),
             env!("CARGO_PKG_VERSION")
         )));
     }
@@ -245,7 +251,8 @@ mod tests {
             fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
         assert!(contents.contains("[model_providers.agentdesk_managed.http_headers]"));
         assert!(contents.contains(&format!(
-            "User-Agent = \"CodexMonitor/{} AgentDesk\"",
+            "User-Agent = \"CodexMonitor/{} AgentDesk codex_cli_rs/{}\"",
+            env!("CARGO_PKG_VERSION"),
             env!("CARGO_PKG_VERSION")
         )));
         assert!(!contents.contains("X-ADG-Image-Model"));

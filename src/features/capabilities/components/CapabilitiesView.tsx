@@ -339,7 +339,10 @@ export function CapabilitiesView({
         onBackdropClick={onClose}
         ariaLabelledBy="capabilities-title"
       >
-        <div className="settings-titlebar capabilities-titlebar">
+        <div
+          className="settings-titlebar capabilities-titlebar"
+          data-update-guide-target="settings.capabilities"
+        >
           <div className="settings-title" id="capabilities-title">
             {t("capabilities.title")}
           </div>

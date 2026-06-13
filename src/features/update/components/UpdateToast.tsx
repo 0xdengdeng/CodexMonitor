@@ -125,6 +125,27 @@ export function UpdateToast({
     return null;
   }
 
+  if (state.stage === "available" && state.dismissed) {
+    return (
+      <ToastViewport className="update-toasts" role="region" ariaLive="polite">
+        <ToastCard className="update-toast update-toast-update-pill" role="status">
+          <span className="update-toast-pulse" aria-hidden />
+          <div className="update-toast-pill-copy">
+            <ToastTitle className="update-toast-title">
+              {t("update.availableBadge")}
+            </ToastTitle>
+            {state.version ? (
+              <div className="update-toast-version">v{state.version}</div>
+            ) : null}
+          </div>
+          <button className="primary update-toast-pill-button" onClick={onUpdate}>
+            {t("update.update")}
+          </button>
+        </ToastCard>
+      </ToastViewport>
+    );
+  }
+
   const totalBytes = state.progress?.totalBytes;
   const downloadedBytes = state.progress?.downloadedBytes ?? 0;
   const percent =
@@ -134,9 +155,16 @@ export function UpdateToast({
 
   return (
     <ToastViewport className="update-toasts" role="region" ariaLive="polite">
-      <ToastCard className="update-toast" role="status">
+      <ToastCard
+        className={`update-toast${state.stage === "available" ? " is-update-available" : ""}`}
+        role="status"
+      >
         <ToastHeader className="update-toast-header">
-          <ToastTitle className="update-toast-title">{t("update.title")}</ToastTitle>
+          <ToastTitle className="update-toast-title">
+            {state.stage === "available"
+              ? t("update.availableTitle")
+              : t("update.title")}
+          </ToastTitle>
           {state.version ? (
             <div className="update-toast-version">v{state.version}</div>
           ) : null}
@@ -146,8 +174,13 @@ export function UpdateToast({
         )}
         {state.stage === "available" && (
           <>
-            <ToastBody className="update-toast-body">
-              {t("update.available")}
+            <ToastBody className="update-toast-body update-toast-available-body">
+              <strong>{t("update.available")}</strong>
+              <span>
+                {t("update.availableDetails", {
+                  version: state.version ?? "",
+                })}
+              </span>
             </ToastBody>
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>

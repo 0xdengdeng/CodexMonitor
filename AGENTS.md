@@ -17,10 +17,15 @@ Detailed navigation/runbooks live in:
   must have both English and Chinese versions. Use the original `.md` path for
   English and a matching `.zh.md` path for Chinese. Existing specs without a
   Chinese counterpart may remain as-is until they are next updated.
+- Use **启航AI智慧平台** as the user-facing product name in Chinese release notes,
+  onboarding, public docs, screenshots, and UI copy. Use `CodexMonitor` only for
+  repository names, internal architecture, code identifiers, paths, and historical
+  upstream references where the engineering name is required.
 
 ## Project Snapshot
 
-CodexMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
+CodexMonitor is the engineering repository for 启航AI智慧平台, a Tauri app that
+orchestrates Codex agents across local workspaces.
 
 - Frontend: React + Vite (`src/`)
 - Backend app: Tauri Rust process (`src-tauri/src/lib.rs`)

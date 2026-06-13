@@ -8,6 +8,7 @@ import { useWorktreePrompt } from "../../workspaces/hooks/useWorktreePrompt";
 import { useWorkspaceFromUrlPrompt } from "../../workspaces/hooks/useWorkspaceFromUrlPrompt";
 import type { BranchSwitcherState } from "../../git/hooks/useBranchSwitcher";
 import { useGitBranches } from "../../git/hooks/useGitBranches";
+import type { PostUpdateDemoGuideState } from "../../update/hooks/useUpdater";
 
 const RenameThreadPrompt = lazy(() =>
   import("../../threads/components/RenameThreadPrompt").then((module) => ({
@@ -47,6 +48,11 @@ const InitGitRepoPrompt = lazy(() =>
 const EnterpriseAiLoginModal = lazy(() =>
   import("../../enterprise-ai/components/EnterpriseAiLoginModal").then((module) => ({
     default: module.EnterpriseAiLoginModal,
+  })),
+);
+const UpdateDemoGuideModal = lazy(() =>
+  import("../../update/components/UpdateDemoGuideModal").then((module) => ({
+    default: module.UpdateDemoGuideModal,
   })),
 );
 
@@ -126,6 +132,10 @@ export type AppModalsProps = {
   enterpriseAiLoginOpen?: boolean;
   onCloseEnterpriseAiLogin?: () => void;
   onEnterpriseAiLoginSuccess?: (result: EnterpriseAiLoginResult) => void | Promise<void>;
+  postUpdateDemoGuide?: PostUpdateDemoGuideState;
+  postUpdateDemoGuideReleaseNotesUrl?: string | null;
+  onDismissPostUpdateDemoGuide?: () => void;
+  onTryPostUpdateDemoGuide?: () => void;
 };
 
 export const AppModals = memo(function AppModals({
@@ -183,6 +193,10 @@ export const AppModals = memo(function AppModals({
   enterpriseAiLoginOpen = false,
   onCloseEnterpriseAiLogin,
   onEnterpriseAiLoginSuccess,
+  postUpdateDemoGuide = null,
+  postUpdateDemoGuideReleaseNotesUrl = null,
+  onDismissPostUpdateDemoGuide,
+  onTryPostUpdateDemoGuide,
 }: AppModalsProps) {
   const { branches: worktreeBranches } = useGitBranches({
     activeWorkspace: worktreePrompt?.workspace ?? null,
@@ -321,6 +335,18 @@ export const AppModals = memo(function AppModals({
           />
         </Suspense>
       )}
+      {postUpdateDemoGuide &&
+        onDismissPostUpdateDemoGuide &&
+        onTryPostUpdateDemoGuide && (
+          <Suspense fallback={null}>
+            <UpdateDemoGuideModal
+              guide={postUpdateDemoGuide}
+              releaseNotesUrl={postUpdateDemoGuideReleaseNotesUrl}
+              onDismiss={onDismissPostUpdateDemoGuide}
+              onTryIt={onTryPostUpdateDemoGuide}
+            />
+          </Suspense>
+        )}
     </>
   );
 });

@@ -87,6 +87,7 @@ import {
   useWorkspaceOrderingOrchestration,
 } from "@app/orchestration/useWorkspaceOrchestration";
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
+import { buildReleaseTagUrl } from "@/features/update/utils/postUpdateRelease";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { subscribeTrayOpenThread } from "@services/events";
 import {
@@ -641,12 +642,17 @@ export default function MainApp() {
     dismissUpdate,
     postUpdateNotice,
     dismissPostUpdateNotice,
+    postUpdateDemoGuide,
+    dismissPostUpdateDemoGuide,
+    tryPostUpdateDemoGuide,
     handleTestNotificationSound,
     handleTestSystemNotification,
   } = useUpdaterController({
     enabled: updaterEnabled,
     autoCheckOnMount:
       !appSettingsLoading && appSettings.automaticAppUpdateChecksEnabled,
+    firstLaunchGuideEligible:
+      !appSettingsLoading && hasLoaded && workspaces.length === 0,
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
     subagentSystemNotificationsEnabled:
@@ -1124,6 +1130,32 @@ export default function MainApp() {
       handleMobileConnectSuccess,
     },
   });
+
+  const postUpdateDemoGuideReleaseNotesUrl = postUpdateDemoGuide
+    ? postUpdateDemoGuide.kind === "postUpdate"
+      ? buildReleaseTagUrl(postUpdateDemoGuide.version)
+      : null
+    : null;
+  const handleTryPostUpdateDemoGuide = useCallback(() => {
+    tryPostUpdateDemoGuide();
+    if (activeWorkspaceId) {
+      clearDraftState();
+      setActiveThreadId(null);
+      setActiveTab("codex");
+      window.requestAnimationFrame(() => {
+        workspaceHomeTextareaRef.current?.focus();
+      });
+      return;
+    }
+    selectHome();
+  }, [
+    activeWorkspaceId,
+    clearDraftState,
+    selectHome,
+    setActiveThreadId,
+    setActiveTab,
+    tryPostUpdateDemoGuide,
+  ]);
 
   useBranchSwitcherShortcut({
     shortcut: appSettings.branchSwitcherShortcut,
@@ -1978,12 +2010,20 @@ export default function MainApp() {
       enterpriseAiLoginOpen,
       onCloseEnterpriseAiLogin: closeEnterpriseAiLogin,
       onEnterpriseAiLoginSuccess: handleEnterpriseAiLoginSuccess,
+      postUpdateDemoGuide,
+      postUpdateDemoGuideReleaseNotesUrl,
+      onDismissPostUpdateDemoGuide: dismissPostUpdateDemoGuide,
+      onTryPostUpdateDemoGuide: handleTryPostUpdateDemoGuide,
     }),
     [
       appModalsProps,
       closeEnterpriseAiLogin,
+      dismissPostUpdateDemoGuide,
       enterpriseAiLoginOpen,
       handleEnterpriseAiLoginSuccess,
+      handleTryPostUpdateDemoGuide,
+      postUpdateDemoGuide,
+      postUpdateDemoGuideReleaseNotesUrl,
     ],
   );
   const mainAppShellProps = useMainAppShellProps({

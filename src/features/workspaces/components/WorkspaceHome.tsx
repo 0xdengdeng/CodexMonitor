@@ -294,7 +294,10 @@ export function WorkspaceHome({
         />
       )}
 
-      <div className="workspace-home-composer">
+      <div
+        className="workspace-home-composer"
+        data-update-guide-target="workspace-home.composer workspace-home.image-generation"
+      >
         <div className="composer">
           <ComposerInput
             text={prompt}

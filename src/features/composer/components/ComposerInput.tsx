@@ -204,6 +204,7 @@ export function ComposerInput({
             disabled={disabled || !onAddAttachment}
             aria-label={t("composer.addImage")}
             title={t("composer.addImage")}
+            data-update-guide-target="workspace-home.attachment-button"
           >
             <ImagePlus size={14} aria-hidden />
           </button>

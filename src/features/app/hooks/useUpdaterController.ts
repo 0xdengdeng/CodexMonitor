@@ -13,6 +13,7 @@ import type { DebugEntry } from "../../../types";
 type Params = {
   enabled?: boolean;
   autoCheckOnMount?: boolean;
+  firstLaunchGuideEligible?: boolean;
   notificationSoundsEnabled: boolean;
   systemNotificationsEnabled: boolean;
   subagentSystemNotificationsEnabled: boolean;
@@ -27,6 +28,7 @@ type Params = {
 export function useUpdaterController({
   enabled = true,
   autoCheckOnMount = true,
+  firstLaunchGuideEligible = false,
   notificationSoundsEnabled,
   systemNotificationsEnabled,
   subagentSystemNotificationsEnabled,
@@ -45,9 +47,13 @@ export function useUpdaterController({
     dismiss,
     postUpdateNotice,
     dismissPostUpdateNotice,
+    postUpdateDemoGuide,
+    dismissPostUpdateDemoGuide,
+    tryPostUpdateDemoGuide,
   } = useUpdater({
     enabled,
     autoCheckOnMount,
+    firstLaunchGuideEligible,
     onDebug,
   });
   const isWindowFocused = useWindowFocusState();
@@ -126,6 +132,9 @@ export function useUpdaterController({
     dismissUpdate: dismiss,
     postUpdateNotice,
     dismissPostUpdateNotice,
+    postUpdateDemoGuide,
+    dismissPostUpdateDemoGuide,
+    tryPostUpdateDemoGuide,
     handleTestNotificationSound,
     handleTestSystemNotification,
   };

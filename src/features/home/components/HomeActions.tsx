@@ -19,6 +19,7 @@ export function HomeActions({
         className="home-button primary home-add-workspaces-button"
         onClick={onAddWorkspace}
         data-tauri-drag-region="false"
+        data-update-guide-target="home.add-project"
       >
         <span className="home-icon" aria-hidden>
           <FolderPlus />

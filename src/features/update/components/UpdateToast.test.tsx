@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { UpdateState } from "../hooks/useUpdater";
 import { UpdateToast } from "./UpdateToast";
 
@@ -16,6 +16,10 @@ describe("UpdateToast", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it("renders available state and handles actions", () => {
     const onUpdate = vi.fn();
     const onDismiss = vi.fn();
@@ -28,14 +32,40 @@ describe("UpdateToast", () => {
     const region = screen.getByRole("region");
     expect(region.getAttribute("aria-live")).toBe("polite");
     expect(screen.getByRole("status")).toBeTruthy();
-    expect(screen.getAllByText("Update")).toHaveLength(2);
+    expect(screen.getByText("New version ready")).toBeTruthy();
     expect(screen.getByText("v1.2.3")).toBeTruthy();
     expect(screen.getByText("A new version is available.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "v1.2.3 is ready to install. Update now to get the latest fixes and guided feature tour.",
+      ),
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Later" }));
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
 
     expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a persistent update reminder after the update toast is dismissed", () => {
+    const onUpdate = vi.fn();
+    const state: UpdateState = {
+      stage: "available",
+      version: "1.2.3",
+      dismissed: true,
+    };
+
+    render(
+      <UpdateToast state={state} onUpdate={onUpdate} onDismiss={vi.fn()} />,
+    );
+
+    expect(screen.getByText("New version")).toBeTruthy();
+    expect(screen.getByText("v1.2.3")).toBeTruthy();
+    expect(screen.queryByText("A new version is available.")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
     expect(onUpdate).toHaveBeenCalledTimes(1);
   });
 

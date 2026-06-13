@@ -12,6 +12,15 @@ import {
   normalizeReleaseVersion,
   savePendingPostUpdateVersion,
 } from "../utils/postUpdateRelease";
+import {
+  hasSeenFirstLaunchGuide,
+  hasSeenUpdateDemoGuide,
+  markFirstLaunchGuideSeen,
+  markUpdateDemoGuideSeen,
+  resolveFirstLaunchDemoGuide,
+  resolveUpdateDemoGuide,
+  type UpdateDemoGuide,
+} from "../utils/updateDemoGuides";
 
 type UpdateStage =
   | "idle"
@@ -33,6 +42,7 @@ export type UpdateState = {
   version?: string;
   progress?: UpdateProgress;
   error?: string;
+  dismissed?: boolean;
 };
 
 type PostUpdateNotice =
@@ -55,25 +65,33 @@ type PostUpdateNotice =
 
 export type PostUpdateNoticeState = PostUpdateNotice | null;
 
+export type PostUpdateDemoGuideState = UpdateDemoGuide | null;
+
 type UseUpdaterOptions = {
   enabled?: boolean;
   autoCheckOnMount?: boolean;
+  firstLaunchGuideEligible?: boolean;
   onDebug?: (entry: DebugEntry) => void;
 };
 
 export function useUpdater({
   enabled = true,
   autoCheckOnMount = true,
+  firstLaunchGuideEligible = false,
   onDebug,
 }: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
   const [postUpdateNotice, setPostUpdateNotice] = useState<PostUpdateNoticeState>(
     null,
   );
+  const [postUpdateDemoGuide, setPostUpdateDemoGuide] =
+    useState<PostUpdateDemoGuideState>(null);
+  const stateRef = useRef<UpdateState>({ stage: "idle" });
   const updateRef = useRef<Update | null>(null);
   const hasAttemptedAutoCheckRef = useRef(false);
   const postUpdateFetchGenerationRef = useRef(0);
   const latestTimeoutRef = useRef<number | null>(null);
+  const [demoGuideCheckNonce, setDemoGuideCheckNonce] = useState(0);
   const latestToastDurationMs = 2000;
 
   const clearLatestTimeout = useCallback(() => {
@@ -83,10 +101,24 @@ export function useUpdater({
     }
   }, []);
 
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const resetToIdle = useCallback(async () => {
     clearLatestTimeout();
+    if (stateRef.current.stage === "available") {
+      const nextState = {
+        ...stateRef.current,
+        dismissed: true,
+      };
+      stateRef.current = nextState;
+      setState(nextState);
+      return;
+    }
     const update = updateRef.current;
     updateRef.current = null;
+    stateRef.current = { stage: "idle" };
     setState({ stage: "idle" });
     await update?.close();
   }, [clearLatestTimeout]);
@@ -225,22 +257,59 @@ export function useUpdater({
     if (!enabled || !isTauri()) {
       return;
     }
+
+    const normalizedCurrentVersion = normalizeReleaseVersion(__APP_VERSION__);
+    const showCurrentMajorDemo = () => {
+      if (!normalizedCurrentVersion) {
+        return false;
+      }
+      const currentDemoGuide = resolveUpdateDemoGuide(normalizedCurrentVersion);
+      if (
+        currentDemoGuide &&
+        !hasSeenUpdateDemoGuide(normalizedCurrentVersion)
+      ) {
+        postUpdateFetchGenerationRef.current += 1;
+        setPostUpdateNotice(null);
+        setPostUpdateDemoGuide(currentDemoGuide);
+        return true;
+      }
+      return false;
+    };
+
+    if (firstLaunchGuideEligible && !hasSeenFirstLaunchGuide()) {
+      const firstLaunchGuide = resolveFirstLaunchDemoGuide();
+      if (firstLaunchGuide) {
+        postUpdateFetchGenerationRef.current += 1;
+        setPostUpdateNotice(null);
+        setPostUpdateDemoGuide(firstLaunchGuide);
+        return;
+      }
+    }
+
     const pendingVersion = loadPendingPostUpdateVersion();
     if (!pendingVersion) {
+      showCurrentMajorDemo();
       return;
     }
 
     const normalizedPendingVersion = normalizeReleaseVersion(pendingVersion);
-    const normalizedCurrentVersion = normalizeReleaseVersion(__APP_VERSION__);
     if (
       !normalizedPendingVersion ||
       normalizedPendingVersion !== normalizedCurrentVersion
     ) {
       clearPendingPostUpdateVersion();
+      showCurrentMajorDemo();
       return;
     }
 
     const fallbackUrl = buildReleaseTagUrl(normalizedPendingVersion);
+    const demoGuide = resolveUpdateDemoGuide(normalizedPendingVersion);
+    if (demoGuide && !hasSeenUpdateDemoGuide(normalizedPendingVersion)) {
+      setPostUpdateNotice(null);
+      setPostUpdateDemoGuide(demoGuide);
+      return;
+    }
+
     const generation = postUpdateFetchGenerationRef.current + 1;
     postUpdateFetchGenerationRef.current = generation;
     let cancelled = false;
@@ -299,7 +368,7 @@ export function useUpdater({
     return () => {
       cancelled = true;
     };
-  }, [enabled, onDebug]);
+  }, [demoGuideCheckNonce, enabled, firstLaunchGuideEligible, onDebug]);
 
   useEffect(() => {
     return () => {
@@ -313,6 +382,24 @@ export function useUpdater({
     setPostUpdateNotice(null);
   }, []);
 
+  const dismissPostUpdateDemoGuide = useCallback(() => {
+    const guide = postUpdateDemoGuide;
+    const version = guide?.version;
+    postUpdateFetchGenerationRef.current += 1;
+    if (guide?.kind === "firstLaunch") {
+      markFirstLaunchGuideSeen();
+    } else if (version) {
+      markUpdateDemoGuideSeen(version);
+      clearPendingPostUpdateVersion();
+    }
+    setPostUpdateDemoGuide(null);
+    setDemoGuideCheckNonce((value) => value + 1);
+  }, [postUpdateDemoGuide]);
+
+  const tryPostUpdateDemoGuide = useCallback(() => {
+    dismissPostUpdateDemoGuide();
+  }, [dismissPostUpdateDemoGuide]);
+
   return {
     state,
     startUpdate,
@@ -320,5 +407,8 @@ export function useUpdater({
     dismiss: resetToIdle,
     postUpdateNotice,
     dismissPostUpdateNotice,
+    postUpdateDemoGuide,
+    dismissPostUpdateDemoGuide,
+    tryPostUpdateDemoGuide,
   };
 }

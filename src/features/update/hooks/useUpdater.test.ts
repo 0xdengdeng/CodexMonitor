@@ -6,6 +6,10 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import type { DebugEntry } from "../../../types";
 import { useUpdater } from "./useUpdater";
 import { STORAGE_KEY_PENDING_POST_UPDATE_VERSION } from "../utils/postUpdateRelease";
+import {
+  STORAGE_KEY_FIRST_LAUNCH_GUIDE_SEEN,
+  STORAGE_KEY_UPDATE_DEMO_SEEN_VERSIONS,
+} from "../utils/updateDemoGuides";
 
 vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => true),
@@ -60,7 +64,9 @@ describe("useUpdater", () => {
 
   it("returns to idle when no update is available", async () => {
     checkMock.mockResolvedValue(null);
-    const { result } = renderHook(() => useUpdater({}));
+    const { result } = renderHook(() =>
+      useUpdater({ autoCheckOnMount: false }),
+    );
 
     await act(async () => {
       await result.current.startUpdate();
@@ -72,7 +78,9 @@ describe("useUpdater", () => {
   it("announces when no update is available for manual checks", async () => {
     vi.useFakeTimers();
     checkMock.mockResolvedValue(null);
-    const { result } = renderHook(() => useUpdater({}));
+    const { result } = renderHook(() =>
+      useUpdater({ autoCheckOnMount: false }),
+    );
 
     await act(async () => {
       await result.current.checkForUpdates({ announceNoUpdate: true });
@@ -101,7 +109,9 @@ describe("useUpdater", () => {
       close,
     } as any);
 
-    const { result } = renderHook(() => useUpdater({}));
+    const { result } = renderHook(() =>
+      useUpdater({ autoCheckOnMount: false }),
+    );
 
     await act(async () => {
       await result.current.startUpdate();
@@ -124,11 +134,12 @@ describe("useUpdater", () => {
     ).toBe("1.2.3");
   });
 
-  it("resets to idle and closes update on dismiss", async () => {
+  it("keeps an available update as a dismissed reminder", async () => {
     const close = vi.fn();
+    const downloadAndInstall = vi.fn(async () => undefined);
     checkMock.mockResolvedValue({
       version: "1.0.0",
-      downloadAndInstall: vi.fn(),
+      downloadAndInstall,
       close,
     } as any);
     const { result } = renderHook(() => useUpdater({}));
@@ -141,8 +152,18 @@ describe("useUpdater", () => {
       await result.current.dismiss();
     });
 
-    expect(result.current.state.stage).toBe("idle");
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(result.current.state).toMatchObject({
+      stage: "available",
+      version: "1.0.0",
+      dismissed: true,
+    });
+    expect(close).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.startUpdate();
+    });
+
+    expect(downloadAndInstall).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces download errors and keeps progress", async () => {
@@ -216,10 +237,189 @@ describe("useUpdater", () => {
     expect(result.current.state.stage).toBe("latest");
   });
 
-  it("loads post-update release notes after restart when marker matches current version", async () => {
+  it("shows the configured post-update demo before fetching release notes", async () => {
     window.localStorage.setItem(
       STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
       __APP_VERSION__,
+    );
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.featureId).toBe(
+        "release-control-console-demo",
+      ),
+    );
+
+    expect(result.current.postUpdateNotice).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the first-launch guide before post-update release notes when eligible", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+
+    const { result } = renderHook(() =>
+      useUpdater({ firstLaunchGuideEligible: true }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.featureId).toBe(
+        "first-launch-core-workflow",
+      ),
+    );
+
+    expect(result.current.postUpdateDemoGuide?.kind).toBe("firstLaunch");
+    expect(result.current.postUpdateNotice).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+    ).toBe(__APP_VERSION__);
+  });
+
+  it("dismisses the first-launch guide without clearing the pending post-update marker", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+
+    const { result } = renderHook(() =>
+      useUpdater({ firstLaunchGuideEligible: true }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.kind).toBe("firstLaunch"),
+    );
+
+    await act(async () => {
+      result.current.dismissPostUpdateDemoGuide();
+    });
+
+    expect(window.localStorage.getItem(STORAGE_KEY_FIRST_LAUNCH_GUIDE_SEEN)).toBe(
+      "true",
+    );
+    expect(
+      window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+    ).toBe(__APP_VERSION__);
+  });
+
+  it("shows the current major update demo even without a pending post-update marker", async () => {
+    const { result } = renderHook(() =>
+      useUpdater({ firstLaunchGuideEligible: false }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.featureId).toBe(
+        "release-control-console-demo",
+      ),
+    );
+
+    expect(result.current.postUpdateDemoGuide?.kind).toBe("postUpdate");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not show the current major update demo after the version has been seen", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_UPDATE_DEMO_SEEN_VERSIONS,
+      JSON.stringify([__APP_VERSION__]),
+    );
+
+    const { result } = renderHook(() =>
+      useUpdater({ firstLaunchGuideEligible: false }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.postUpdateDemoGuide).toBeNull();
+  });
+
+  it("shows the current major update demo after the first-launch guide is dismissed", async () => {
+    const { result } = renderHook(() =>
+      useUpdater({ firstLaunchGuideEligible: true }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.kind).toBe("firstLaunch"),
+    );
+
+    await act(async () => {
+      result.current.dismissPostUpdateDemoGuide();
+    });
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.featureId).toBe(
+        "release-control-console-demo",
+      ),
+    );
+    expect(result.current.postUpdateDemoGuide?.kind).toBe("postUpdate");
+  });
+
+  it("dismisses the post-update demo and marks the version as seen", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.version).toBe(__APP_VERSION__),
+    );
+
+    await act(async () => {
+      result.current.dismissPostUpdateDemoGuide();
+    });
+
+    expect(result.current.postUpdateDemoGuide).toBeNull();
+    expect(
+      window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+    ).toBeNull();
+    expect(
+      JSON.parse(
+        window.localStorage.getItem(STORAGE_KEY_UPDATE_DEMO_SEEN_VERSIONS) ?? "[]",
+      ),
+    ).toEqual([__APP_VERSION__]);
+  });
+
+  it("marks the post-update demo as seen when trying the feature", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await waitFor(() =>
+      expect(result.current.postUpdateDemoGuide?.version).toBe(__APP_VERSION__),
+    );
+
+    await act(async () => {
+      result.current.tryPostUpdateDemoGuide();
+    });
+
+    expect(result.current.postUpdateDemoGuide).toBeNull();
+    expect(
+      window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+    ).toBeNull();
+    expect(
+      JSON.parse(
+        window.localStorage.getItem(STORAGE_KEY_UPDATE_DEMO_SEEN_VERSIONS) ?? "[]",
+      ),
+    ).toEqual([__APP_VERSION__]);
+  });
+
+  it("loads post-update release notes after restart when the current demo was already seen", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+    window.localStorage.setItem(
+      STORAGE_KEY_UPDATE_DEMO_SEEN_VERSIONS,
+      JSON.stringify([__APP_VERSION__]),
     );
     fetchMock.mockResolvedValue({
       ok: true,
@@ -254,6 +454,10 @@ describe("useUpdater", () => {
       STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
       __APP_VERSION__,
     );
+    window.localStorage.setItem(
+      STORAGE_KEY_UPDATE_DEMO_SEEN_VERSIONS,
+      JSON.stringify([__APP_VERSION__]),
+    );
     fetchMock.mockRejectedValue(new Error("offline"));
     const onDebug = vi.fn();
     const { result } = renderHook(() => useUpdater({ onDebug }));
@@ -279,6 +483,10 @@ describe("useUpdater", () => {
     window.localStorage.setItem(
       STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
       __APP_VERSION__,
+    );
+    window.localStorage.setItem(
+      STORAGE_KEY_UPDATE_DEMO_SEEN_VERSIONS,
+      JSON.stringify([__APP_VERSION__]),
     );
 
     let resolveFetch: ((value: Response) => void) | null = null;

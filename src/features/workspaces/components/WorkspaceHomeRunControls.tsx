@@ -108,7 +108,10 @@ export function WorkspaceHomeRunControls({
   }, [closeRunMode, toggleModelsOpen]);
 
   return (
-    <div className="workspace-home-controls">
+    <div
+      className="workspace-home-controls"
+      data-update-guide-target="workspace-home.run-mode"
+    >
       {showRunMode && (
         <SplitActionMenu
           containerRef={runModeRef}
