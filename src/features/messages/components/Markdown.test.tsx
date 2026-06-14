@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectOpenedFileTarget } from "../test/fileLinkAssertions";
 import { Markdown } from "./Markdown";
 
+vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: (path: string) => `asset://${path}`,
+}));
+
 describe("Markdown file-like href behavior", () => {
   afterEach(() => {
     cleanup();
@@ -48,6 +52,90 @@ describe("Markdown file-like href behavior", () => {
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
     expectOpenedFileTarget(onOpenFileLink, "./docs/setup.md");
+  });
+
+  it("renders local image file links with an inline preview", () => {
+    const onOpenFileLink = vi.fn();
+    const imagePath = "/Users/example/project/assets/ultraman-vs-monster.png";
+
+    const { container } = render(
+      <Markdown
+        value={`图片保存在：\n\n\`${imagePath}\``}
+        className="markdown"
+        workspacePath="/Users/example/project"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const fileLink = container.querySelector(".message-file-link");
+    const preview = container.querySelector<HTMLImageElement>(
+      ".message-file-image-preview img",
+    );
+    expect(fileLink).toBeTruthy();
+    expect(preview).toBeTruthy();
+    expect(preview?.getAttribute("src")).toBe(`asset://${imagePath}`);
+    expect(preview?.getAttribute("alt")).toBe("ultraman-vs-monster.png");
+
+    fireEvent.click(fileLink as Element);
+    expectOpenedFileTarget(onOpenFileLink, imagePath);
+  });
+
+  it("keeps local image previews stable while the image is loading", () => {
+    const imagePath = "/Users/example/project/assets/stable-preview.png";
+
+    const { container } = render(
+      <Markdown
+        value={`图片保存在：\n\n\`${imagePath}\``}
+        className="markdown"
+        workspacePath="/Users/example/project"
+      />,
+    );
+
+    const previewButton = container.querySelector<HTMLButtonElement>(
+      ".message-file-image-preview",
+    );
+    const previewImage = container.querySelector<HTMLImageElement>(
+      ".message-file-image-preview img",
+    );
+
+    expect(previewButton?.dataset.state).toBe("loading");
+    fireEvent.load(previewImage as Element);
+    expect(previewButton?.dataset.state).toBe("loaded");
+  });
+
+  it("resolves relative local image previews against the active workspace", () => {
+    const imagePath = "assets/ultraman-vs-monster.png";
+
+    const { container } = render(
+      <Markdown
+        value={`图片保存在：\n\n\`${imagePath}\``}
+        className="markdown"
+        workspacePath="/Users/example/project"
+      />,
+    );
+
+    const preview = container.querySelector<HTMLImageElement>(
+      ".message-file-image-preview img",
+    );
+    expect(preview).toBeTruthy();
+    expect(preview?.getAttribute("src")).toBe(
+      "asset:///Users/example/project/assets/ultraman-vs-monster.png",
+    );
+  });
+
+  it("does not auto-preview local image links outside the active workspace", () => {
+    const imagePath = "/Users/example/private/secret.png";
+
+    const { container } = render(
+      <Markdown
+        value={`图片保存在：\n\n\`${imagePath}\``}
+        className="markdown"
+        workspacePath="/Users/example/project"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeTruthy();
+    expect(container.querySelector(".message-file-image-preview")).toBeNull();
   });
 
   it("prevents bare relative link navigation without treating it as a file", () => {

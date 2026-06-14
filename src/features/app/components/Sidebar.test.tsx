@@ -143,7 +143,7 @@ describe("Sidebar", () => {
     expect(onSetThreadListOrganizeMode).toHaveBeenCalledWith("threads_only");
   });
 
-  it("renders available credits in the footer when present", () => {
+  it("keeps the account entry while hiding usage details in the sidebar footer", () => {
     render(
       <Sidebar
         {...baseProps}
@@ -169,12 +169,14 @@ describe("Sidebar", () => {
       />,
     );
 
-    const creditsLabel = screen.getByText(/^Available credits:/);
-    expect(creditsLabel.textContent ?? "").toContain("120");
+    expect(screen.getByText("Usage")).toBeTruthy();
+    expect(screen.queryByText("Current session")).toBeNull();
+    expect(screen.queryByText(/^Available credits:/)).toBeNull();
     expect(screen.getByRole("button", { name: "Account: Free-BAI" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open settings" })).toBeTruthy();
   });
 
-  it("opens enterprise sign in from the usage panel when signed out", () => {
+  it("keeps enterprise sign in available from the footer account entry", () => {
     const onOpenEnterpriseAiSettings = vi.fn();
     render(
       <Sidebar
@@ -190,19 +192,7 @@ describe("Sidebar", () => {
     expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("does not duplicate the sign in button in the bottom action row", () => {
-    render(
-      <Sidebar
-        {...baseProps}
-        activeWorkspaceId="ws-1"
-      />,
-    );
-
-    const buttons = screen.getAllByRole("button", { name: "Sign in" });
-    expect(buttons).toHaveLength(1);
-  });
-
-  it("shows account and credits instead of usage login when signed in", () => {
+  it("shows enterprise account entry without usage credits when signed in", () => {
     const onOpenEnterpriseAiSettings = vi.fn();
     render(
       <Sidebar
@@ -232,7 +222,8 @@ describe("Sidebar", () => {
     expect(accountButton).toBeTruthy();
     fireEvent.click(accountButton);
     expect(onOpenEnterpriseAiSettings).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/^Available credits:/)).toBeTruthy();
+    expect(screen.queryByText(/^Available credits:/)).toBeNull();
+    expect(screen.queryByText("Current session")).toBeNull();
   });
 
   it("keeps the bottom action row stable after enterprise sign in", () => {

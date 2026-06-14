@@ -174,6 +174,47 @@ function readFirstString(...values: unknown[]): string {
   return "";
 }
 
+type RawDynamicToolCall = {
+  id: string;
+  namespace: string | null;
+  tool: string;
+  arguments: Record<string, unknown>;
+};
+
+const RAW_DYNAMIC_TOOL_CALL_CACHE_LIMIT = 200;
+
+function parseJsonRecord(text: string): Record<string, unknown> | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{")) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return asRecord(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeRawDynamicToolName(tool: string) {
+  return tool === "codex_monitor.generate_image" ? "generate_image" : tool;
+}
+
+function normalizeRawDynamicToolNamespace(namespace: string, tool: string) {
+  if (!namespace && normalizeRawDynamicToolName(tool) === "generate_image") {
+    return "codex_monitor";
+  }
+  return namespace;
+}
+
+function normalizeRawDynamicToolArguments(value: unknown): Record<string, unknown> {
+  const record = asRecord(value);
+  if (record) {
+    return record;
+  }
+  return typeof value === "string" ? (parseJsonRecord(value) ?? {}) : {};
+}
+
 function extractErrorMessage(error: unknown): string {
   if (typeof error === "string") {
     return error.trim();
@@ -286,10 +327,154 @@ function isRawImageGenerationItem(value: unknown): value is Record<string, unkno
   return itemType === "image_generation_call" || itemType === "imageGeneration";
 }
 
+function getRawFunctionCallId(item: Record<string, unknown>) {
+  return readFirstString(item.call_id, item.callId, item.id);
+}
+
+function parseRawDynamicToolCall(value: unknown): RawDynamicToolCall | null {
+  const item = asRecord(value);
+  if (!item || readFirstString(item.type) !== "function_call") {
+    return null;
+  }
+  const id = getRawFunctionCallId(item);
+  const rawNamespace = readFirstString(item.namespace);
+  const rawTool = readFirstString(item.name, item.tool);
+  const tool = normalizeRawDynamicToolName(rawTool);
+  const namespace = normalizeRawDynamicToolNamespace(rawNamespace, rawTool);
+  if (!id || namespace !== "codex_monitor" || tool !== "generate_image") {
+    return null;
+  }
+  return {
+    id,
+    namespace,
+    tool,
+    arguments: normalizeRawDynamicToolArguments(item.arguments),
+  };
+}
+
+function normalizeRawDynamicToolOutputContentItem(value: Record<string, unknown>) {
+  const type = readFirstString(value.type);
+  if (type === "inputText" || type === "input_text") {
+    const text = readFirstString(value.text);
+    return text ? { type: "inputText" as const, text } : null;
+  }
+  if (type === "inputImage" || type === "input_image") {
+    const imageUrl = readFirstString(value.imageUrl, value.image_url);
+    return imageUrl ? { type: "inputImage" as const, imageUrl } : null;
+  }
+  return null;
+}
+
+function normalizeRawDynamicToolOutputContentItems(output: unknown) {
+  if (Array.isArray(output)) {
+    return output
+      .map((entry) => {
+        const record = asRecord(entry);
+        return record ? normalizeRawDynamicToolOutputContentItem(record) : null;
+      })
+      .filter(
+        (
+          entry,
+        ): entry is
+          | { type: "inputText"; text: string }
+          | { type: "inputImage"; imageUrl: string } => Boolean(entry),
+      );
+  }
+  const text = typeof output === "string" ? output.trim() : "";
+  return text ? [{ type: "inputText" as const, text }] : [];
+}
+
+function firstRawDynamicToolOutputText(
+  contentItems: Array<
+    { type: "inputText"; text: string } | { type: "inputImage"; imageUrl: string }
+  >,
+) {
+  for (const item of contentItems) {
+    if (item.type === "inputText" && item.text.trim()) {
+      return item.text;
+    }
+  }
+  return "";
+}
+
+function buildRawDynamicToolOutputItem(
+  value: unknown,
+  call: RawDynamicToolCall | undefined,
+) {
+  const item = asRecord(value);
+  if (!item || !call || readFirstString(item.type) !== "function_call_output") {
+    return null;
+  }
+  const contentItems = normalizeRawDynamicToolOutputContentItems(item.output);
+  const metadata = parseJsonRecord(firstRawDynamicToolOutputText(contentItems)) ?? {};
+  const success = !readFirstString(metadata.error, metadata.message);
+  return {
+    type: "dynamicToolCall",
+    id: call.id,
+    namespace: call.namespace,
+    tool: call.tool,
+    status: success ? "completed" : "failed",
+    arguments: call.arguments,
+    contentItems,
+    success,
+  };
+}
+
+function buildRawDynamicToolCallKey(
+  workspaceId: string,
+  threadId: string,
+  turnId: string | null,
+  callId: string,
+) {
+  return `${workspaceId}:${threadId}:${turnId ?? ""}:${callId}`;
+}
+
+function rememberRawDynamicToolCall(
+  calls: Map<string, RawDynamicToolCall>,
+  key: string,
+  call: RawDynamicToolCall,
+) {
+  calls.set(key, call);
+  while (calls.size > RAW_DYNAMIC_TOOL_CALL_CACHE_LIMIT) {
+    const oldestKey = calls.keys().next().value;
+    if (!oldestKey) {
+      return;
+    }
+    calls.delete(oldestKey);
+  }
+}
+
+function hasRawAssistantMessageText(item: Record<string, unknown>) {
+  if (readFirstString(item.type) !== "message" || readFirstString(item.role) !== "assistant") {
+    return false;
+  }
+  const content = Array.isArray(item.content) ? item.content : [];
+  return content.some((entry) => {
+    const record = asRecord(entry);
+    if (!record) {
+      return false;
+    }
+    const type = readFirstString(record.type);
+    if (type !== "output_text" && type !== "text") {
+      return false;
+    }
+    return readFirstString(record.text).length > 0;
+  });
+}
+
+function isRawDisplayResponseItem(value: unknown): value is Record<string, unknown> {
+  const item = asRecord(value);
+  if (!item) {
+    return false;
+  }
+  return isRawImageGenerationItem(item) || hasRawAssistantMessageText(item);
+}
+
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
   // Use ref to keep handlers current without triggering re-subscription
   const handlersRef = useRef(handlers);
   const reportedTurnErrorsRef = useRef(new Set<string>());
+  const rawDynamicToolCallsRef = useRef(new Map<string, RawDynamicToolCall>());
   
   // Update ref on every render to always have latest handlers
   useEffect(() => {
@@ -668,7 +853,42 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
         const turnId = String(params.turnId ?? params.turn_id ?? "").trim() || null;
         const item = params.item;
-        if (threadId && isRawImageGenerationItem(item)) {
+        if (threadId) {
+          const rawCall = parseRawDynamicToolCall(item);
+          if (rawCall) {
+            rememberRawDynamicToolCall(
+              rawDynamicToolCallsRef.current,
+              buildRawDynamicToolCallKey(workspace_id, threadId, turnId, rawCall.id),
+              rawCall,
+            );
+            return;
+          }
+
+          const rawOutput = asRecord(item);
+          const rawOutputCallId = rawOutput ? getRawFunctionCallId(rawOutput) : "";
+          const rawCallKey = rawOutputCallId
+            ? buildRawDynamicToolCallKey(workspace_id, threadId, turnId, rawOutputCallId)
+            : "";
+          const dynamicToolOutput = buildRawDynamicToolOutputItem(
+            item,
+            rawCallKey ? rawDynamicToolCallsRef.current.get(rawCallKey) : undefined,
+          );
+          if (dynamicToolOutput) {
+            rawDynamicToolCallsRef.current.delete(rawCallKey);
+            if (turnId) {
+              currentHandlers.onItemCompleted?.(
+                workspace_id,
+                threadId,
+                dynamicToolOutput,
+                turnId,
+              );
+            } else {
+              currentHandlers.onItemCompleted?.(workspace_id, threadId, dynamicToolOutput);
+            }
+            return;
+          }
+        }
+        if (threadId && isRawDisplayResponseItem(item)) {
           if (turnId) {
             currentHandlers.onItemCompleted?.(workspace_id, threadId, item, turnId);
           } else {

@@ -47,6 +47,43 @@ function parseUserInputs(inputs: Array<Record<string, unknown>>) {
   return { text: textParts.join(" ").trim(), images };
 }
 
+function extractRawAssistantMessageText(item: Record<string, unknown>) {
+  if (asString(item.role) !== "assistant") {
+    return "";
+  }
+  const content = Array.isArray(item.content)
+    ? (item.content as Array<Record<string, unknown>>)
+    : [];
+  return content
+    .map((entry) => {
+      const type = asString(entry?.type);
+      if (type === "output_text" || type === "text") {
+        return asString(entry.text);
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("");
+}
+
+function buildRawAssistantMessageItem(
+  item: Record<string, unknown>,
+  fallbackCreatedAt?: number,
+): ConversationItem | null {
+  const id = asString(item.id);
+  const text = extractRawAssistantMessageText(item);
+  if (!id || text.trim().length === 0) {
+    return null;
+  }
+  return {
+    id,
+    kind: "message",
+    role: "assistant",
+    text,
+    createdAt: getMessageCreatedAt(item, fallbackCreatedAt),
+  };
+}
+
 function getMessageCreatedAt(
   item: Record<string, unknown>,
   fallbackCreatedAt?: number,
@@ -319,11 +356,25 @@ function getRawFunctionCallId(item: Record<string, unknown>) {
   return asString(item.call_id ?? item.callId ?? item.id);
 }
 
+function normalizeRawDynamicToolName(tool: string) {
+  return tool === "codex_monitor.generate_image" ? "generate_image" : tool;
+}
+
+function normalizeRawDynamicToolNamespace(namespace: string, tool: string) {
+  if (!namespace && normalizeRawDynamicToolName(tool) === "generate_image") {
+    return "codex_monitor";
+  }
+  return namespace;
+}
+
 function isDynamicFunctionCall(item: Record<string, unknown>) {
   const type = asString(item.type);
   const namespace = asString(item.namespace);
-  const tool = asString(item.name ?? item.tool);
-  return type === "function_call" && namespace === "codex_monitor" && Boolean(tool);
+  const tool = normalizeRawDynamicToolName(asString(item.name ?? item.tool));
+  if (type !== "function_call" || !tool) {
+    return false;
+  }
+  return namespace === "codex_monitor" || (!namespace && tool === "generate_image");
 }
 
 function buildDynamicToolCallFromRawFunctionOutput(
@@ -345,8 +396,11 @@ function buildDynamicToolCallFromRawFunctionOutput(
   return {
     type: "dynamicToolCall",
     id: callId,
-    namespace: asString(call.namespace),
-    tool: asString(call.name ?? call.tool),
+    namespace: normalizeRawDynamicToolNamespace(
+      asString(call.namespace),
+      asString(call.name ?? call.tool),
+    ),
+    tool: normalizeRawDynamicToolName(asString(call.name ?? call.tool)),
     status: success ? "completed" : "failed",
     arguments: normalizeDynamicToolArguments(call.arguments),
     contentItems,
@@ -363,6 +417,9 @@ export function buildConversationItem(
   const id = asString(item.id);
   if (!id || !type) {
     return null;
+  }
+  if (type === "message") {
+    return buildRawAssistantMessageItem(item);
   }
   if (type === "agentMessage") {
     return null;
@@ -554,6 +611,9 @@ export function buildConversationItemFromThreadItem(
   const id = asString(item.id);
   if (!id || !type) {
     return null;
+  }
+  if (type === "message") {
+    return buildRawAssistantMessageItem(item, fallbackCreatedAt);
   }
   if (type === "userMessage") {
     const content = Array.isArray(item.content) ? item.content : [];

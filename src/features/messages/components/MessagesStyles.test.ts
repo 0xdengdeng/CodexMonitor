@@ -58,4 +58,18 @@ describe("message file link styles", () => {
     expect(hoverBlock).toContain("opacity: 1");
     expect(focusBlock).toContain("opacity: 1");
   });
+
+  it("renders local image file previews as bounded thumbnails", () => {
+    const css = messagesCss();
+    const referenceBlock = cssBlock(css, ".message .markdown .message-file-reference");
+    const previewBlock = cssBlock(css, ".message .markdown .message-file-image-preview");
+    const imageBlock = cssBlock(css, ".message .markdown .message-file-image-preview img");
+
+    expect(referenceBlock).toContain("flex-direction: column");
+    expect(previewBlock).toContain("cursor: zoom-in");
+    expect(previewBlock).toContain("width: min(420px, 100%)");
+    expect(previewBlock).toContain("height: clamp(");
+    expect(imageBlock).toContain("object-fit: contain");
+    expect(imageBlock).toContain("height: 100%");
+  });
 });

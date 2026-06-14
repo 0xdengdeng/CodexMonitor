@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -12,7 +13,9 @@ import {
   resolveMessageFileHref,
   toFileLink,
 } from "../utils/messageFileLinks";
+import { resolveMountedWorkspacePath } from "../utils/mountedWorkspacePaths";
 import type { ParsedFileLocation } from "../../../utils/fileLinks";
+import { isAbsolutePath, joinWorkspacePath } from "../../../utils/platformPaths";
 import { useI18n } from "@/features/i18n/i18n";
 
 type MarkdownProps = {
@@ -54,6 +57,22 @@ type PreProps = {
 type LinkBlockProps = {
   urls: string[];
 };
+
+const PREVIEWABLE_IMAGE_EXTENSIONS = new Set([
+  "apng",
+  "avif",
+  "bmp",
+  "gif",
+  "jpeg",
+  "jpg",
+  "png",
+  "svg",
+  "webp",
+]);
+const FAILED_PREVIEW_IMAGE_SOURCE_LIMIT = 200;
+const failedPreviewImageSources = new Set<string>();
+
+type FileImagePreviewState = "loading" | "loaded" | "failed";
 
 function extractLanguageTag(className?: string) {
   if (!className) {
@@ -321,6 +340,115 @@ function LinkBlock({ urls }: LinkBlockProps) {
   );
 }
 
+function isPreviewableImagePath(path: string) {
+  const cleanPath = path.split(/[?#]/, 1)[0] ?? path;
+  const ext = cleanPath.split(".").pop()?.toLowerCase() ?? "";
+  return PREVIEWABLE_IMAGE_EXTENSIONS.has(ext);
+}
+
+function normalizePreviewPath(path: string) {
+  return path.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function resolveWorkspaceImagePreviewPath(
+  path: string,
+  workspacePath?: string | null,
+) {
+  const workspace = workspacePath?.trim() ?? "";
+  const trimmedPath = path.trim();
+  if (!workspace || !trimmedPath) {
+    return "";
+  }
+  const mountedWorkspacePath = resolveMountedWorkspacePath(trimmedPath, workspace);
+  const resolvedPath =
+    mountedWorkspacePath ??
+    (isAbsolutePath(trimmedPath)
+      ? trimmedPath
+      : joinWorkspacePath(workspace, trimmedPath));
+  const normalizedWorkspace = normalizePreviewPath(workspace);
+  const normalizedResolved = normalizePreviewPath(resolvedPath);
+  if (
+    normalizedResolved === normalizedWorkspace ||
+    normalizedResolved.startsWith(`${normalizedWorkspace}/`)
+  ) {
+    return resolvedPath;
+  }
+  return "";
+}
+
+function resolvePreviewImageSrc(path: string) {
+  if (!path) {
+    return "";
+  }
+  if (path.startsWith("data:") || path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  if (path.startsWith("file://")) {
+    return path;
+  }
+  try {
+    return convertFileSrc(path);
+  } catch {
+    return path;
+  }
+}
+
+function rememberFailedPreviewImageSource(src: string) {
+  if (!src) {
+    return;
+  }
+  failedPreviewImageSources.add(src);
+  if (failedPreviewImageSources.size <= FAILED_PREVIEW_IMAGE_SOURCE_LIMIT) {
+    return;
+  }
+  const oldest = failedPreviewImageSources.values().next().value as string | undefined;
+  if (oldest) {
+    failedPreviewImageSources.delete(oldest);
+  }
+}
+
+function FileImagePreview({
+  alt,
+  src,
+  onClick,
+}: {
+  alt: string;
+  src: string;
+  onClick: (event: React.MouseEvent) => void;
+}) {
+  const [state, setState] = useState<FileImagePreviewState>(() =>
+    src && !failedPreviewImageSources.has(src) ? "loading" : "failed",
+  );
+
+  useEffect(() => {
+    setState(src && !failedPreviewImageSources.has(src) ? "loading" : "failed");
+  }, [src]);
+
+  if (state === "failed" || !src) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      className="message-file-image-preview"
+      onClick={onClick}
+      aria-label={alt}
+      data-state={state}
+    >
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setState("loaded")}
+        onError={() => {
+          rememberFailedPreviewImageSource(src);
+          setState("failed");
+        }}
+      />
+    </button>
+  );
+}
+
 function FileReferenceLink({
   href,
   rawPath,
@@ -337,22 +465,40 @@ function FileReferenceLink({
   onContextMenu: (event: React.MouseEvent, path: ParsedFileLocation) => void;
 }) {
   const { fullPath, fileName, lineLabel, parentPath } = describeFileTarget(rawPath, workspacePath);
+  const imagePreviewPath =
+    rawPath.line === null && isPreviewableImagePath(rawPath.path)
+      ? resolveWorkspaceImagePreviewPath(rawPath.path, workspacePath)
+      : "";
+  const imagePreviewSrc =
+    imagePreviewPath ? resolvePreviewImageSrc(imagePreviewPath) : "";
+  const handleImagePreviewClick = (event: React.MouseEvent) => {
+    onClick(event, rawPath);
+  };
   return (
-    <a
-      href={href}
-      className="message-file-link"
-      title={fullPath}
-      onClick={(event) => onClick(event, rawPath)}
-      onContextMenu={(event) => onContextMenu(event, rawPath)}
-    >
-      <span className="message-file-link-name">{fileName}</span>
-      {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
-      {showFilePath && parentPath ? (
-        <span className="message-file-link-path-popover" aria-hidden="true">
-          {parentPath}
-        </span>
+    <span className="message-file-reference">
+      <a
+        href={href}
+        className="message-file-link"
+        title={fullPath}
+        onClick={(event) => onClick(event, rawPath)}
+        onContextMenu={(event) => onContextMenu(event, rawPath)}
+      >
+        <span className="message-file-link-name">{fileName}</span>
+        {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
+        {showFilePath && parentPath ? (
+          <span className="message-file-link-path-popover" aria-hidden="true">
+            {parentPath}
+          </span>
+        ) : null}
+      </a>
+      {imagePreviewSrc ? (
+        <FileImagePreview
+          alt={fileName}
+          src={imagePreviewSrc}
+          onClick={handleImagePreviewClick}
+        />
       ) : null}
-    </a>
+    </span>
   );
 }
 

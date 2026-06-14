@@ -1151,6 +1151,70 @@ describe("threadItems", () => {
     });
   });
 
+  it("normalizes raw assistant response messages during thread replay", () => {
+    const item = buildConversationItem({
+      type: "message",
+      id: "msg-raw-1",
+      role: "assistant",
+      created_at: "2026-06-14T08:00:00Z",
+      content: [
+        { type: "output_text", text: "我先帮你生成一张图。" },
+        { type: "output_text", text: "\n生成时会优先保留你描述里的主体。" },
+      ],
+    });
+
+    expect(item).toEqual({
+      id: "msg-raw-1",
+      kind: "message",
+      role: "assistant",
+      text: "我先帮你生成一张图。\n生成时会优先保留你描述里的主体。",
+      createdAt: Date.parse("2026-06-14T08:00:00Z"),
+    });
+  });
+
+  it("keeps raw assistant response messages before image generation cards", () => {
+    const items = buildItemsFromThread(
+      {
+        turns: [
+          {
+            id: "turn-1",
+            started_at: "2026-06-14T08:00:00Z",
+            items: [
+              {
+                type: "message",
+                id: "msg-raw-1",
+                role: "assistant",
+                content: [{ type: "output_text", text: "我先帮你生成一张图。" }],
+              },
+              {
+                type: "image_generation_call",
+                id: "ig-1",
+                status: "completed",
+                result: "AAA",
+              },
+            ],
+          },
+        ],
+      },
+      { imageGenerationModel: "gpt-image-2" },
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items.map((item) => item.kind)).toEqual(["message", "imageGeneration"]);
+    expect(items[0]).toMatchObject({
+      id: "msg-raw-1",
+      kind: "message",
+      role: "assistant",
+      text: "我先帮你生成一张图。",
+      createdAt: Date.parse("2026-06-14T08:00:00Z"),
+    });
+    expect(items[1]).toMatchObject({
+      id: "turn-1:ig-1",
+      kind: "imageGeneration",
+      model: "gpt-image-2",
+    });
+  });
+
   it("keeps same image generation call ids from different turns as separate items", () => {
     const items = buildItemsFromThread(
       {
@@ -1347,6 +1411,54 @@ describe("threadItems", () => {
         createdAt: undefined,
       },
     ]);
+  });
+
+  it("normalizes bare raw generate_image function calls into image generation items", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          items: [
+            {
+              type: "function_call",
+              call_id: "call-bare-1",
+              name: "generate_image",
+              arguments: JSON.stringify({
+                prompt: "A neon city poster",
+                size: "1024x1024",
+              }),
+            },
+            {
+              type: "function_call_output",
+              call_id: "call-bare-1",
+              output: [
+                {
+                  type: "input_text",
+                  text: JSON.stringify({
+                    assetId: "asset-bare-1",
+                    model: "adg-image",
+                    savedPath: "/tmp/generated-images/asset-bare-1.png",
+                  }),
+                },
+                {
+                  type: "input_image",
+                  image_url: "data:image/png;base64,BBB",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "call-bare-1",
+      kind: "imageGeneration",
+      prompt: "A neon city poster",
+      assetId: "asset-bare-1",
+      savedPath: "/tmp/generated-images/asset-bare-1.png",
+      imageSrc: "data:image/png;base64,BBB",
+    });
   });
 
   it("parses ISO timestamps for thread updates", () => {

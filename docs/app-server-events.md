@@ -128,13 +128,25 @@ generated-image card header instead of relying on AgentDesk dynamic-tool
 metadata.
 
 Codex also emits raw Responses items through `rawResponseItem/completed`.
-CodexMonitor routes raw `image_generation_call` payloads through the same
+CodexMonitor routes displayable raw assistant `message` payloads through the
+same completed item path so text emitted before image generation remains visible
+in the live conversation.
+
+CodexMonitor also routes raw `image_generation_call` payloads through the same
 completed item path so a final native image result updates the existing
 generated-image card instead of leaving the live card in progress.
 
+When model-selected image generation is implemented as a Responses
+`function_call` / `function_call_output` pair for `generate_image`,
+CodexMonitor pairs those raw items by `call_id` and synthesizes the existing
+AgentDesk dynamic-tool display item. This lets the existing generated-image
+card UI handle the result without introducing a second image rendering model.
+
 Thread replay also normalizes raw rollout `image_generation_call` response
-items into the same generated-image card model so live lifecycle updates and
-history hydration reconcile by item id instead of rendering separate cards.
+items, raw assistant `message` payloads, and raw `generate_image`
+`function_call_output` payloads into the same generated-image/message card
+models so live lifecycle updates and history hydration reconcile by item id
+instead of rendering separate cards.
 
 ## Missing Events (Codex v2 Notifications)
 

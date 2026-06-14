@@ -449,6 +449,132 @@ describe("useAppServerEvents", () => {
     });
   });
 
+  it("routes raw assistant response messages as completed items with turn id", async () => {
+    const handlers: Handlers = {
+      onItemCompleted: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    const item = {
+      type: "message",
+      id: "msg-raw-1",
+      role: "assistant",
+      status: "completed",
+      content: [{ type: "output_text", text: "我先帮你生成一张图。" }],
+    };
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "rawResponseItem/completed",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            item,
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      item,
+      "turn-1",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes raw dynamic image tool outputs as completed items with turn id", async () => {
+    const handlers: Handlers = {
+      onItemCompleted: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "rawResponseItem/completed",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            item: {
+              type: "function_call",
+              call_id: "call-1",
+              namespace: "codex_monitor",
+              name: "generate_image",
+              arguments: JSON.stringify({
+                prompt: "A small blue rocket icon",
+                size: "1024x1024",
+              }),
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemCompleted).not.toHaveBeenCalled();
+
+    const metadata = {
+      assetId: "asset-1",
+      model: "adg-image",
+      size: "1024x1024",
+      savedPath: "/tmp/generated-images/asset-1.png",
+    };
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "rawResponseItem/completed",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            item: {
+              type: "function_call_output",
+              call_id: "call-1",
+              output: [
+                { type: "input_text", text: JSON.stringify(metadata) },
+                { type: "input_image", image_url: "data:image/png;base64,AAA" },
+              ],
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      {
+        type: "dynamicToolCall",
+        id: "call-1",
+        namespace: "codex_monitor",
+        tool: "generate_image",
+        status: "completed",
+        arguments: {
+          prompt: "A small blue rocket icon",
+          size: "1024x1024",
+        },
+        contentItems: [
+          { type: "inputText", text: JSON.stringify(metadata) },
+          { type: "inputImage", imageUrl: "data:image/png;base64,AAA" },
+        ],
+        success: true,
+      },
+      "turn-1",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("does not complete empty agent messages from app-server items", async () => {
     const handlers: Handlers = {
       onItemCompleted: vi.fn(),
