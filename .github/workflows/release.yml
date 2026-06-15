@@ -589,7 +589,7 @@ jobs:
             fi
             echo "Renaming $artifact -> $target"
             mv "$artifact" "$target"
-          done < <(find release-artifacts -type f -name '* *' -print0)
+          done < <(find release-artifacts -type f -print0)
 
       - name: Build latest.json
         run: |
