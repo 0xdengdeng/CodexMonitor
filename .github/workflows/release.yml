@@ -15,6 +15,7 @@ permissions:
 
 env:
   RELEASE_REPOSITORY: 0xdengdeng/CodexMonitor
+  NODE_OPTIONS: --max-old-space-size=4096
 
 jobs:
   build_macos:
