@@ -254,6 +254,7 @@ jobs:
       WINDOWS_CERTIFICATE_B64: ${{ secrets.WINDOWS_CERTIFICATE_B64 }}
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+      WINDOWS_SELF_SIGNED_RELEASE_CERT: ${{ vars.WINDOWS_SELF_SIGNED_RELEASE_CERT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -357,42 +358,69 @@ jobs:
         timeout-minutes: 5
         run: |
           $ErrorActionPreference = "Stop"
-          $required = @(
-            "WINDOWS_CERTIFICATE_B64",
-            "WINDOWS_CERTIFICATE_PASSWORD",
-            "WINDOWS_CERTIFICATE_THUMBPRINT"
+          $useSelfSignedReleaseCert = [string]::Equals(
+            $env:WINDOWS_SELF_SIGNED_RELEASE_CERT,
+            "true",
+            [StringComparison]::OrdinalIgnoreCase
           )
-          foreach ($name in $required) {
-            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
-              throw "Missing required secret-backed environment variable: $name"
-            }
-          }
 
-          $certificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign.pfx"
-          [IO.File]::WriteAllBytes(
-            $certificatePath,
-            [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_B64)
-          )
-          $password = ConvertTo-SecureString `
-            -String $env:WINDOWS_CERTIFICATE_PASSWORD `
-            -AsPlainText `
-            -Force
-          Import-PfxCertificate `
-            -FilePath $certificatePath `
-            -CertStoreLocation Cert:\CurrentUser\My `
-            -Password $password | Out-Null
+          if ($useSelfSignedReleaseCert) {
+            $cert = New-SelfSignedCertificate `
+              -Type CodeSigningCert `
+              -Subject "CN=Qihang AI Self-Signed Release" `
+              -CertStoreLocation "Cert:\CurrentUser\My" `
+              -KeyExportPolicy Exportable `
+              -KeySpec Signature `
+              -KeyLength 3072 `
+              -HashAlgorithm SHA256 `
+              -NotAfter (Get-Date).AddMonths(6)
 
-          $thumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT.Replace(" ", "").ToUpperInvariant()
-          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
-          if ($null -eq $cert) {
-            throw "Imported Windows code signing certificate was not found by the configured thumbprint."
-          }
-          if ($cert.Subject -eq $cert.Issuer) {
             $publicCertificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign-self-signed.cer"
             Export-Certificate `
               -Cert $cert `
               -FilePath $publicCertificatePath | Out-Null
             certutil.exe -f -user -addstore Root $publicCertificatePath
+            $thumbprint = $cert.Thumbprint.ToUpperInvariant()
+          } else {
+            $required = @(
+              "WINDOWS_CERTIFICATE_B64",
+              "WINDOWS_CERTIFICATE_PASSWORD",
+              "WINDOWS_CERTIFICATE_THUMBPRINT"
+            )
+            foreach ($name in $required) {
+              if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+                throw "Missing required secret-backed environment variable: $name"
+              }
+            }
+
+            $certificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign.pfx"
+            [IO.File]::WriteAllBytes(
+              $certificatePath,
+              [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_B64)
+            )
+            $password = ConvertTo-SecureString `
+              -String $env:WINDOWS_CERTIFICATE_PASSWORD `
+              -AsPlainText `
+              -Force
+            Import-PfxCertificate `
+              -FilePath $certificatePath `
+              -CertStoreLocation Cert:\CurrentUser\My `
+              -Password $password | Out-Null
+
+            $thumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT.Replace(" ", "").ToUpperInvariant()
+            $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
+            if ($null -ne $cert -and $cert.Subject -eq $cert.Issuer) {
+              $publicCertificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign-self-signed.cer"
+              Export-Certificate `
+                -Cert $cert `
+                -FilePath $publicCertificatePath | Out-Null
+              certutil.exe -f -user -addstore Root $publicCertificatePath
+            }
+          }
+
+          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
+          if ($null -eq $cert) {
+            throw "Imported Windows code signing certificate was not found by the configured thumbprint."
           }
           "WINDOWS_CERTIFICATE_THUMBPRINT=$thumbprint" |
             Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
