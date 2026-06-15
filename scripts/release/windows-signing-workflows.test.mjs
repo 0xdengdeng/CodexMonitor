@@ -58,6 +58,7 @@ describe("release workflow Git sidecars", () => {
     expect(workflow).toContain("npm run sync:git-sidecar");
     expect(workflow).toContain("Remove-Item -Path $resourcesRoot -Recurse -Force");
     expect(workflow).toContain("Join-Path $resourcesRoot $target");
+    expect(workflow).toContain('normalized="${normalized//启航AI智慧平台/QihangAI}"');
     expect(workflow).toContain("$unusedLaunchers = @(");
     expect(workflow).toContain('"git-bash.exe"');
     expect(workflow).toContain("Remove-Item -Path (Join-Path $resourceDir $pattern)");

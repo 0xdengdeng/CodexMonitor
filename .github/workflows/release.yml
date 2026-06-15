@@ -578,6 +578,7 @@ jobs:
             dir=$(dirname "$artifact")
             file=$(basename "$artifact")
             normalized="${file// /.}"
+            normalized="${normalized//启航AI智慧平台/QihangAI}"
             if [ "$file" = "$normalized" ]; then
               continue
             fi
