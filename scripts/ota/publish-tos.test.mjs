@@ -20,7 +20,21 @@ describe("publish-tos helpers", () => {
       prefix: "codexmonitor",
       publicBaseUrl: "https://qihang-ai.tos-cn-beijing.volces.com",
       region: "cn-beijing",
+      rewriteArtifactUrls: true,
+      uploadReferencedArtifacts: true,
     });
+  });
+
+  it("allows publishing only the stable TOS manifest with existing artifact urls", () => {
+    const config = buildConfig({
+      TOS_ACCESS_KEY: "ak",
+      TOS_SECRET_KEY: "sk",
+      TOS_REWRITE_ARTIFACT_URLS: "false",
+      TOS_UPLOAD_REFERENCED_ARTIFACTS: "false",
+    });
+
+    expect(config.rewriteArtifactUrls).toBe(false);
+    expect(config.uploadReferencedArtifacts).toBe(false);
   });
 
   it("rewrites latest.json platform urls to the public TOS release path", () => {

@@ -757,29 +757,6 @@ jobs:
           print(f"Validated {len(payload.get('platforms', {}))} latest.json platform URL(s).")
           PY
 
-      # TOS publish first: latest.json on TOS is the OTA endpoint clients
-      # actually consult (tauri.conf.json pins it). GitHub release is a
-      # backup channel. If TOS fails, skipping the GH release step leaves
-      # no half-published state pointing at missing files.
-      - name: Publish to TOS
-        timeout-minutes: 120
-        env:
-          TOS_ACCESS_KEY_ID: ${{ secrets.TOS_ACCESS_KEY_ID }}
-          TOS_SECRET_ACCESS_KEY: ${{ secrets.TOS_SECRET_ACCESS_KEY }}
-          TOS_REGION: cn-beijing
-          TOS_ENDPOINT: tos-cn-beijing.volces.com
-          TOS_BUCKET: qihang-ai
-          TOS_PUBLIC_BASE_URL: https://qihang-ai.tos-cn-beijing.volces.com
-          OTA_PREFIX: codexmonitor
-          OTA_ARTIFACTS_DIR: release-artifacts
-        run: |
-          set -euo pipefail
-          # release-artifacts/ contains files with the names Tauri produced
-          # (Chinese-named .exe etc). publish-tos.mjs uploads them as-is and
-          # rewrites latest.json's GitHub URLs to TOS URLs that match.
-          npm ci
-          npm run ota:publish:tos
-
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -827,6 +804,27 @@ jobs:
             "${macos_sigs[@]}" \
             "${windows_exes[@]}" \
             release-artifacts/latest.json
+
+      # TOS hosts only the stable OTA manifest. The actual update artifacts
+      # stay on the GitHub release created above, so clients never see a
+      # manifest that points at assets which have not been published yet.
+      - name: Publish latest.json to TOS
+        timeout-minutes: 10
+        env:
+          TOS_ACCESS_KEY_ID: ${{ secrets.TOS_ACCESS_KEY_ID }}
+          TOS_SECRET_ACCESS_KEY: ${{ secrets.TOS_SECRET_ACCESS_KEY }}
+          TOS_REGION: cn-beijing
+          TOS_ENDPOINT: tos-cn-beijing.volces.com
+          TOS_BUCKET: qihang-ai
+          TOS_PUBLIC_BASE_URL: https://qihang-ai.tos-cn-beijing.volces.com
+          TOS_REWRITE_ARTIFACT_URLS: "false"
+          TOS_UPLOAD_REFERENCED_ARTIFACTS: "false"
+          OTA_PREFIX: codexmonitor
+          OTA_ARTIFACTS_DIR: release-artifacts
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run ota:publish:tos
 
       # Post-release version bump is left to a human commit. The auto-PR
       # path required granting GitHub Actions PR-create permission on the

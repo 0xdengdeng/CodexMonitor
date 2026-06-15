@@ -49,6 +49,13 @@ function requireValue(value, name) {
   return String(value).trim();
 }
 
+function parseBoolean(value, defaultValue) {
+  if (value == null || String(value).trim() === "") {
+    return defaultValue;
+  }
+  return !["0", "false", "no"].includes(String(value).trim().toLowerCase());
+}
+
 export function buildConfig(env = process.env) {
   const accessKeyId = env.TOS_ACCESS_KEY_ID ?? env.TOS_ACCESS_KEY;
   const accessKeySecret = env.TOS_SECRET_ACCESS_KEY ?? env.TOS_SECRET_KEY;
@@ -72,6 +79,11 @@ export function buildConfig(env = process.env) {
       requireValue(publicBaseUrl, "TOS_PUBLIC_BASE_URL"),
     ),
     region: requireValue(region, "TOS_REGION"),
+    rewriteArtifactUrls: parseBoolean(env.TOS_REWRITE_ARTIFACT_URLS, true),
+    uploadReferencedArtifacts: parseBoolean(
+      env.TOS_UPLOAD_REFERENCED_ARTIFACTS,
+      true,
+    ),
   };
 }
 
@@ -220,6 +232,11 @@ async function writeTosLatestManifest(config) {
   return rewritten;
 }
 
+async function readLatestManifest(config) {
+  const latestPath = path.join(config.artifactsDir, "latest.json");
+  return JSON.parse(await fs.readFile(latestPath, "utf8"));
+}
+
 async function uploadFile(client, config, item, localSize) {
   const commonInput = {
     bucket: config.bucket,
@@ -262,13 +279,17 @@ async function fileSize(filePath) {
 
 export async function publishToTos(config = buildConfig()) {
   const artifactsDir = path.resolve(config.artifactsDir);
-  const manifest = await writeTosLatestManifest({ ...config, artifactsDir });
+  const manifest = config.rewriteArtifactUrls
+    ? await writeTosLatestManifest({ ...config, artifactsDir })
+    : await readLatestManifest({ ...config, artifactsDir });
   const files = await listFiles(artifactsDir);
   const plan = buildUploadPlan({
     artifactsDir,
     files,
     prefix: config.prefix,
-    referencedFilenames: referencedFilenamesFromManifest(manifest),
+    referencedFilenames: config.uploadReferencedArtifacts
+      ? referencedFilenamesFromManifest(manifest)
+      : new Set(),
     version: manifest.version,
   });
   const client = new TosClient({
