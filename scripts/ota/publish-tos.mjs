@@ -10,6 +10,9 @@ const DEFAULT_ENDPOINT = "tos-cn-beijing.volces.com";
 const DEFAULT_PREFIX = "codexmonitor";
 const DEFAULT_PUBLIC_BASE_URL = `https://${DEFAULT_BUCKET}.${DEFAULT_ENDPOINT}`;
 const DEFAULT_REGION = "cn-beijing";
+const MULTIPART_THRESHOLD_BYTES = 32 * 1024 * 1024;
+const MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024;
+const MULTIPART_TASK_NUM = 4;
 
 const CONTENT_TYPES = new Map([
   [".appimage", "application/octet-stream"],
@@ -195,12 +198,34 @@ async function writeTosLatestManifest(config) {
   return rewritten;
 }
 
-async function uploadFile(client, config, item) {
-  await client.putObjectFromFile({
+async function uploadFile(client, config, item, localSize) {
+  const commonInput = {
     bucket: config.bucket,
     contentType: contentTypeFor(item.filePath),
-    filePath: item.filePath,
     key: item.key,
+  };
+
+  if (localSize != null && localSize >= MULTIPART_THRESHOLD_BYTES) {
+    let lastLoggedPercent = -10;
+    await client.uploadFile({
+      ...commonInput,
+      file: item.filePath,
+      partSize: MULTIPART_PART_SIZE_BYTES,
+      taskNum: MULTIPART_TASK_NUM,
+      progress(percent) {
+        const currentPercent = Math.floor(percent * 100);
+        if (currentPercent >= lastLoggedPercent + 10 || currentPercent === 100) {
+          console.log(`  progress ${currentPercent}%`);
+          lastLoggedPercent = currentPercent;
+        }
+      },
+    });
+    return;
+  }
+
+  await client.putObjectFromFile({
+    ...commonInput,
+    filePath: item.filePath,
   });
 }
 
@@ -240,7 +265,7 @@ export async function publishToTos(config = buildConfig()) {
       `Uploading ${item.filePath} (${localSize ?? "?"}B) -> tos://${config.bucket}/${item.key}`,
     );
     const started = Date.now();
-    await uploadFile(client, config, item);
+    await uploadFile(client, config, item, localSize);
     console.log(`  done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
   }
 
