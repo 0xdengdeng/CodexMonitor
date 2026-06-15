@@ -386,6 +386,15 @@ jobs:
           if ($null -eq $cert) {
             throw "Imported Windows code signing certificate was not found by the configured thumbprint."
           }
+          if ($cert.Subject -eq $cert.Issuer) {
+            $publicCertificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign-self-signed.cer"
+            Export-Certificate `
+              -Cert $cert `
+              -FilePath $publicCertificatePath | Out-Null
+            Import-Certificate `
+              -FilePath $publicCertificatePath `
+              -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+          }
           "WINDOWS_CERTIFICATE_THUMBPRINT=$thumbprint" |
             Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
