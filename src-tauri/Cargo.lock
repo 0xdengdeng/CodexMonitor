@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "agentdesk"
-version = "0.7.70"
+version = "0.7.71"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
