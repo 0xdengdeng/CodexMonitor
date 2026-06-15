@@ -38,3 +38,25 @@ describe("Windows release code signing workflows", () => {
     });
   }
 });
+
+describe("release workflow Git sidecars", () => {
+  it("builds macOS targets on matching GitHub runner architectures", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+
+    expect(workflow).toContain("runs-on: ${{ matrix.os }}");
+    expect(workflow).toContain("target: aarch64-apple-darwin");
+    expect(workflow).toContain("os: macos-latest");
+    expect(workflow).toContain("target: x86_64-apple-darwin");
+    expect(workflow).toContain("os: macos-15-intel");
+  });
+
+  it("prepares target-specific bundled Git resources before release builds", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+
+    expect(workflow).toContain("Prepare macOS bundled Git");
+    expect(workflow).toContain("AGENTDESK_GIT_TARGET: ${{ matrix.target }}");
+    expect(workflow).toContain("npm run sync:git-sidecar");
+    expect(workflow).toContain("Remove-Item -Path $resourcesRoot -Recurse -Force");
+    expect(workflow).toContain("Join-Path $resourcesRoot $target");
+  });
+});

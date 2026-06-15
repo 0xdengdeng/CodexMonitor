@@ -20,7 +20,7 @@ env:
 jobs:
   build_macos:
     name: macOS bundles (${{ matrix.arch }})
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
     environment: release
     strategy:
       fail-fast: false
@@ -28,8 +28,10 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             arch: aarch64
+            os: macos-latest
           - target: x86_64-apple-darwin
             arch: x86_64
+            os: macos-15-intel
     env:
       CODESIGN_IDENTITY: ${{ vars.CODESIGN_IDENTITY }}
       NOTARY_PROFILE_NAME: ${{ vars.NOTARY_PROFILE_NAME }}
@@ -122,6 +124,15 @@ jobs:
             echo "AGENTDESK_CODEX_BIN=$PWD/sidecar/codex"
             echo "AGENTDESK_CODEX_TARGET=$TARGET"
           } >> "$GITHUB_ENV"
+
+      - name: Prepare macOS bundled Git
+        env:
+          AGENTDESK_GIT_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          rm -rf src-tauri/resources/git
+          mkdir -p src-tauri/resources/git
+          npm run sync:git-sidecar
 
       - name: Import signing certificate
         env:
@@ -348,8 +359,10 @@ jobs:
             throw "Git for Windows was not found at $gitExe"
           }
 
-          $resourceDir = "src-tauri/resources/git/$target"
-          Remove-Item -Path $resourceDir -Recurse -Force -ErrorAction SilentlyContinue
+          $resourcesRoot = "src-tauri/resources/git"
+          Remove-Item -Path $resourcesRoot -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null
+          $resourceDir = Join-Path $resourcesRoot $target
           New-Item -ItemType Directory -Force -Path $resourceDir | Out-Null
           Copy-Item -Path (Join-Path $gitRoot "*") -Destination $resourceDir -Recurse -Force
 
