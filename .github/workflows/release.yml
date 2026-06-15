@@ -337,6 +337,26 @@ jobs:
             echo "AGENTDESK_CODEX_TARGET=$TARGET"
           } >> "$GITHUB_ENV"
 
+      - name: Prepare Windows bundled Git
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $target = "x86_64-pc-windows-msvc"
+          $gitRoot = Join-Path $env:ProgramFiles "Git"
+          $gitExe = Join-Path $gitRoot "bin\git.exe"
+          if (-not (Test-Path $gitExe)) {
+            throw "Git for Windows was not found at $gitExe"
+          }
+
+          $resourceDir = "src-tauri/resources/git/$target"
+          Remove-Item -Path $resourceDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $resourceDir | Out-Null
+          Copy-Item -Path (Join-Path $gitRoot "*") -Destination $resourceDir -Recurse -Force
+
+          New-Item -ItemType Directory -Force -Path "src-tauri/binaries" | Out-Null
+          Copy-Item -Path $gitExe -Destination "src-tauri/binaries/git-$target.exe" -Force
+          & $gitExe --version
+
       - name: Write Tauri signing key
         shell: bash
         run: |
@@ -439,7 +459,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
           # NSIS only — OTA uses the .exe installer, MSI's WiX light.exe has
           # been flaky on the runner.
-          npm run tauri:build:win -- --bundles nsis --config src-tauri/tauri.windows.signing.conf.json
+          npm run doctor:win
+          npm run sync:material-icons
+          npm run sync:codex-runtime:release
+          npm run tauri -- build --config src-tauri/tauri.windows.conf.json --bundles nsis --config src-tauri/tauri.windows.signing.conf.json
 
       - name: Verify Windows installer Authenticode signature
         shell: pwsh

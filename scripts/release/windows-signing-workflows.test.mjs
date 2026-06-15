@@ -30,8 +30,8 @@ describe("Windows release code signing workflows", () => {
       expect(workflow).toContain("Import Windows code signing certificate");
       expect(workflow).toContain("Write Windows signing config");
       expect(workflow).toContain("tauri.windows.signing.conf.json");
-      expect(workflow).toContain(
-        "npm run tauri:build:win -- --bundles nsis --config src-tauri/tauri.windows.signing.conf.json",
+      expect(workflow).toMatch(
+        /npm run (?:tauri:build:win -- --bundles nsis --config src-tauri\/tauri\.windows\.signing\.conf\.json|tauri -- build --config src-tauri\/tauri\.windows\.conf\.json --bundles nsis --config src-tauri\/tauri\.windows\.signing\.conf\.json)/,
       );
       expect(workflow).toContain("Verify Windows installer Authenticode signature");
       expect(workflow).toContain("Get-AuthenticodeSignature");
