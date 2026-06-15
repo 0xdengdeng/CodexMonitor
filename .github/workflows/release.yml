@@ -354,6 +354,7 @@ jobs:
 
       - name: Import Windows code signing certificate
         shell: pwsh
+        timeout-minutes: 5
         run: |
           $ErrorActionPreference = "Stop"
           $required = @(
@@ -391,9 +392,7 @@ jobs:
             Export-Certificate `
               -Cert $cert `
               -FilePath $publicCertificatePath | Out-Null
-            Import-Certificate `
-              -FilePath $publicCertificatePath `
-              -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+            certutil.exe -f -user -addstore Root $publicCertificatePath
           }
           "WINDOWS_CERTIFICATE_THUMBPRINT=$thumbprint" |
             Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
