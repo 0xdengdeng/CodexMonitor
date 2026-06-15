@@ -358,13 +358,13 @@ jobs:
         timeout-minutes: 5
         run: |
           $ErrorActionPreference = "Stop"
-          $useSelfSignedReleaseCert = [string]::Equals(
+          $usePfxReleaseCert = [string]::Equals(
             $env:WINDOWS_SELF_SIGNED_RELEASE_CERT,
-            "true",
+            "false",
             [StringComparison]::OrdinalIgnoreCase
           )
 
-          if ($useSelfSignedReleaseCert) {
+          if (-not $usePfxReleaseCert) {
             $cert = New-SelfSignedCertificate `
               -Type CodeSigningCert `
               -Subject "CN=Qihang AI Self-Signed Release" `
@@ -375,11 +375,6 @@ jobs:
               -HashAlgorithm SHA256 `
               -NotAfter (Get-Date).AddMonths(6)
 
-            $publicCertificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign-self-signed.cer"
-            Export-Certificate `
-              -Cert $cert `
-              -FilePath $publicCertificatePath | Out-Null
-            certutil.exe -f -user -addstore Root $publicCertificatePath
             $thumbprint = $cert.Thumbprint.ToUpperInvariant()
           } else {
             $required = @(
@@ -409,13 +404,6 @@ jobs:
 
             $thumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT.Replace(" ", "").ToUpperInvariant()
             $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
-            if ($null -ne $cert -and $cert.Subject -eq $cert.Issuer) {
-              $publicCertificatePath = Join-Path $env:RUNNER_TEMP "agentdesk-codesign-self-signed.cer"
-              Export-Certificate `
-                -Cert $cert `
-                -FilePath $publicCertificatePath | Out-Null
-              certutil.exe -f -user -addstore Root $publicCertificatePath
-            }
           }
 
           $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
@@ -458,6 +446,11 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $expectedThumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT.Replace(" ", "").ToUpperInvariant()
+          $allowUntrustedSelfSigned = -not ([string]::Equals(
+            $env:WINDOWS_SELF_SIGNED_RELEASE_CERT,
+            "false",
+            [StringComparison]::OrdinalIgnoreCase
+          ))
           $installers = Get-ChildItem `
             -Path "src-tauri/target/release/bundle/nsis" `
             -Filter "*.exe" `
@@ -468,12 +461,15 @@ jobs:
 
           foreach ($installer in $installers) {
             $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
-            if ($signature.Status -ne "Valid") {
-              throw "Invalid Authenticode signature for $($installer.Name): $($signature.Status)"
+            if ($null -eq $signature.SignerCertificate) {
+              throw "No Authenticode signer was found for $($installer.Name): $($signature.Status)"
             }
             $actualThumbprint = $signature.SignerCertificate.Thumbprint.ToUpperInvariant()
             if ($actualThumbprint -ne $expectedThumbprint) {
               throw "Unexpected signer for $($installer.Name)."
+            }
+            if ($signature.Status -ne "Valid" -and -not $allowUntrustedSelfSigned) {
+              throw "Invalid Authenticode signature for $($installer.Name): $($signature.Status)"
             }
           }
 
