@@ -61,6 +61,7 @@ describe("publish-tos helpers", () => {
         "/tmp/release-artifacts/nested/AgentDesk.AppImage",
       ],
       prefix: "codexmonitor",
+      referencedFilenames: new Set(["AgentDesk.app.tar.gz"]),
       version: "0.7.69",
     });
 
@@ -68,10 +69,6 @@ describe("publish-tos helpers", () => {
       {
         filePath: "/tmp/release-artifacts/AgentDesk.app.tar.gz",
         key: "codexmonitor/releases/0.7.69/AgentDesk.app.tar.gz",
-      },
-      {
-        filePath: "/tmp/release-artifacts/nested/AgentDesk.AppImage",
-        key: "codexmonitor/releases/0.7.69/AgentDesk.AppImage",
       },
       {
         filePath: "/tmp/release-artifacts/latest.json",

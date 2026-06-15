@@ -129,19 +129,41 @@ export function rewriteLatestManifestUrls(manifest, options) {
   };
 }
 
-export function buildUploadPlan({ artifactsDir, files, prefix, version }) {
+function referencedFilenamesFromManifest(manifest) {
+  return new Set(
+    Object.values(manifest.platforms ?? {})
+      .map((metadata) => filenameFromUrl(metadata?.url))
+      .filter(Boolean),
+  );
+}
+
+export function buildUploadPlan({
+  artifactsDir,
+  files,
+  prefix,
+  referencedFilenames,
+  version,
+}) {
   const normalizedArtifactsDir = path.resolve(artifactsDir);
   const latestPath = path.resolve(normalizedArtifactsDir, "latest.json");
   const releasePrefix = `${cleanSegment(prefix)}/releases/${cleanSegment(version)}`;
-  const sortedFiles = [...files].sort((a, b) => {
-    if (path.resolve(a) === latestPath) {
-      return 1;
-    }
-    if (path.resolve(b) === latestPath) {
-      return -1;
-    }
-    return path.basename(a).localeCompare(path.basename(b));
-  });
+  const sortedFiles = [...files]
+    .filter((file) => {
+      const resolvedPath = path.resolve(file);
+      if (resolvedPath === latestPath) {
+        return true;
+      }
+      return !referencedFilenames || referencedFilenames.has(path.basename(file));
+    })
+    .sort((a, b) => {
+      if (path.resolve(a) === latestPath) {
+        return 1;
+      }
+      if (path.resolve(b) === latestPath) {
+        return -1;
+      }
+      return path.basename(a).localeCompare(path.basename(b));
+    });
   const seenFilenames = new Set();
 
   return sortedFiles.map((filePath) => {
@@ -246,6 +268,7 @@ export async function publishToTos(config = buildConfig()) {
     artifactsDir,
     files,
     prefix: config.prefix,
+    referencedFilenames: referencedFilenamesFromManifest(manifest),
     version: manifest.version,
   });
   const client = new TosClient({
@@ -259,6 +282,7 @@ export async function publishToTos(config = buildConfig()) {
     requestTimeout: 30 * 60 * 1000,
   });
 
+  console.log(`Publishing ${plan.length} TOS OTA file(s).`);
   for (const item of plan) {
     const localSize = await fileSize(item.filePath);
     console.log(
