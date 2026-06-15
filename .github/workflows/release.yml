@@ -199,9 +199,25 @@ jobs:
           set -euo pipefail
           ditto -c -k --keepParent "$APP_PATH" "AgentDesk-${ARCH}-notarize.zip"
 
-          xcrun notarytool submit "AgentDesk-${ARCH}-notarize.zip" \
+          set +e
+          submit_json=$(xcrun notarytool submit "AgentDesk-${ARCH}-notarize.zip" \
             --keychain-profile "$NOTARY_PROFILE_NAME" \
-            --wait
+            --wait \
+            --output-format json 2>&1)
+          submit_exit=$?
+          set -e
+
+          echo "$submit_json"
+          submission_id=$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("id", ""))' <<< "$submit_json" 2>/dev/null || true)
+          notary_status=$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("status", ""))' <<< "$submit_json" 2>/dev/null || true)
+          if [ "$submit_exit" -ne 0 ] || [ "$notary_status" != "Accepted" ]; then
+            echo "Notarization failed with status: ${notary_status:-unknown}" >&2
+            if [ -n "$submission_id" ]; then
+              xcrun notarytool log "$submission_id" \
+                --keychain-profile "$NOTARY_PROFILE_NAME" || true
+            fi
+            exit 1
+          fi
 
           xcrun stapler staple "$APP_PATH"
 
@@ -365,6 +381,19 @@ jobs:
           $resourceDir = Join-Path $resourcesRoot $target
           New-Item -ItemType Directory -Force -Path $resourceDir | Out-Null
           Copy-Item -Path (Join-Path $gitRoot "*") -Destination $resourceDir -Recurse -Force
+          $unusedLaunchers = @(
+            "git-bash.exe",
+            "git-cmd.exe",
+            "unins*.exe",
+            "cmd\git-gui.exe",
+            "cmd\gitk.exe",
+            "mingw64\bin\git-gui.exe",
+            "mingw64\bin\gitk.exe",
+            "usr\bin\mintty.exe"
+          )
+          foreach ($pattern in $unusedLaunchers) {
+            Remove-Item -Path (Join-Path $resourceDir $pattern) -Force -ErrorAction SilentlyContinue
+          }
 
           New-Item -ItemType Directory -Force -Path "src-tauri/binaries" | Out-Null
           Copy-Item -Path $gitExe -Destination "src-tauri/binaries/git-$target.exe" -Force

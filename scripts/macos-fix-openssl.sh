@@ -130,6 +130,28 @@ if [[ "${bundle_openssl}" -eq 1 ]]; then
   codesign --force --options runtime --timestamp --sign "${identity}" "${frameworks_dir}/libssl.3.dylib"
 fi
 
+sign_embedded_macho_tree() {
+  local root_path="$1"
+  local label="$2"
+  local signed_count=0
+
+  if [[ ! -d "${root_path}" ]]; then
+    echo "No ${label} Mach-O tree found at ${root_path}; skipping."
+    return
+  fi
+
+  while IFS= read -r -d '' candidate; do
+    if file "${candidate}" | grep -q "Mach-O"; then
+      codesign --force --options runtime --timestamp --sign "${identity}" "${candidate}"
+      signed_count=$((signed_count + 1))
+    fi
+  done < <(find "${root_path}" -type f -print0)
+
+  echo "Signed ${signed_count} embedded ${label} Mach-O file(s)."
+}
+
+sign_embedded_macho_tree "${app_path}/Contents/Resources/resources/git" "Git"
+
 # Codesign every executable under Contents/MacOS. Order matters:
 # codesign treats siblings of the main binary in MacOS/ as "subcomponents"
 # under `--options runtime`, so all sidecars must be signed before

@@ -58,5 +58,35 @@ describe("release workflow Git sidecars", () => {
     expect(workflow).toContain("npm run sync:git-sidecar");
     expect(workflow).toContain("Remove-Item -Path $resourcesRoot -Recurse -Force");
     expect(workflow).toContain("Join-Path $resourcesRoot $target");
+    expect(workflow).toContain("$unusedLaunchers = @(");
+    expect(workflow).toContain('"git-bash.exe"');
+    expect(workflow).toContain("Remove-Item -Path (Join-Path $resourceDir $pattern)");
+  });
+
+  it("prints notarization rejection logs before stapling macOS apps", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+
+    expect(workflow).toContain("--output-format json");
+    expect(workflow).toContain('notary_status=$(python3 -c');
+    expect(workflow).toContain('[ "$notary_status" != "Accepted" ]');
+    expect(workflow).toContain("xcrun notarytool log");
+    expect(workflow.indexOf("xcrun notarytool log")).toBeLessThan(
+      workflow.indexOf("xcrun stapler staple"),
+    );
+  });
+});
+
+describe("macOS release signing script", () => {
+  it("re-signs embedded Git Mach-O resources before signing the app bundle", () => {
+    const script = readFileSync(
+      join(repoRoot.pathname, "scripts/macos-fix-openssl.sh"),
+      "utf8",
+    );
+
+    expect(script).toContain("sign_embedded_macho_tree");
+    expect(script).toContain('${app_path}/Contents/Resources/resources/git');
+    expect(script.indexOf("sign_embedded_macho_tree")).toBeLessThan(
+      script.indexOf('codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${app_path}"'),
+    );
   });
 });
