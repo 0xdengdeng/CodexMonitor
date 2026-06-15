@@ -132,10 +132,10 @@ export function buildUploadPlan({ artifactsDir, files, prefix, version }) {
   const releasePrefix = `${cleanSegment(prefix)}/releases/${cleanSegment(version)}`;
   const sortedFiles = [...files].sort((a, b) => {
     if (path.resolve(a) === latestPath) {
-      return -1;
+      return 1;
     }
     if (path.resolve(b) === latestPath) {
-      return 1;
+      return -1;
     }
     return path.basename(a).localeCompare(path.basename(b));
   });
@@ -213,16 +213,6 @@ async function fileSize(filePath) {
   }
 }
 
-async function existingObjectSize(client, bucket, key) {
-  try {
-    const result = await client.headObject({ bucket, key });
-    const length = result?.data?.["content-length"] ?? result?.headers?.["content-length"];
-    return length != null ? Number(length) : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function publishToTos(config = buildConfig()) {
   const artifactsDir = path.resolve(config.artifactsDir);
   const manifest = await writeTosLatestManifest({ ...config, artifactsDir });
@@ -246,19 +236,6 @@ export async function publishToTos(config = buildConfig()) {
 
   for (const item of plan) {
     const localSize = await fileSize(item.filePath);
-    // latest.json is always re-uploaded (its content reflects this run's
-    // manifest with the rewritten TOS URLs). Other files are deduped:
-    // if the bucket already has an object with matching size, skip.
-    const isManifest = item.key.endsWith("/latest.json");
-    if (!isManifest && localSize != null) {
-      const remoteSize = await existingObjectSize(client, config.bucket, item.key);
-      if (remoteSize === localSize) {
-        console.log(
-          `Skipping ${item.key} (already on TOS with matching size ${localSize}B)`,
-        );
-        continue;
-      }
-    }
     console.log(
       `Uploading ${item.filePath} (${localSize ?? "?"}B) -> tos://${config.bucket}/${item.key}`,
     );

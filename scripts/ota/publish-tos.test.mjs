@@ -52,7 +52,7 @@ describe("publish-tos helpers", () => {
     expect(rewritten.platforms["windows-x86_64"].signature).toBe("win-sig");
   });
 
-  it("builds a flattened upload plan with latest.json at the stable key", () => {
+  it("builds a flattened upload plan with latest.json at the stable key last", () => {
     const plan = buildUploadPlan({
       artifactsDir: "/tmp/release-artifacts",
       files: [
@@ -66,16 +66,16 @@ describe("publish-tos helpers", () => {
 
     expect(plan).toEqual([
       {
-        filePath: "/tmp/release-artifacts/latest.json",
-        key: "codexmonitor/latest.json",
-      },
-      {
         filePath: "/tmp/release-artifacts/AgentDesk.app.tar.gz",
         key: "codexmonitor/releases/0.7.69/AgentDesk.app.tar.gz",
       },
       {
         filePath: "/tmp/release-artifacts/nested/AgentDesk.AppImage",
         key: "codexmonitor/releases/0.7.69/AgentDesk.AppImage",
+      },
+      {
+        filePath: "/tmp/release-artifacts/latest.json",
+        key: "codexmonitor/latest.json",
       },
     ]);
   });
