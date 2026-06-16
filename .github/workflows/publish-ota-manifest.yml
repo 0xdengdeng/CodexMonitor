@@ -4,24 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version whose latest.json should become the channel OTA manifest
+        description: Stable release version whose latest.json should become the OTA manifest
         required: true
         default: "0.7.70"
-      channel:
-        description: OTA channel to publish — stable or beta
-        required: false
-        default: stable
-        type: choice
-        options:
-          - stable
-          - beta
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    name: Publish latest.json (${{ inputs.channel }} ${{ inputs.version }})
+    name: Publish latest.json (stable ${{ inputs.version }})
     runs-on: ubuntu-latest
     environment: release
     env:
@@ -33,7 +25,7 @@ jobs:
       TOS_PUBLIC_BASE_URL: https://qihang-ai.tos-cn-beijing.volces.com
       TOS_REWRITE_ARTIFACT_URLS: "false"
       TOS_UPLOAD_REFERENCED_ARTIFACTS: "false"
-      OTA_PREFIX: ${{ inputs.channel == 'beta' && 'codexmonitor/beta' || 'codexmonitor' }}
+      OTA_PREFIX: codexmonitor
       OTA_ARTIFACTS_DIR: release-artifacts
     steps:
       - name: Checkout
@@ -52,12 +44,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
-          TAG_SUFFIX: ${{ inputs.channel == 'beta' && '-beta' || '' }}
         run: |
           set -euo pipefail
           VERSION="${VERSION#v}"
           mkdir -p release-artifacts
-          gh release download "v${VERSION}${TAG_SUFFIX}" \
+          gh release download "v${VERSION}" \
             --repo "${GITHUB_REPOSITORY}" \
             --pattern latest.json \
             --dir release-artifacts \

@@ -48,6 +48,8 @@ jobs:
       TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
       # Channel-derived values. Beta builds the dev config (separate bundle id,
       # "启航AI智慧平台 Dev.app") so it never collides with the stable install.
+      # Both channels intentionally use the same updater endpoint; beta artifacts
+      # are for manual verification and must not publish a separate OTA manifest.
       PRODUCT_NAME: ${{ inputs.channel == 'beta' && '启航AI智慧平台 Dev' || '启航AI智慧平台' }}
       TAURI_CONFIG_ARGS: ${{ inputs.channel == 'beta' && '--config src-tauri/tauri.dev.conf.json' || '' }}
     steps:
@@ -624,9 +626,16 @@ jobs:
           PY
           )
 
-          LAST_TAG=$(git tag --sort=-version:refname \
-            | grep -v "^v${VERSION}$" \
-            | head -n 1 || true)
+          if [ "${CHANNEL}" = "beta" ]; then
+            LAST_TAG=$(git tag --sort=-version:refname \
+              | grep -v "^v${VERSION}${TAG_SUFFIX}$" \
+              | head -n 1 || true)
+          else
+            LAST_TAG=$(git tag --sort=-version:refname \
+              | grep -E '^v[0-9]+(\.[0-9]+){2}$' \
+              | grep -v "^v${VERSION}$" \
+              | head -n 1 || true)
+          fi
           RANGE_END="${GITHUB_SHA}"
           if [ -n "$LAST_TAG" ]; then
             git log "${LAST_TAG}..${RANGE_END}" --pretty=format:"%s" > release-artifacts/release-commits.txt
@@ -830,10 +839,17 @@ jobs:
             release_assets+=("${windows_exes[@]}")
           fi
 
+          release_flags=(
+            --title "v${VERSION}${TAG_SUFFIX}"
+            --notes-file release-artifacts/release-notes.md
+            --target "$GITHUB_SHA"
+          )
+          if [ "${CHANNEL}" = "beta" ]; then
+            release_flags+=(--prerelease)
+          fi
+
           gh release create "v${VERSION}${TAG_SUFFIX}" \
-            --title "v${VERSION}${TAG_SUFFIX}" \
-            --notes-file release-artifacts/release-notes.md \
-            --target "$GITHUB_SHA" \
+            "${release_flags[@]}" \
             "${release_assets[@]}" \
             release-artifacts/latest.json
 

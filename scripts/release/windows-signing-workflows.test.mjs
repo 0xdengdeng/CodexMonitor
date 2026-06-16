@@ -98,6 +98,33 @@ describe("release manifest gate", () => {
     expect(workflow).toContain("npm run ota:publish:tos");
     expect(workflow).toContain("TOS_UPLOAD_REFERENCED_ARTIFACTS: \"false\"");
   });
+
+  it("keeps test and stable builds on the same updater endpoint", () => {
+    const baseConfig = JSON.parse(readWorkflow("src-tauri/tauri.conf.json"));
+    const devConfig = JSON.parse(readWorkflow("src-tauri/tauri.dev.conf.json"));
+
+    expect(devConfig.plugins?.updater?.endpoints).toBeUndefined();
+    expect(baseConfig.plugins.updater.endpoints).toEqual([
+      "https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json",
+    ]);
+  });
+
+  it("does not publish a separate beta OTA manifest", () => {
+    const workflow = readWorkflow(".github/workflows/publish-ota-manifest.yml");
+
+    expect(workflow).toContain('gh release download "v${VERSION}"');
+    expect(workflow).toContain("OTA_PREFIX: codexmonitor");
+    expect(workflow).not.toContain("codexmonitor/beta");
+    expect(workflow).not.toContain("TAG_SUFFIX");
+    expect(workflow).not.toContain("channel:");
+  });
+
+  it("marks beta GitHub releases as prereleases", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+
+    expect(workflow).toContain('if [ "${CHANNEL}" = "beta" ]; then');
+    expect(workflow).toContain("release_flags+=(--prerelease)");
+  });
 });
 
 describe("macOS release signing script", () => {
