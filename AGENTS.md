@@ -129,6 +129,17 @@ Do not reintroduce duplicated modal/toast/panel/popover shell styling in feature
 - If conflicts impact correctness, call them out and choose the safest path.
 - Fix root cause, not band-aids.
 
+## Release Manifest Gate
+
+- Never publish or switch the stable OTA manifest
+  `https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json` as part
+  of the initial package build.
+- First build the release artifacts and GitHub release, then wait for the user
+  to manually verify the packaged build.
+- Only after explicit user approval should `latest.json` be updated to point at
+  the newly verified version.
+- If a release is rejected, keep `latest.json` on the last approved version.
+
 ## Validation Matrix
 
 Run validations based on touched areas:

@@ -401,14 +401,6 @@ jobs:
           print(f"Validated {len(payload.get('platforms', {}))} platform URL(s).")
           PY
 
-      # TOS publish first: latest.json on TOS is the client-facing OTA source
-      # (Tauri updater endpoint), so it must be the one we're confident about.
-      # GitHub release is created after as a downloadable backup. If TOS fails
-      # the GitHub release step is skipped, leaving no half-published state
-      # that points clients at missing files.
-      - name: Publish to TOS
-        run: npm run ota:publish:tos
-
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

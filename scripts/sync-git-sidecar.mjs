@@ -20,7 +20,7 @@ const GIT_SOURCE_SHA256 =
   process.env.AGENTDESK_GIT_SOURCE_SHA256 ||
   "f689162364c10de79ef89aa8dbf48731eb057e34edbbd20aca510ce0154681a3";
 const WRAPPER_MARKER = "AGENTDESK_BUNDLED_GIT_WRAPPER";
-const DISTRIBUTION_LAYOUT_VERSION = "symlink-layout-v1";
+const DISTRIBUTION_LAYOUT_VERSION = "pruned-symlink-layout-v2";
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -81,6 +81,71 @@ function copyDirectory(source, target) {
   fs.rmSync(target, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.cpSync(source, target, { recursive: true });
+}
+
+function isPathInside(child, parent) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function resolveSymlinkTarget(linkPath) {
+  const target = fs.readlinkSync(linkPath);
+  return path.resolve(path.dirname(linkPath), target);
+}
+
+function listSymlinks(root) {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+  const links = [];
+  const visit = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const entryPath = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) {
+        links.push(entryPath);
+      } else if (entry.isDirectory()) {
+        visit(entryPath);
+      }
+    }
+  };
+  visit(root);
+  return links;
+}
+
+function pruneGitDistributionForTauriResources(distributionDir) {
+  let removedBuiltinAliases = 0;
+  let materializedHelperAliases = 0;
+
+  for (const linkPath of listSymlinks(distributionDir)) {
+    const targetPath = resolveSymlinkTarget(linkPath);
+    if (!isPathInside(targetPath, distributionDir) && !fs.existsSync(targetPath)) {
+      throw new Error(`Bundled Git symlink target does not exist: ${linkPath} -> ${targetPath}`);
+    }
+
+    if (path.basename(targetPath) === gitBinaryName()) {
+      fs.rmSync(linkPath);
+      removedBuiltinAliases += 1;
+      continue;
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      throw new Error(`Bundled Git helper symlink target does not exist: ${linkPath} -> ${targetPath}`);
+    }
+    const targetStat = fs.statSync(targetPath);
+    if (!targetStat.isFile()) {
+      throw new Error(`Bundled Git helper symlink target is not a file: ${linkPath} -> ${targetPath}`);
+    }
+    fs.rmSync(linkPath);
+    fs.copyFileSync(targetPath, linkPath);
+    fs.chmodSync(linkPath, targetStat.mode);
+    materializedHelperAliases += 1;
+  }
+
+  if (removedBuiltinAliases > 0 || materializedHelperAliases > 0) {
+    console.log(
+      `Pruned bundled Git aliases: removed ${removedBuiltinAliases} builtin symlink(s), materialized ${materializedHelperAliases} helper symlink(s).`,
+    );
+  }
 }
 
 function verifyGitDistribution(distributionDir) {
@@ -255,6 +320,7 @@ function syncGit() {
   } else {
     buildFromSource(distributionDir, triple);
   }
+  pruneGitDistributionForTauriResources(distributionDir);
 
   const version = verifyGitDistribution(distributionDir);
   writeLauncher(targetBinary, triple);

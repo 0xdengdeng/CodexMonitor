@@ -78,6 +78,28 @@ describe("release workflow Git sidecars", () => {
   });
 });
 
+describe("release manifest gate", () => {
+  it("does not publish the stable OTA manifest from package release workflows", () => {
+    for (const workflowPath of workflowPaths) {
+      const workflow = readWorkflow(workflowPath);
+
+      expect(workflow).not.toContain("npm run ota:publish:tos");
+      expect(workflow).not.toContain("Publish latest.json to TOS");
+      expect(workflow).not.toContain("Publish to TOS");
+    }
+  });
+
+  it("provides a dedicated workflow for switching the stable OTA manifest", () => {
+    const workflow = readWorkflow(".github/workflows/publish-ota-manifest.yml");
+
+    expect(workflow).toContain("name: Publish OTA Manifest");
+    expect(workflow).toContain("workflow_dispatch");
+    expect(workflow).toContain("gh release download");
+    expect(workflow).toContain("npm run ota:publish:tos");
+    expect(workflow).toContain("TOS_UPLOAD_REFERENCED_ARTIFACTS: \"false\"");
+  });
+});
+
 describe("macOS release signing script", () => {
   it("re-signs embedded Git Mach-O resources before signing the app bundle", () => {
     const script = readFileSync(
