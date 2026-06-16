@@ -251,9 +251,11 @@ jobs:
           PY
           )
 
-          mkdir -p release-artifacts release-artifacts/dmg-root
-          rm -rf "release-artifacts/dmg-root/${PRODUCT_NAME}.app"
+          mkdir -p release-artifacts
+          rm -rf release-artifacts/dmg-root
+          mkdir -p release-artifacts/dmg-root
           ditto "$APP_PATH" "release-artifacts/dmg-root/${PRODUCT_NAME}.app"
+          ln -s /Applications "release-artifacts/dmg-root/Applications"
 
           ditto -c -k --keepParent "$APP_PATH" "release-artifacts/AgentDesk-${ARCH}.zip"
 

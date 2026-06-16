@@ -125,6 +125,16 @@ describe("release manifest gate", () => {
     expect(workflow).toContain('if [ "${CHANNEL}" = "beta" ]; then');
     expect(workflow).toContain("release_flags+=(--prerelease)");
   });
+
+  it("adds an Applications shortcut to macOS DMG images", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+    const shortcutCommand = 'ln -s /Applications "release-artifacts/dmg-root/Applications"';
+
+    expect(workflow).toContain(shortcutCommand);
+    expect(workflow.indexOf(shortcutCommand)).toBeLessThan(
+      workflow.indexOf('hdiutil create -volname "${PRODUCT_NAME}"'),
+    );
+  });
 });
 
 describe("macOS release signing script", () => {
