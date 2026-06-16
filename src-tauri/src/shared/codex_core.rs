@@ -18,8 +18,12 @@ use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_hom
 use crate::rules;
 use crate::shared::account::{build_account_response, read_auth_account};
 use crate::shared::config_toml_core;
+use crate::shared::runtime_config_core::{
+    effective_managed_runtime_model, managed_runtime_config_is_complete,
+    MANAGED_RUNTIME_PROVIDER_ID,
+};
 use crate::shared::skills_market_core;
-use crate::types::WorkspaceEntry;
+use crate::types::{AppSettings, ManagedRuntimeConfig, WorkspaceEntry};
 
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
 #[allow(dead_code)]
@@ -292,12 +296,15 @@ async fn resolve_workspace_path_core(
 pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     native_image_generation: bool,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
     let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_thread_start_params(workspace_path, native_image_generation);
+    let managed_runtime = app_settings.lock().await.managed_runtime.clone();
+    let params =
+        build_thread_start_params(workspace_path, native_image_generation, &managed_runtime);
     session
         .send_request_for_workspace(&workspace_id, "thread/start", params)
         .await
@@ -306,11 +313,13 @@ pub(crate) async fn start_thread_core(
 pub(crate) fn build_thread_start_params(
     workspace_path: String,
     native_image_generation: bool,
+    managed_runtime: &ManagedRuntimeConfig,
 ) -> Value {
     let mut params = json!({
         "cwd": workspace_path,
         "approvalPolicy": "on-request"
     });
+    insert_managed_runtime_thread_config(&mut params, managed_runtime);
     if !native_image_generation {
         params["config"] = json!({
             "features": {
@@ -319,6 +328,25 @@ pub(crate) fn build_thread_start_params(
         });
         params["dynamicTools"] = json!([image_generation_dynamic_tool()]);
     }
+    params
+}
+
+fn insert_managed_runtime_thread_config(
+    params: &mut Value,
+    managed_runtime: &ManagedRuntimeConfig,
+) {
+    if !managed_runtime_config_is_complete(managed_runtime) {
+        return;
+    }
+    params["modelProvider"] = json!(MANAGED_RUNTIME_PROVIDER_ID);
+    if let Some(model) = effective_managed_runtime_model(managed_runtime) {
+        params["model"] = json!(model);
+    }
+}
+
+fn build_thread_resume_params(thread_id: String, managed_runtime: &ManagedRuntimeConfig) -> Value {
+    let mut params = json!({ "threadId": thread_id });
+    insert_managed_runtime_thread_config(&mut params, managed_runtime);
     params
 }
 
@@ -352,11 +380,13 @@ fn image_generation_dynamic_tool() -> Value {
 
 pub(crate) async fn resume_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "threadId": thread_id });
+    let managed_runtime = app_settings.lock().await.managed_runtime.clone();
+    let params = build_thread_resume_params(thread_id, &managed_runtime);
     session
         .send_request_for_workspace(&workspace_id, "thread/resume", params)
         .await
@@ -704,6 +734,7 @@ fn is_thread_not_found_response(value: &Value, thread_id: &str) -> bool {
 pub(crate) async fn send_user_message_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     thread_id: String,
     text: String,
@@ -717,6 +748,19 @@ pub(crate) async fn send_user_message_core(
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
     let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let managed_runtime = app_settings.lock().await.managed_runtime.clone();
+    let managed_runtime_model = effective_managed_runtime_model(&managed_runtime);
+    if managed_runtime_config_is_complete(&managed_runtime) {
+        let resume_params = build_thread_resume_params(thread_id.clone(), &managed_runtime);
+        let resume_response = session
+            .send_request_for_workspace(&workspace_id, "thread/resume", resume_params)
+            .await?;
+        if json_rpc_error_message(&resume_response).is_some()
+            && !is_thread_not_found_response(&resume_response, &thread_id)
+        {
+            return Ok(resume_response);
+        }
+    }
     let access_mode = access_mode.unwrap_or_else(|| "current".to_string());
     let sandbox_policy = match access_mode.as_str() {
         "full-access" => json!({ "type": "dangerFullAccess" }),
@@ -742,7 +786,7 @@ pub(crate) async fn send_user_message_core(
     params.insert("cwd".to_string(), json!(workspace_path));
     params.insert("approvalPolicy".to_string(), json!(approval_policy));
     params.insert("sandboxPolicy".to_string(), json!(sandbox_policy));
-    params.insert("model".to_string(), json!(model));
+    params.insert("model".to_string(), json!(model.or(managed_runtime_model)));
     params.insert("effort".to_string(), json!(effort));
     insert_optional_nullable_string(&mut params, "serviceTier", service_tier);
     if let Some(mode) = collaboration_mode {
@@ -758,7 +802,7 @@ pub(crate) async fn send_user_message_core(
         return Ok(response);
     }
 
-    let resume_params = json!({ "threadId": thread_id.clone() });
+    let resume_params = build_thread_resume_params(thread_id.clone(), &managed_runtime);
     let resume_response = session
         .send_request_for_workspace(&workspace_id, "thread/resume", resume_params)
         .await?;
@@ -1429,12 +1473,18 @@ mod tests {
 
     #[test]
     fn thread_start_params_include_image_generation_dynamic_tool() {
-        let params = build_thread_start_params("/tmp/workspace".to_string(), false);
+        let params = build_thread_start_params(
+            "/tmp/workspace".to_string(),
+            false,
+            &ManagedRuntimeConfig::default(),
+        );
         assert_eq!(
             params.pointer("/config/features/image_generation"),
             Some(&json!(false))
         );
-        assert!(params.pointer("/config/features.image_generation").is_none());
+        assert!(params
+            .pointer("/config/features.image_generation")
+            .is_none());
         let tool = params
             .get("dynamicTools")
             .and_then(Value::as_array)
@@ -1485,18 +1535,70 @@ mod tests {
 
     #[test]
     fn thread_start_params_omit_dynamic_image_tool_when_native_image_generation_enabled() {
-        let params = build_thread_start_params("/tmp/workspace".to_string(), true);
+        let params = build_thread_start_params(
+            "/tmp/workspace".to_string(),
+            true,
+            &ManagedRuntimeConfig::default(),
+        );
 
         assert_eq!(params.get("cwd"), Some(&json!("/tmp/workspace")));
-        assert!(params.pointer("/config/features/image_generation").is_none());
+        assert!(params
+            .pointer("/config/features/image_generation")
+            .is_none());
         assert!(params.get("dynamicTools").is_none());
     }
 
     #[test]
     fn thread_start_params_keep_skills_enabled_by_default() {
-        let params = build_thread_start_params("/tmp/workspace".to_string(), true);
+        let params = build_thread_start_params(
+            "/tmp/workspace".to_string(),
+            true,
+            &ManagedRuntimeConfig::default(),
+        );
 
         assert!(params.pointer("/config/skills.config").is_none());
+    }
+
+    #[test]
+    fn thread_start_params_force_managed_runtime_provider_when_configured() {
+        let params = build_thread_start_params(
+            "/tmp/workspace".to_string(),
+            true,
+            &ManagedRuntimeConfig {
+                enabled: true,
+                base_url: Some("https://adg.example.com/v1".to_string()),
+                model: Some("enterprise-model".to_string()),
+                image_model: None,
+                native_image_generation: true,
+            },
+        );
+
+        assert_eq!(
+            params.get("modelProvider"),
+            Some(&json!("agentdesk_managed"))
+        );
+        assert_eq!(params.get("model"), Some(&json!("enterprise-model")));
+    }
+
+    #[test]
+    fn thread_resume_params_force_managed_runtime_provider_when_configured() {
+        let params = build_thread_resume_params(
+            "thread-1".to_string(),
+            &ManagedRuntimeConfig {
+                enabled: true,
+                base_url: Some("https://adg.example.com/v1".to_string()),
+                model: None,
+                image_model: None,
+                native_image_generation: true,
+            },
+        );
+
+        assert_eq!(params.get("threadId"), Some(&json!("thread-1")));
+        assert_eq!(
+            params.get("modelProvider"),
+            Some(&json!("agentdesk_managed"))
+        );
+        assert_eq!(params.get("model"), Some(&json!("gpt-5.5")));
     }
 
     #[test]

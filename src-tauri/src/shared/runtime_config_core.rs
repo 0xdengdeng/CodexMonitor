@@ -8,16 +8,16 @@ use crate::types::ManagedRuntimeConfig;
 
 pub(crate) const MANAGED_RUNTIME_PROVIDER_ID: &str = "agentdesk_managed";
 pub(crate) const MANAGED_RUNTIME_ENV_KEY: &str = runtime_secret_core::RUNTIME_API_KEY_ENV_KEY;
+pub(crate) const DEFAULT_MANAGED_RUNTIME_MODEL: &str = "gpt-5.5";
 
 const MANAGED_RUNTIME_PROVIDER_NAME: &str = "agentDesk Managed Runtime";
 const MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS: i64 = 300_000;
-const MANAGED_RUNTIME_USER_AGENT: &str =
-    concat!(
-        "CodexMonitor/",
-        env!("CARGO_PKG_VERSION"),
-        " AgentDesk codex_cli_rs/",
-        env!("CARGO_PKG_VERSION")
-    );
+const MANAGED_RUNTIME_USER_AGENT: &str = concat!(
+    "CodexMonitor/",
+    env!("CARGO_PKG_VERSION"),
+    " AgentDesk codex_cli_rs/",
+    env!("CARGO_PKG_VERSION")
+);
 
 fn normalized_optional(value: Option<&str>) -> Option<String> {
     let trimmed = value?.trim();
@@ -43,6 +43,15 @@ pub(crate) fn normalize_managed_runtime_config(
 pub(crate) fn managed_runtime_config_is_complete(config: &ManagedRuntimeConfig) -> bool {
     let config = normalize_managed_runtime_config(config);
     config.enabled && config.base_url.is_some()
+}
+
+pub(crate) fn effective_managed_runtime_model(config: &ManagedRuntimeConfig) -> Option<String> {
+    if !managed_runtime_config_is_complete(config) {
+        return None;
+    }
+    normalize_managed_runtime_config(config)
+        .model
+        .or_else(|| Some(DEFAULT_MANAGED_RUNTIME_MODEL.to_string()))
 }
 
 pub(crate) fn build_managed_runtime_env(
@@ -99,9 +108,11 @@ pub(crate) fn apply_managed_runtime_config_to_document(
         "model_provider",
         Some(MANAGED_RUNTIME_PROVIDER_ID),
     );
-    if config.model.is_some() {
-        config_toml_core::set_top_level_string(document, "model", config.model.as_deref());
-    }
+    config_toml_core::set_top_level_string(
+        document,
+        "model",
+        effective_managed_runtime_model(&config).as_deref(),
+    );
 
     let providers = config_toml_core::ensure_table(document, "model_providers")?;
     let mut provider = Table::new();
@@ -147,8 +158,8 @@ mod tests {
     use crate::types::ManagedRuntimeConfig;
 
     use super::{
-        build_managed_runtime_env, sync_managed_runtime_config, MANAGED_RUNTIME_ENV_KEY,
-        MANAGED_RUNTIME_PROVIDER_ID,
+        build_managed_runtime_env, sync_managed_runtime_config, DEFAULT_MANAGED_RUNTIME_MODEL,
+        MANAGED_RUNTIME_ENV_KEY, MANAGED_RUNTIME_PROVIDER_ID,
     };
 
     #[test]
@@ -259,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_managed_runtime_config_allows_model_to_be_omitted() {
+    fn sync_managed_runtime_config_writes_default_model_when_omitted() {
         let codex_home =
             std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
         fs::create_dir_all(&codex_home).expect("create temp codex home");
@@ -279,9 +290,9 @@ mod tests {
         assert!(contents.contains(&format!(
             "model_provider = \"{MANAGED_RUNTIME_PROVIDER_ID}\""
         )));
+        assert!(contents.contains(&format!("model = \"{DEFAULT_MANAGED_RUNTIME_MODEL}\"")));
         assert!(contents.contains("[model_providers.agentdesk_managed]"));
         assert!(contents.contains("base_url = \"https://runtime.example.com/v1\""));
-        assert!(!contents.contains("model = "));
     }
 
     #[test]

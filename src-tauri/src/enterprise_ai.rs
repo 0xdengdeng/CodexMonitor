@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, State};
 
 use crate::managed_runtime;
+use crate::shared::runtime_config_core::DEFAULT_MANAGED_RUNTIME_MODEL;
 use crate::shared::runtime_secret_core;
 use crate::shared::settings_core::{
     clear_managed_runtime_account_core, managed_runtime_config_changed, update_app_settings_core,
@@ -231,10 +232,15 @@ fn settings_with_connected_account(
     settings.managed_runtime = ManagedRuntimeConfig {
         enabled: true,
         base_url: Some(runtime_base_url()),
-        model: settings.managed_runtime.model,
+        model: settings
+            .managed_runtime
+            .model
+            .filter(|model| !model.trim().is_empty())
+            .or_else(|| Some(DEFAULT_MANAGED_RUNTIME_MODEL.to_string())),
         image_model: settings.managed_runtime.image_model,
         native_image_generation: settings.managed_runtime.native_image_generation,
     };
+    settings.last_composer_model_id = None;
     settings
 }
 
@@ -537,5 +543,33 @@ mod tests {
         let snapshot = usage_snapshot_from_app_payload(&session, &usage);
 
         assert_eq!(snapshot.balance, Some(1000000.0));
+    }
+
+    #[test]
+    fn connected_account_sets_managed_runtime_model_and_clears_old_composer_model() {
+        let session = EnterpriseSession {
+            tenant_domain: "qihang".to_string(),
+            account_name: Some("启航AI平台-内部".to_string()),
+            key_last4: Some("qWxH".to_string()),
+            monthly_limit_credits: None,
+            used_credits: None,
+            remaining_credits: None,
+            credit_balance_credits: None,
+        };
+        let mut settings = AppSettings::default();
+        settings.last_composer_model_id = Some("gpt-5.5".to_string());
+
+        let settings = settings_with_connected_account(settings, &session);
+
+        assert_eq!(
+            settings.managed_runtime.model.as_deref(),
+            Some(DEFAULT_MANAGED_RUNTIME_MODEL)
+        );
+        assert_eq!(settings.last_composer_model_id, None);
+        assert!(settings.managed_runtime.enabled);
+        assert!(matches!(
+            settings.enterprise_ai.status,
+            EnterpriseAiStatus::Connected
+        ));
     }
 }

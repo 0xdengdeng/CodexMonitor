@@ -313,6 +313,7 @@ export default function MainApp() {
   } = useModels({
     activeWorkspace,
     enabled: appSettings.enterpriseAi.status === "connected",
+    allowWorkspaceFallback: false,
     onDebug: addDebugEntry,
     preferredModelId,
     preferredEffort,

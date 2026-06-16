@@ -107,6 +107,39 @@ describe("useModels", () => {
     expect(getConfigModel).not.toHaveBeenCalled();
   });
 
+  it("does not fall back to workspace models when ADG fallback is disabled", async () => {
+    vi.mocked(getRuntimeModelList).mockRejectedValueOnce(new Error("ADG unavailable"));
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "openai-model",
+            model: "gpt-5.5",
+            displayName: "GPT-5.5",
+            supportedReasoningEfforts: [],
+            defaultReasoningEffort: null,
+            isDefault: true,
+          },
+        ],
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useModels({
+        activeWorkspace: workspace,
+        allowWorkspaceFallback: false,
+      }),
+    );
+
+    await waitFor(() => expect(getRuntimeModelList).toHaveBeenCalled());
+    await flushHookUpdates();
+
+    expect(result.current.models).toEqual([]);
+    expect(result.current.selectedModelId).toBeNull();
+    expect(getModelList).not.toHaveBeenCalled();
+    expect(getConfigModel).not.toHaveBeenCalled();
+  });
+
   it("refreshes ADG runtime models every minute", async () => {
     vi.useFakeTimers();
     vi.mocked(getRuntimeModelList)

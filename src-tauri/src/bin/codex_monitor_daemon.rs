@@ -812,6 +812,7 @@ impl DaemonState {
         codex_core::start_thread_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             native_image_generation,
         )
@@ -823,7 +824,8 @@ impl DaemonState {
         workspace_id: String,
         thread_id: String,
     ) -> Result<Value, String> {
-        codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
+        codex_core::resume_thread_core(&self.sessions, &self.app_settings, workspace_id, thread_id)
+            .await
     }
 
     async fn read_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
@@ -975,6 +977,7 @@ impl DaemonState {
         codex_core::send_user_message_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             thread_id,
             text,
@@ -1474,6 +1477,7 @@ impl DaemonState {
         codex_aux_core::generate_commit_message_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             &diff,
             &commit_message_prompt,
@@ -1493,6 +1497,7 @@ impl DaemonState {
         codex_aux_core::generate_run_metadata_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             &prompt,
             |workspace_id, thread_id| {
@@ -1510,6 +1515,7 @@ impl DaemonState {
         codex_aux_core::generate_agent_description_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             &description,
             |workspace_id, thread_id| {

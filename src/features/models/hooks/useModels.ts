@@ -18,6 +18,7 @@ type UseModelsOptions = {
   preferredModelId?: string | null;
   preferredEffort?: string | null;
   selectionKey?: string | null;
+  allowWorkspaceFallback?: boolean;
 };
 
 const MODEL_REFRESH_INTERVAL_MS = 60_000;
@@ -49,6 +50,7 @@ export function useModels({
   preferredModelId = null,
   preferredEffort = null,
   selectionKey = null,
+  allowWorkspaceFallback = true,
 }: UseModelsOptions) {
   const { t } = useI18n();
   const [models, setModels] = useState<ModelOption[]>([]);
@@ -266,6 +268,10 @@ export function useModels({
           label: "runtime model/list error",
           payload: error instanceof Error ? error.message : String(error),
         });
+        if (!allowWorkspaceFallback) {
+          applyModels([], null);
+          return;
+        }
       }
 
       if (!workspaceId || !isConnected) {
@@ -326,6 +332,7 @@ export function useModels({
     }
   }, [
     enabled,
+    allowWorkspaceFallback,
     isConnected,
     onDebug,
     preferredModelId,
