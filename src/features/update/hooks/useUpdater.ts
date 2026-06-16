@@ -107,7 +107,9 @@ export function useUpdater({
 
   const resetToIdle = useCallback(async () => {
     clearLatestTimeout();
-    if (stateRef.current.stage === "available") {
+    // First dismiss of an available update collapses it into a persistent
+    // reminder pill; dismissing the pill itself fully closes the update.
+    if (stateRef.current.stage === "available" && !stateRef.current.dismissed) {
       const nextState = {
         ...stateRef.current,
         dismissed: true,

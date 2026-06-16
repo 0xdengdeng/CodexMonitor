@@ -141,6 +141,15 @@ export function UpdateToast({
           <button className="primary update-toast-pill-button" onClick={onUpdate}>
             {t("update.update")}
           </button>
+          <button
+            type="button"
+            className="update-toast-pill-close"
+            aria-label={t("common.close")}
+            title={t("common.close")}
+            onClick={onDismiss}
+          >
+            ×
+          </button>
         </ToastCard>
       </ToastViewport>
     );

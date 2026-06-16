@@ -166,6 +166,35 @@ describe("useUpdater", () => {
     expect(downloadAndInstall).toHaveBeenCalledTimes(1);
   });
 
+  it("fully closes the update when the reminder pill is dismissed", async () => {
+    const close = vi.fn();
+    const downloadAndInstall = vi.fn(async () => undefined);
+    checkMock.mockResolvedValue({
+      version: "1.0.0",
+      downloadAndInstall,
+      close,
+    } as any);
+    const { result } = renderHook(() => useUpdater({}));
+
+    await act(async () => {
+      await result.current.startUpdate();
+    });
+
+    // First dismiss collapses into the persistent reminder pill.
+    await act(async () => {
+      await result.current.dismiss();
+    });
+    expect(result.current.state).toMatchObject({ dismissed: true });
+    expect(close).not.toHaveBeenCalled();
+
+    // Dismissing the pill itself closes the update and returns to idle.
+    await act(async () => {
+      await result.current.dismiss();
+    });
+    expect(result.current.state.stage).toBe("idle");
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces download errors and keeps progress", async () => {
     const close = vi.fn();
     const downloadAndInstall = vi.fn(async (onEvent) => {
