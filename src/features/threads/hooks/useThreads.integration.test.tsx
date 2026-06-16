@@ -241,6 +241,48 @@ describe("useThreads UX integration", () => {
     });
   });
 
+  it("recreates an unmaterialized draft thread when resume cannot find its rollout", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      error: {
+        code: -32602,
+        message: "no rollout found for thread id thread-draft",
+      },
+    } as unknown as Awaited<ReturnType<typeof resumeThread>>);
+    vi.mocked(startThread).mockResolvedValue({
+      result: { thread: { id: "thread-recreated" } },
+    } as Awaited<ReturnType<typeof startThread>>);
+    vi.mocked(sendUserMessageService).mockResolvedValue({
+      result: { turn: { id: "turn-1" } },
+    } as unknown as Awaited<ReturnType<typeof sendUserMessageService>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-draft");
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello after login");
+    });
+
+    expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-draft");
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
+      nativeImageGeneration: true,
+    });
+    expect(vi.mocked(sendUserMessageService)).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-recreated",
+      "hello after login",
+      expect.any(Object),
+    );
+    expect(result.current.activeThreadId).toBe("thread-recreated");
+  });
+
   it("still resumes selected thread when runtime codex args sync fails", async () => {
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
       throw new Error("runtime sync failed");

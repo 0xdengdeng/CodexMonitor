@@ -728,7 +728,9 @@ fn is_thread_not_found_response(value: &Value, thread_id: &str) -> bool {
     let Some(message) = json_rpc_error_message(value) else {
         return false;
     };
-    message.contains("thread not found") && message.contains(thread_id)
+    (message.contains("thread not found")
+        || message.contains("no rollout found for thread id"))
+        && message.contains(thread_id)
 }
 
 pub(crate) async fn send_user_message_core(
@@ -1358,6 +1360,23 @@ mod tests {
         });
 
         assert!(is_thread_not_found_response(&response, "thread-abc"));
+    }
+
+    #[test]
+    fn thread_not_found_detection_treats_missing_rollout_as_recoverable() {
+        let response = json!({
+            "id": 12,
+            "error": {
+                "code": -32603,
+                "message": "no rollout found for thread id 019ed091-da3d-7223-bf43-367682900e8c"
+            }
+        });
+
+        assert!(is_thread_not_found_response(
+            &response,
+            "019ed091-da3d-7223-bf43-367682900e8c"
+        ));
+        assert!(!is_thread_not_found_response(&response, "thread-other"));
     }
 
     #[test]

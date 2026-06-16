@@ -752,6 +752,7 @@ export function useThreads({
     startThreadForWorkspace: startThreadForWorkspaceInternal,
     forkThreadForWorkspace,
     resumeThreadForWorkspace,
+    isThreadRuntimeStateMissing,
     refreshThread,
     resetWorkspaceThreads,
     listThreadsForWorkspaces,
@@ -869,6 +870,19 @@ export function useThreads({
     return startThreadForWorkspace(activeWorkspaceId);
   }, [activeWorkspaceId, startThreadForWorkspace]);
 
+  const hasLocalThreadSnapshot = useCallback(
+    (threadId: string | null) => {
+      if (!threadId) {
+        return false;
+      }
+      return (
+        loadedThreadsRef.current[threadId] === true ||
+        (itemsByThreadRef.current[threadId]?.length ?? 0) > 0
+      );
+    },
+    [itemsByThreadRef, loadedThreadsRef],
+  );
+
   const ensureThreadForActiveWorkspace = useCallback(async () => {
     if (!activeWorkspace) {
       return null;
@@ -885,13 +899,22 @@ export function useThreads({
         threadId,
         "resume",
       );
-      await resumeThreadForWorkspace(activeWorkspace.id, threadId);
+      const resumedThreadId = await resumeThreadForWorkspace(activeWorkspace.id, threadId);
+      if (
+        !resumedThreadId &&
+        isThreadRuntimeStateMissing(threadId) &&
+        !hasLocalThreadSnapshot(threadId)
+      ) {
+        threadId = await startThreadForWorkspace(activeWorkspace.id);
+      }
     }
     return threadId;
   }, [
     activeWorkspace,
     activeThreadId,
     ensureWorkspaceRuntimeCodexArgsBestEffort,
+    hasLocalThreadSnapshot,
+    isThreadRuntimeStateMissing,
     resumeThreadForWorkspace,
     startThreadForWorkspace,
   ]);
@@ -910,7 +933,19 @@ export function useThreads({
         }
       } else if (!loadedThreadsRef.current[threadId]) {
         await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, threadId, "resume");
-        await resumeThreadForWorkspace(workspaceId, threadId);
+        const resumedThreadId = await resumeThreadForWorkspace(workspaceId, threadId);
+        if (
+          !resumedThreadId &&
+          isThreadRuntimeStateMissing(threadId) &&
+          !hasLocalThreadSnapshot(threadId)
+        ) {
+          threadId = await startThreadForWorkspace(workspaceId, {
+            activate: shouldActivate,
+          });
+          if (!threadId) {
+            return null;
+          }
+        }
       }
       if (shouldActivate && currentActiveThreadId !== threadId) {
         dispatch({ type: "setActiveThreadId", workspaceId, threadId });
@@ -921,6 +956,8 @@ export function useThreads({
       activeWorkspaceId,
       dispatch,
       ensureWorkspaceRuntimeCodexArgsBestEffort,
+      hasLocalThreadSnapshot,
+      isThreadRuntimeStateMissing,
       loadedThreadsRef,
       resumeThreadForWorkspace,
       startThreadForWorkspace,
@@ -997,19 +1034,6 @@ export function useThreads({
     registerDetachedReviewChild,
     renameThread,
   });
-
-  const hasLocalThreadSnapshot = useCallback(
-    (threadId: string | null) => {
-      if (!threadId) {
-        return false;
-      }
-      return (
-        loadedThreadsRef.current[threadId] === true ||
-        (itemsByThreadRef.current[threadId]?.length ?? 0) > 0
-      );
-    },
-    [itemsByThreadRef, loadedThreadsRef],
-  );
 
   const setActiveThreadId = useCallback(
     (threadId: string | null, workspaceId?: string) => {
