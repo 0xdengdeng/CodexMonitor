@@ -1,0 +1,68 @@
+name: Publish OTA Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version whose latest.json should become the channel OTA manifest
+        required: true
+        default: "0.7.70"
+      channel:
+        description: OTA channel to publish — stable or beta
+        required: false
+        default: stable
+        type: choice
+        options:
+          - stable
+          - beta
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish latest.json (${{ inputs.channel }} ${{ inputs.version }})
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      TOS_ACCESS_KEY_ID: ${{ secrets.TOS_ACCESS_KEY_ID }}
+      TOS_SECRET_ACCESS_KEY: ${{ secrets.TOS_SECRET_ACCESS_KEY }}
+      TOS_REGION: cn-beijing
+      TOS_ENDPOINT: tos-cn-beijing.volces.com
+      TOS_BUCKET: qihang-ai
+      TOS_PUBLIC_BASE_URL: https://qihang-ai.tos-cn-beijing.volces.com
+      TOS_REWRITE_ARTIFACT_URLS: "false"
+      TOS_UPLOAD_REFERENCED_ARTIFACTS: "false"
+      OTA_PREFIX: ${{ inputs.channel == 'beta' && 'codexmonitor/beta' || 'codexmonitor' }}
+      OTA_ARTIFACTS_DIR: release-artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download release manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          TAG_SUFFIX: ${{ inputs.channel == 'beta' && '-beta' || '' }}
+        run: |
+          set -euo pipefail
+          VERSION="${VERSION#v}"
+          mkdir -p release-artifacts
+          gh release download "v${VERSION}${TAG_SUFFIX}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern latest.json \
+            --dir release-artifacts \
+            --clobber
+          node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync("release-artifacts/latest.json","utf8")); console.log(`Publishing OTA manifest version ${m.version}`); if (m.version !== process.env.VERSION.replace(/^v/,"")) process.exit(1);'
+
+      - name: Publish latest.json to TOS
+        run: npm run ota:publish:tos
