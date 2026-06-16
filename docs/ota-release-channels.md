@@ -37,13 +37,15 @@ ids so the test app can be installed beside stable.
 | Channel | Build config | Bundle id | Manifest read | Artifact root |
 | --- | --- | --- | --- | --- |
 | 正式版 stable | base `tauri.conf.json` | `com.agentdesk.app` | `codexmonitor/latest.json` | stable GitHub Release `v<version>` |
-| 测试版 test | `tauri.dev.conf.json` | `com.agentdesk.app.dev` | `codexmonitor/latest.json` | prerelease GitHub Release `v<version>-beta` |
+| 测试版 beta | `tauri.beta.conf.json` | `com.agentdesk.app.beta` | `codexmonitor/latest.json` | prerelease GitHub Release `v<version>-beta` |
+| 本地开发版 local dev | `tauri.dev.conf.json` | `com.agentdesk.app.dev` | `codexmonitor/latest.json` | local only |
 
 Same bucket, keys, updater endpoint, and infra for both. The release channel
 signal is limited to packaging:
 
 1. **Build identity** (Rust/config): `tauri.dev.conf.json` overrides the product
-   name, bundle id, and window title only. It must not override
+   name, bundle id, and window title for local development only.
+   `tauri.beta.conf.json` does the same for distributed beta builds. Neither may override
    `plugins.updater.endpoints`.
 2. **GitHub Release tag** (CI): beta builds publish `v<version>-beta` as a
    prerelease; stable builds publish `v<version>`.
@@ -57,14 +59,17 @@ keypair; do not rotate).
 ## Implementation Notes
 
 **Client channel support:**
-- `tauri.dev.conf.json`: keep test app identity overrides only; inherit the
+- `tauri.beta.conf.json`: keep beta app identity overrides only; inherit the
   stable updater endpoint from `tauri.conf.json`.
-- Local verification: a `--config tauri.dev.conf.json` build installs beside stable but
-  still reads `codexmonitor/latest.json`.
+- `tauri.dev.conf.json`: keep local development app identity overrides only; do
+  not use this config for distributed beta builds because it shares
+  `app_data_dir` with local `tauri dev`.
+- Local verification: a `--config tauri.beta.conf.json` build installs beside
+  stable and local dev but still reads `codexmonitor/latest.json`.
 
 **CI release channel support:**
 - `release.yml` exposes a `channel: stable|beta` `workflow_dispatch` input. Beta
-  builds with `--config src-tauri/tauri.dev.conf.json` and parameterized macOS
+  builds with `--config src-tauri/tauri.beta.conf.json` and parameterized macOS
   product-name paths, then publishes `v<version>-beta` as a prerelease.
 - Beta reuses the same Apple Team cert/notarization (notarization is per-Team,
   not per-bundle-id; ad-hoc is not required for a distributed test build).

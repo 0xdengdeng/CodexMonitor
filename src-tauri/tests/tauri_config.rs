@@ -68,16 +68,19 @@ fn daemon_bins_include_current_and_legacy_bundle_names() {
 }
 
 #[test]
-fn dev_config_uses_separate_app_identifier() {
+fn channel_configs_use_separate_app_identifiers() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let base_config_path = manifest_dir.join("tauri.conf.json");
     let dev_config_path = manifest_dir.join("tauri.dev.conf.json");
+    let beta_config_path = manifest_dir.join("tauri.beta.conf.json");
 
     let base_config = read_json(&base_config_path);
     let dev_config = read_json(&dev_config_path);
+    let beta_config = read_json(&beta_config_path);
 
     let base_identifier = string_field(&base_config, "identifier");
     let dev_identifier = string_field(&dev_config, "identifier");
+    let beta_identifier = string_field(&beta_config, "identifier");
 
     assert_eq!(
         base_identifier, "com.agentdesk.app",
@@ -87,23 +90,38 @@ fn dev_config_uses_separate_app_identifier() {
         dev_identifier, "com.agentdesk.app.dev",
         "dev builds must use a separate identifier so app_data_dir does not share production data"
     );
+    assert_eq!(
+        beta_identifier, "com.agentdesk.app.beta",
+        "beta builds must use a separate identifier so app_data_dir does not share local dev data"
+    );
     assert_ne!(
         base_identifier, dev_identifier,
         "dev and production app data directories must be isolated"
     );
+    assert_ne!(
+        beta_identifier, dev_identifier,
+        "beta and local dev app data directories must be isolated"
+    );
+    assert_ne!(
+        beta_identifier, base_identifier,
+        "beta and production app data directories must be isolated"
+    );
 }
 
 #[test]
-fn dev_config_uses_distinct_product_name() {
+fn channel_configs_use_distinct_product_names() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let base_config_path = manifest_dir.join("tauri.conf.json");
     let dev_config_path = manifest_dir.join("tauri.dev.conf.json");
+    let beta_config_path = manifest_dir.join("tauri.beta.conf.json");
 
     let base_config = read_json(&base_config_path);
     let dev_config = read_json(&dev_config_path);
+    let beta_config = read_json(&beta_config_path);
 
     let base_product_name = string_field(&base_config, "productName");
     let dev_product_name = string_field(&dev_config, "productName");
+    let beta_product_name = string_field(&beta_config, "productName");
 
     assert_eq!(
         base_product_name, "启航AI智慧平台",
@@ -113,23 +131,34 @@ fn dev_config_uses_distinct_product_name() {
         dev_product_name.contains("Dev"),
         "dev builds must use an obviously distinct product name so users do not confuse them with the installed production app"
     );
+    assert!(
+        beta_product_name.contains("Beta"),
+        "beta builds must use an obviously distinct product name so users do not confuse them with local dev"
+    );
     assert_ne!(
         base_product_name, dev_product_name,
         "dev and production app names must be visually distinct while both are running"
     );
+    assert_ne!(
+        beta_product_name, dev_product_name,
+        "beta and local dev app names must be visually distinct while both are installed"
+    );
 }
 
 #[test]
-fn dev_config_uses_distinct_window_title() {
+fn channel_configs_use_distinct_window_titles() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let base_config_path = manifest_dir.join("tauri.conf.json");
     let dev_config_path = manifest_dir.join("tauri.dev.conf.json");
+    let beta_config_path = manifest_dir.join("tauri.beta.conf.json");
 
     let base_config = read_json(&base_config_path);
     let dev_config = read_json(&dev_config_path);
+    let beta_config = read_json(&beta_config_path);
 
     let base_window_title = first_window_title(&base_config);
     let dev_window_title = first_window_title(&dev_config);
+    let beta_window_title = first_window_title(&beta_config);
 
     assert_eq!(
         base_window_title, "启航AI智慧平台",
@@ -139,9 +168,17 @@ fn dev_config_uses_distinct_window_title() {
         dev_window_title.contains("Dev"),
         "dev builds must use an obviously distinct window title while running beside production"
     );
+    assert!(
+        beta_window_title.contains("Beta"),
+        "beta builds must use an obviously distinct window title while running beside local dev"
+    );
     assert_ne!(
         base_window_title, dev_window_title,
         "dev and production window titles must be visually distinct"
+    );
+    assert_ne!(
+        beta_window_title, dev_window_title,
+        "beta and local dev window titles must be visually distinct"
     );
 }
 

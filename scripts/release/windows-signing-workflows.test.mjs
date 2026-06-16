@@ -101,9 +101,9 @@ describe("release manifest gate", () => {
 
   it("keeps test and stable builds on the same updater endpoint", () => {
     const baseConfig = JSON.parse(readWorkflow("src-tauri/tauri.conf.json"));
-    const devConfig = JSON.parse(readWorkflow("src-tauri/tauri.dev.conf.json"));
+    const betaConfig = JSON.parse(readWorkflow("src-tauri/tauri.beta.conf.json"));
 
-    expect(devConfig.plugins?.updater?.endpoints).toBeUndefined();
+    expect(betaConfig.plugins?.updater?.endpoints).toBeUndefined();
     expect(baseConfig.plugins.updater.endpoints).toEqual([
       "https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json",
     ]);
@@ -124,6 +124,14 @@ describe("release manifest gate", () => {
 
     expect(workflow).toContain('if [ "${CHANNEL}" = "beta" ]; then');
     expect(workflow).toContain("release_flags+=(--prerelease)");
+  });
+
+  it("builds beta releases with a beta identity instead of local dev identity", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+
+    expect(workflow).toContain("启航AI智慧平台 Beta");
+    expect(workflow).toContain("--config src-tauri/tauri.beta.conf.json");
+    expect(workflow).not.toContain("inputs.channel == 'beta' && '--config src-tauri/tauri.dev.conf.json'");
   });
 
   it("adds an Applications shortcut to macOS DMG images", () => {

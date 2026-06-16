@@ -46,12 +46,12 @@ jobs:
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
-      # Channel-derived values. Beta builds the dev config (separate bundle id,
-      # "启航AI智慧平台 Dev.app") so it never collides with the stable install.
+      # Channel-derived values. Beta builds use a separate bundle id and
+      # "启航AI智慧平台 Beta.app" so they never collide with stable or local dev data.
       # Both channels intentionally use the same updater endpoint; beta artifacts
       # are for manual verification and must not publish a separate OTA manifest.
-      PRODUCT_NAME: ${{ inputs.channel == 'beta' && '启航AI智慧平台 Dev' || '启航AI智慧平台' }}
-      TAURI_CONFIG_ARGS: ${{ inputs.channel == 'beta' && '--config src-tauri/tauri.dev.conf.json' || '' }}
+      PRODUCT_NAME: ${{ inputs.channel == 'beta' && '启航AI智慧平台 Beta' || '启航AI智慧平台' }}
+      TAURI_CONFIG_ARGS: ${{ inputs.channel == 'beta' && '--config src-tauri/tauri.beta.conf.json' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
