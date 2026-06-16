@@ -1,6 +1,6 @@
 [package]
 name = "agentdesk"
-version = "0.7.73"
+version = "0.7.74"
 description = "AgentDesk desktop app"
 authors = ["you"]
 edition = "2021"
