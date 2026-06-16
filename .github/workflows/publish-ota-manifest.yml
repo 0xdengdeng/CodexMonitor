@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Stable release version whose latest.json should become the OTA manifest
+        description: Release version/tag whose latest.json should become the OTA manifest
         required: true
-        default: "0.7.70"
+        default: "0.7.76"
 
 permissions:
   contents: read
@@ -47,13 +47,15 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${VERSION#v}"
+          RELEASE_TAG="${VERSION}"
+          EXPECTED_MANIFEST_VERSION="${VERSION%-beta}"
           mkdir -p release-artifacts
-          gh release download "v${VERSION}" \
+          gh release download "v${RELEASE_TAG}" \
             --repo "${GITHUB_REPOSITORY}" \
             --pattern latest.json \
             --dir release-artifacts \
             --clobber
-          node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync("release-artifacts/latest.json","utf8")); console.log(`Publishing OTA manifest version ${m.version}`); if (m.version !== process.env.VERSION.replace(/^v/,"")) process.exit(1);'
+          EXPECTED_MANIFEST_VERSION="${EXPECTED_MANIFEST_VERSION}" node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync("release-artifacts/latest.json","utf8")); const expected=process.env.EXPECTED_MANIFEST_VERSION; console.log(`Publishing OTA manifest version ${m.version} from release v${process.env.VERSION.replace(/^v/,"")}`); if (m.version !== expected) process.exit(1);'
 
       - name: Publish latest.json to TOS
         run: npm run ota:publish:tos

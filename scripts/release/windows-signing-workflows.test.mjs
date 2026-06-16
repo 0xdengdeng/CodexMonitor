@@ -112,7 +112,8 @@ describe("release manifest gate", () => {
   it("does not publish a separate beta OTA manifest", () => {
     const workflow = readWorkflow(".github/workflows/publish-ota-manifest.yml");
 
-    expect(workflow).toContain('gh release download "v${VERSION}"');
+    expect(workflow).toContain('gh release download "v${RELEASE_TAG}"');
+    expect(workflow).toContain('EXPECTED_MANIFEST_VERSION="${VERSION%-beta}"');
     expect(workflow).toContain("OTA_PREFIX: codexmonitor");
     expect(workflow).not.toContain("codexmonitor/beta");
     expect(workflow).not.toContain("TAG_SUFFIX");
