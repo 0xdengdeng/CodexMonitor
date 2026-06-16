@@ -94,6 +94,27 @@ describe("UpdateToast", () => {
     expect(fill.getAttribute("style")).toContain("width: 50%");
   });
 
+  it("lets you cancel an in-flight download", () => {
+    const onCancel = vi.fn();
+    const state: UpdateState = {
+      stage: "downloading",
+      progress: { totalBytes: 1000, downloadedBytes: 500 },
+    };
+
+    render(
+      <UpdateToast
+        state={state}
+        onUpdate={vi.fn()}
+        onCancel={onCancel}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
   it("renders error state and lets you dismiss or retry", () => {
     const onUpdate = vi.fn();
     const onDismiss = vi.fn();

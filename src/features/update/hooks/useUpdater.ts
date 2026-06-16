@@ -88,6 +88,13 @@ export function useUpdater({
     useState<PostUpdateDemoGuideState>(null);
   const stateRef = useRef<UpdateState>({ stage: "idle" });
   const updateRef = useRef<Update | null>(null);
+  // Bumped on cancel to invalidate an in-flight download. The updater plugin
+  // cannot hard-abort the byte stream, so a cancelled download may still finish
+  // in the background — this guard ensures it is never installed or relaunched.
+  // Cancel is only reachable during "downloading" (before install()), so a
+  // cancelled update is never applied to disk; the app stays on the running
+  // version until the user updates again.
+  const downloadGenerationRef = useRef(0);
   const hasAttemptedAutoCheckRef = useRef(false);
   const postUpdateFetchGenerationRef = useRef(0);
   const latestTimeoutRef = useRef<number | null>(null);
@@ -180,15 +187,24 @@ export function useUpdater({
       return;
     }
 
+    const generation = (downloadGenerationRef.current += 1);
+    const isCancelled = () => downloadGenerationRef.current !== generation;
+
     setState((prev) => ({
       ...prev,
       stage: "downloading",
+      dismissed: false,
       progress: { totalBytes: undefined, downloadedBytes: 0 },
       error: undefined,
     }));
 
     try {
-      await update.downloadAndInstall((event: DownloadEvent) => {
+      // Split download from install so a cancel can skip installation entirely;
+      // downloadAndInstall would apply the update before we could intervene.
+      await update.download((event: DownloadEvent) => {
+        if (isCancelled()) {
+          return;
+        }
         if (event.event === "Started") {
           setState((prev) => ({
             ...prev,
@@ -209,16 +225,27 @@ export function useUpdater({
                 (prev.progress?.downloadedBytes ?? 0) + event.data.chunkLength,
             },
           }));
-          return;
-        }
-
-        if (event.event === "Finished") {
-          setState((prev) => ({
-            ...prev,
-            stage: "installing",
-          }));
         }
       });
+
+      if (isCancelled()) {
+        // Cancelled mid-download: release this now-superseded handle so a retry
+        // gets a fresh one (cancelUpdate nulled updateRef). The plugin exposes no
+        // way to free the partially-downloaded bytes, so a bounded Rust resource
+        // leaks until the app exits — unavoidable without a custom Rust command.
+        await update.close();
+        return;
+      }
+
+      setState((prev) => ({
+        ...prev,
+        stage: "installing",
+      }));
+      await update.install();
+
+      if (isCancelled()) {
+        return;
+      }
 
       setState((prev) => ({
         ...prev,
@@ -229,6 +256,19 @@ export function useUpdater({
     } catch (error) {
       const message =
         error instanceof Error ? error.message : JSON.stringify(error);
+      if (isCancelled()) {
+        // A cancelled/superseded run still logs its failure so a genuine
+        // download error is never silently swallowed (fail-fast), but it must
+        // not surface an error toast for a user-initiated cancel.
+        onDebug?.({
+          id: `${Date.now()}-client-updater-cancelled-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "updater/cancelled-error",
+          payload: message,
+        });
+        return;
+      }
       onDebug?.({
         id: `${Date.now()}-client-updater-error`,
         timestamp: Date.now(),
@@ -243,6 +283,25 @@ export function useUpdater({
       }));
     }
   }, [checkForUpdates, enabled, onDebug]);
+
+  const cancelUpdate = useCallback(() => {
+    if (stateRef.current.stage !== "downloading") {
+      return;
+    }
+    // Invalidate the in-flight download (see downloadGenerationRef) and collapse
+    // back to the reminder pill so the user can retry later. Drop the handle so a
+    // retry re-runs check() for a fresh Update — reusing it would start a second
+    // download() on the same instance and corrupt its shared download state.
+    downloadGenerationRef.current += 1;
+    updateRef.current = null;
+    const nextState: UpdateState = {
+      stage: "available",
+      version: stateRef.current.version,
+      dismissed: true,
+    };
+    stateRef.current = nextState;
+    setState(nextState);
+  }, []);
 
   useEffect(() => {
     if (!enabled || !autoCheckOnMount || import.meta.env.DEV || !isTauri()) {
@@ -405,6 +464,7 @@ export function useUpdater({
   return {
     state,
     startUpdate,
+    cancelUpdate,
     checkForUpdates,
     dismiss: resetToIdle,
     postUpdateNotice,

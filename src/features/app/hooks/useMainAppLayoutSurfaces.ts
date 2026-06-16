@@ -217,6 +217,9 @@ type UseMainAppLayoutSurfacesArgs = {
   appModalsAboutOpen: boolean;
   updaterState: LayoutNodesOptions["primary"]["updateToastProps"]["state"];
   startUpdate: LayoutNodesOptions["primary"]["updateToastProps"]["onUpdate"];
+  cancelUpdate: NonNullable<
+    LayoutNodesOptions["primary"]["updateToastProps"]["onCancel"]
+  >;
   dismissUpdate: LayoutNodesOptions["primary"]["updateToastProps"]["onDismiss"];
   postUpdateNotice: LayoutNodesOptions["primary"]["updateToastProps"]["postUpdateNotice"];
   dismissPostUpdateNotice: LayoutNodesOptions["primary"]["updateToastProps"]["onDismissPostUpdateNotice"];
@@ -383,6 +386,7 @@ export function useMainAppLayoutSurfaces({
   appModalsAboutOpen,
   updaterState,
   startUpdate,
+  cancelUpdate,
   dismissUpdate,
   postUpdateNotice,
   dismissPostUpdateNotice,
@@ -545,6 +549,7 @@ export function useMainAppLayoutSurfaces({
     appModalsAboutOpen,
     updaterState,
     startUpdate,
+    cancelUpdate,
     dismissUpdate,
     postUpdateNotice,
     dismissPostUpdateNotice,

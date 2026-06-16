@@ -43,6 +43,7 @@ export function useUpdaterController({
   const {
     state: updaterState,
     startUpdate,
+    cancelUpdate,
     checkForUpdates,
     dismiss,
     postUpdateNotice,
@@ -128,6 +129,7 @@ export function useUpdaterController({
   return {
     updaterState,
     startUpdate,
+    cancelUpdate,
     checkForUpdates,
     dismissUpdate: dismiss,
     postUpdateNotice,

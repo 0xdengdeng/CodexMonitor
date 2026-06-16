@@ -133,6 +133,7 @@ export function buildCodexSurface({
   appModalsAboutOpen,
   updaterState,
   startUpdate,
+  cancelUpdate,
   dismissUpdate,
   postUpdateNotice,
   dismissPostUpdateNotice,
@@ -330,6 +331,7 @@ export function buildCodexSurface({
     updateToastProps: {
       state: appModalsAboutOpen ? { stage: "idle" as const } : updaterState,
       onUpdate: startUpdate,
+      onCancel: cancelUpdate,
       onDismiss: dismissUpdate,
       postUpdateNotice,
       onDismissPostUpdateNotice: dismissPostUpdateNotice,

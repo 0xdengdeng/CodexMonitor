@@ -95,17 +95,19 @@ describe("useUpdater", () => {
     expect(result.current.state.stage).toBe("idle");
   });
 
-  it("downloads and restarts when update is available", async () => {
+  it("downloads, installs, and restarts when update is available", async () => {
     const close = vi.fn();
-    const downloadAndInstall = vi.fn(async (onEvent) => {
+    const download = vi.fn(async (onEvent) => {
       onEvent({ event: "Started", data: { contentLength: 100 } });
       onEvent({ event: "Progress", data: { chunkLength: 40 } });
       onEvent({ event: "Progress", data: { chunkLength: 60 } });
       onEvent({ event: "Finished", data: {} });
     });
+    const install = vi.fn(async () => undefined);
     checkMock.mockResolvedValue({
       version: "1.2.3",
-      downloadAndInstall,
+      download,
+      install,
       close,
     } as any);
 
@@ -127,19 +129,133 @@ describe("useUpdater", () => {
     await waitFor(() => expect(result.current.state.stage).toBe("restarting"));
     expect(result.current.state.progress?.totalBytes).toBe(100);
     expect(result.current.state.progress?.downloadedBytes).toBe(100);
-    expect(downloadAndInstall).toHaveBeenCalledTimes(1);
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(install).toHaveBeenCalledTimes(1);
     expect(relaunchMock).toHaveBeenCalledTimes(1);
     expect(
       window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
     ).toBe("1.2.3");
   });
 
+  it("cancels an in-flight download without installing or relaunching", async () => {
+    const close = vi.fn();
+    const install = vi.fn(async () => undefined);
+    let emitProgress: ((event: any) => void) | null = null;
+    let resolveDownload: (() => void) | null = null;
+    const download = vi.fn(
+      (onEvent: (event: any) => void) =>
+        new Promise<void>((resolve) => {
+          emitProgress = onEvent;
+          resolveDownload = resolve;
+          onEvent({ event: "Started", data: { contentLength: 100 } });
+          onEvent({ event: "Progress", data: { chunkLength: 30 } });
+        }),
+    );
+    checkMock.mockResolvedValue({
+      version: "3.0.0",
+      download,
+      install,
+      close,
+    } as any);
+    const { result } = renderHook(() => useUpdater({ autoCheckOnMount: false }));
+
+    await act(async () => {
+      await result.current.startUpdate();
+    });
+    await act(async () => {
+      void result.current.startUpdate();
+    });
+    expect(result.current.state.stage).toBe("downloading");
+
+    // User cancels mid-download → collapses back to the reminder pill.
+    await act(async () => {
+      result.current.cancelUpdate();
+    });
+    expect(result.current.state).toMatchObject({
+      stage: "available",
+      version: "3.0.0",
+      dismissed: true,
+    });
+
+    // The background download completes afterwards but must be discarded:
+    // no install, no relaunch, and the UI stays on the pill.
+    await act(async () => {
+      emitProgress?.({ event: "Progress", data: { chunkLength: 70 } });
+      emitProgress?.({ event: "Finished", data: {} });
+      resolveDownload?.();
+    });
+    expect(install).not.toHaveBeenCalled();
+    expect(relaunchMock).not.toHaveBeenCalled();
+    expect(result.current.state).toMatchObject({
+      stage: "available",
+      dismissed: true,
+    });
+    // The superseded handle is released when its background download settles.
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries on a fresh handle after cancel without reusing the stale one", async () => {
+    const close = vi.fn();
+    const install = vi.fn(async () => undefined);
+    let resolveFirstDownload: (() => void) | null = null;
+    const firstDownload = vi.fn(
+      (onEvent: (event: any) => void) =>
+        new Promise<void>((resolve) => {
+          resolveFirstDownload = resolve;
+          onEvent({ event: "Started", data: { contentLength: 100 } });
+        }),
+    );
+    const secondDownload = vi.fn(async () => undefined);
+    const firstHandle = {
+      version: "3.0.0",
+      download: firstDownload,
+      install,
+      close,
+    };
+    const secondHandle = {
+      version: "3.0.0",
+      download: secondDownload,
+      install,
+      close: vi.fn(),
+    };
+    checkMock
+      .mockResolvedValueOnce(firstHandle as any)
+      .mockResolvedValueOnce(secondHandle as any);
+    const { result } = renderHook(() => useUpdater({ autoCheckOnMount: false }));
+
+    // First check + start download, then cancel mid-flight.
+    await act(async () => {
+      await result.current.startUpdate();
+    });
+    await act(async () => {
+      void result.current.startUpdate();
+    });
+    await act(async () => {
+      result.current.cancelUpdate();
+    });
+
+    // Retry: must run a fresh check() and never touch the stale handle again.
+    await act(async () => {
+      await result.current.startUpdate();
+    });
+    expect(checkMock).toHaveBeenCalledTimes(2);
+    expect(firstDownload).toHaveBeenCalledTimes(1);
+
+    // The stale first download settling afterwards stays harmless.
+    await act(async () => {
+      resolveFirstDownload?.();
+    });
+    expect(secondDownload).not.toHaveBeenCalled();
+  });
+
   it("keeps an available update as a dismissed reminder", async () => {
     const close = vi.fn();
-    const downloadAndInstall = vi.fn(async () => undefined);
+    const download = vi.fn(async () => undefined);
+    const install = vi.fn(async () => undefined);
     checkMock.mockResolvedValue({
       version: "1.0.0",
-      downloadAndInstall,
+      download,
+      install,
       close,
     } as any);
     const { result } = renderHook(() => useUpdater({}));
@@ -163,15 +279,17 @@ describe("useUpdater", () => {
       await result.current.startUpdate();
     });
 
-    expect(downloadAndInstall).toHaveBeenCalledTimes(1);
+    expect(download).toHaveBeenCalledTimes(1);
   });
 
   it("fully closes the update when the reminder pill is dismissed", async () => {
     const close = vi.fn();
-    const downloadAndInstall = vi.fn(async () => undefined);
+    const download = vi.fn(async () => undefined);
+    const install = vi.fn(async () => undefined);
     checkMock.mockResolvedValue({
       version: "1.0.0",
-      downloadAndInstall,
+      download,
+      install,
       close,
     } as any);
     const { result } = renderHook(() => useUpdater({}));
@@ -197,14 +315,16 @@ describe("useUpdater", () => {
 
   it("surfaces download errors and keeps progress", async () => {
     const close = vi.fn();
-    const downloadAndInstall = vi.fn(async (onEvent) => {
+    const download = vi.fn(async (onEvent) => {
       onEvent({ event: "Started", data: { contentLength: 50 } });
       onEvent({ event: "Progress", data: { chunkLength: 20 } });
       throw new Error("download failed");
     });
+    const install = vi.fn(async () => undefined);
     checkMock.mockResolvedValue({
       version: "2.0.0",
-      downloadAndInstall,
+      download,
+      install,
       close,
     } as any);
     const onDebug = vi.fn();
@@ -235,7 +355,8 @@ describe("useUpdater", () => {
   it("does not run updater workflow when disabled", async () => {
     checkMock.mockResolvedValue({
       version: "9.9.9",
-      downloadAndInstall: vi.fn(),
+      download: vi.fn(),
+      install: vi.fn(),
       close: vi.fn(),
     } as any);
     const { result } = renderHook(() => useUpdater({ enabled: false }));

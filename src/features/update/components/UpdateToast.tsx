@@ -16,6 +16,7 @@ import {
 type UpdateToastProps = {
   state: UpdateState;
   onUpdate: () => void;
+  onCancel?: () => void;
   onDismiss: () => void;
   postUpdateNotice?: PostUpdateNoticeState;
   onDismissPostUpdateNotice?: () => void;
@@ -38,6 +39,7 @@ function formatBytes(value: number) {
 export function UpdateToast({
   state,
   onUpdate,
+  onCancel,
   onDismiss,
   postUpdateNotice = null,
   onDismissPostUpdateNotice,
@@ -234,6 +236,13 @@ export function UpdateToast({
                     })}
               </div>
             </div>
+            {onCancel ? (
+              <ToastActions className="update-toast-actions">
+                <button className="secondary" onClick={onCancel}>
+                  {t("update.cancel")}
+                </button>
+              </ToastActions>
+            ) : null}
           </>
         )}
         {state.stage === "installing" && (

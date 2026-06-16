@@ -639,6 +639,7 @@ export default function MainApp() {
   const {
     updaterState,
     startUpdate,
+    cancelUpdate,
     dismissUpdate,
     postUpdateNotice,
     dismissPostUpdateNotice,
@@ -1968,6 +1969,7 @@ export default function MainApp() {
       appModalsProps.settingsOpen && appModalsProps.settingsSection === 'about',
     updaterState,
     startUpdate,
+    cancelUpdate,
     dismissUpdate,
     postUpdateNotice,
     dismissPostUpdateNotice,
