@@ -20,5 +20,12 @@
         "devtools": true
       }
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/beta/latest.json"
+      ]
+    }
   }
 }

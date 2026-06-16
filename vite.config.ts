@@ -82,6 +82,10 @@ export default defineConfig(async ({ command }) => ({
     __APP_BUILD_DATE__: JSON.stringify(appBuildDate),
     __APP_GIT_BRANCH__: JSON.stringify(appGitBranch),
     __APP_IS_DEV_BUILD__: JSON.stringify(command === "serve"),
+    // OTA release channel prefix. Defaults to the stable channel; the beta
+    // release build sets OTA_PREFIX=codexmonitor/beta so the test build fetches
+    // its own release notes instead of the stable channel's.
+    __OTA_PREFIX__: JSON.stringify(process.env.OTA_PREFIX ?? "codexmonitor"),
   },
   test: {
     environment: "node",
