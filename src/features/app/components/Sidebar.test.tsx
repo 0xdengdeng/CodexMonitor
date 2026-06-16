@@ -118,6 +118,22 @@ describe("Sidebar", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("uses one custom tooltip source for header icon buttons", () => {
+    render(<Sidebar {...baseProps} />);
+
+    [
+      "Add project",
+      "Organize and sort threads",
+      "Capabilities",
+      "Refresh all workspace threads",
+      "Toggle search",
+    ].forEach((name) => {
+      const button = screen.getByRole("button", { name });
+      expect(button.hasAttribute("data-tooltip")).toBe(true);
+      expect(button.hasAttribute("title")).toBe(false);
+    });
+  });
+
   it("renders the header sort menu outside the clipped sidebar shell", () => {
     render(<Sidebar {...baseProps} />);
 

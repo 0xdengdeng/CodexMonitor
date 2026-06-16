@@ -1,1 +1,4 @@
-/Users/xiaodeng/project/CodexMonitor/src-tauri/target/bundled-git/install-aarch64-apple-darwin/bin/git-cvsserver
+#!/bin/sh
+
+echo >&2 "fatal: git was built without support for $(basename $0) (NO_PERL=1)."
+exit 128

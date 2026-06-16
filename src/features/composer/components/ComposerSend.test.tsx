@@ -36,6 +36,7 @@ type HarnessProps = {
     appMentions?: AppMention[],
     submitIntent?: ComposerSendIntent,
   ) => void;
+  onBeforeSend?: () => boolean;
   apps?: AppOption[];
   disabled?: boolean;
   isProcessing?: boolean;
@@ -47,6 +48,7 @@ type HarnessProps = {
 
 function ComposerHarness({
   onSend,
+  onBeforeSend,
   apps = [],
   disabled = false,
   isProcessing = false,
@@ -61,6 +63,7 @@ function ComposerHarness({
   return (
     <Composer
       onSend={onSend}
+      onBeforeSend={onBeforeSend}
       onStop={() => {}}
       canStop={false}
       disabled={disabled}
@@ -125,6 +128,20 @@ describe("Composer send triggers", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith("from button", [], undefined, "default");
+  });
+
+  it("does not send or clear the draft when the before-send guard blocks", () => {
+    const onSend = vi.fn();
+    const onBeforeSend = vi.fn(() => false);
+    render(<ComposerHarness onSend={onSend} onBeforeSend={onBeforeSend} />);
+
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "needs login" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+
+    expect(onBeforeSend).toHaveBeenCalledTimes(1);
+    expect(onSend).not.toHaveBeenCalled();
+    expect((textarea as HTMLTextAreaElement).value).toBe("needs login");
   });
 
   it("keeps composer metadata menus available when message input is disabled", () => {

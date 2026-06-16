@@ -310,16 +310,20 @@ fn usage_snapshot_from_app_payload(
     session: &EnterpriseSession,
     usage: &Value,
 ) -> EnterpriseAiUsageSnapshot {
+    let balance = session
+        .remaining_credits
+        .filter(|value| *value > 0.0)
+        .or(session.credit_balance_credits)
+        .or(session.remaining_credits)
+        .or(session.monthly_limit_credits);
+
     EnterpriseAiUsageSnapshot {
         tenant_domain: Some(session.tenant_domain.clone()),
         account_name: session.account_name.clone(),
         updated_at_ms: now_ms(),
         requests_7d: json_i64(usage, &["summary", "requests"]),
         tokens_7d: usage_total_tokens(usage),
-        balance: session
-            .remaining_credits
-            .or(session.credit_balance_credits)
-            .or(session.monthly_limit_credits),
+        balance,
         credited_total: session.monthly_limit_credits,
         usage_spent_total: session.used_credits,
     }
@@ -502,5 +506,36 @@ mod tests {
         assert_eq!(snapshot.balance, Some(876.55));
         assert_eq!(snapshot.credited_total, Some(1000.0));
         assert_eq!(snapshot.usage_spent_total, Some(123.45));
+    }
+
+    #[test]
+    fn app_usage_payload_uses_credit_balance_when_plan_remaining_is_zero() {
+        let session = session_from_app_profile(
+            &json!({
+                "profile": {
+                    "tenant": { "slug": "company1", "name": "company1" },
+                    "key": { "label": "agentdesk-dev", "status": "active" },
+                    "quota": {
+                        "remaining_credits": 0,
+                        "credit_balance_credits": 1000000,
+                        "monthly_limit_credits": 0,
+                        "used_credits": 0
+                    }
+                }
+            }),
+            "sk-adg_company1_abcdef",
+        )
+        .expect("profile session");
+        let usage = json!({
+            "summary": {
+                "requests": 2323,
+                "total_tokens": 11460505,
+                "cost_credits": 46.2322914916
+            }
+        });
+
+        let snapshot = usage_snapshot_from_app_payload(&session, &usage);
+
+        assert_eq!(snapshot.balance, Some(1000000.0));
     }
 }

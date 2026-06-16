@@ -64,6 +64,30 @@ describe("useModels", () => {
     });
   });
 
+  it("keeps models empty when runtime models are disabled", async () => {
+    vi.mocked(getRuntimeModelList).mockResolvedValueOnce({
+      object: "list",
+      data: [
+        {
+          id: "adg-pro",
+          object: "model",
+          display_name: "ADG Pro",
+          owned_by: "adg",
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: null, enabled: false }),
+    );
+
+    await flushHookUpdates();
+
+    expect(getRuntimeModelList).not.toHaveBeenCalled();
+    expect(result.current.models).toEqual([]);
+    expect(result.current.selectedModelId).toBeNull();
+  });
+
   it("treats an empty ADG runtime catalog as authoritative", async () => {
     vi.mocked(getRuntimeModelList).mockResolvedValueOnce({
       object: "list",

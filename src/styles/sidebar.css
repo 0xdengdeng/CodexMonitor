@@ -299,7 +299,6 @@
   flex: 0 0 30px;
   padding: 0;
   gap: 0;
-  overflow: hidden;
   border-radius: var(--sidebar-control-radius);
   border: none;
   display: inline-flex;

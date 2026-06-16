@@ -101,7 +101,7 @@ export function ComposerMetaBar({
   const selectedModel =
     models.find((model) => model.id === selectedModelId) ?? null;
   const selectedModelLabel =
-    selectedModel?.displayName || selectedModel?.model || t("composer.noModels");
+    selectedModel?.displayName || selectedModel?.model || "";
   const modelSelectStyle = {
     "--composer-model-select-width": `${Math.max(selectedModelLabel.length + 2, 8)}ch`,
   } as CSSProperties;
@@ -280,17 +280,14 @@ export function ComposerMetaBar({
             className="composer-select composer-select--model"
             aria-label={t("composer.model")}
             value={selectedModelId ?? ""}
-            disabled={disabled}
+            disabled={disabled || models.length === 0}
             style={modelSelectStyle}
+            placeholder=""
             onValueChange={onSelectModel}
-            options={
-              models.length === 0
-                ? [{ value: "", label: t("composer.noModels"), disabled: true }]
-                : models.map((model) => ({
-                    value: model.id,
-                    label: model.displayName || model.model,
-                  }))
-            }
+            options={models.map((model) => ({
+              value: model.id,
+              label: model.displayName || model.model,
+            }))}
             popoverClassName="composer-select-popover composer-select-popover--model"
             popoverAlign="end"
             popoverPlacement="top"

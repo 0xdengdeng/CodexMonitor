@@ -312,6 +312,7 @@ export default function MainApp() {
     setSelectedEffort
   } = useModels({
     activeWorkspace,
+    enabled: appSettings.enterpriseAi.status === "connected",
     onDebug: addDebugEntry,
     preferredModelId,
     preferredEffort,
@@ -1179,6 +1180,14 @@ export default function MainApp() {
     setEnterpriseAiLoginOpen(true);
   }, [appSettings.enterpriseAi.status, modalActions]);
 
+  const requireEnterpriseAiLogin = useCallback(() => {
+    if (appSettings.enterpriseAi.status === "connected") {
+      return true;
+    }
+    setEnterpriseAiLoginOpen(true);
+    return false;
+  }, [appSettings.enterpriseAi.status]);
+
   const closeEnterpriseAiLogin = useCallback(() => {
     setEnterpriseAiLoginOpen(false);
   }, []);
@@ -1332,6 +1341,7 @@ export default function MainApp() {
       experimentalAppsEnabled: appSettings.experimentalAppsEnabled,
       pauseQueuedMessagesWhenResponseRequired:
         appSettings.pauseQueuedMessagesWhenResponseRequired,
+      canSubmitRequest: requireEnterpriseAiLogin,
     },
     models: {
       models,
@@ -1850,6 +1860,7 @@ export default function MainApp() {
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
     onOpenEnterpriseAiSettings: openEnterpriseAiEntry,
+    onBeforeComposerSend: requireEnterpriseAiLogin,
     onOpenCapabilities: openCapabilities,
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,

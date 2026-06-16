@@ -56,6 +56,7 @@ export function buildCodexSurface({
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
   onOpenEnterpriseAiSettings,
+  onBeforeComposerSend,
   onOpenCapabilities,
   gitState,
   composerWorkspaceState,
@@ -241,6 +242,7 @@ export function buildCodexSurface({
     composerProps: composerWorkspaceState.showComposer
       ? {
           onSend: handleComposerSendWithDraftStart,
+          onBeforeSend: onBeforeComposerSend,
           onStop: interruptTurn,
           canStop: composerWorkspaceState.canInterrupt,
           disabled: composerWorkspaceState.isReviewing,
