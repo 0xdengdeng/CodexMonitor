@@ -2,10 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import {
-  assertReleaseRuntimeSourceIsClean,
-  isTruthyEnv,
-} from "./sync-codex-runtime-utils.mjs";
+import { assertReleaseRuntimeUsesSourceBuild, assertReleaseRuntimeSourceIsClean, assertResponsesApiInputStatusSerializationPresent, isTruthyEnv } from "./sync-codex-runtime-utils.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -88,6 +85,7 @@ const targetBinary = path.join(binariesDir, sidecarName);
 const sourceCommit = gitValue(codexRepo, ["rev-parse", "HEAD"]);
 const sourceDirty = Boolean(gitValue(codexRepo, ["status", "--porcelain"]));
 const allowDirtyRelease = isTruthyEnv(process.env.AGENTDESK_ALLOW_DIRTY_CODEX_RUNTIME_RELEASE);
+const allowExplicitReleaseRuntime = isTruthyEnv(process.env.AGENTDESK_ALLOW_PREBUILT_CODEX_RUNTIME_RELEASE);
 
 if (!explicitCodexBin && !fs.existsSync(codexRsDir)) {
   throw new Error(
@@ -102,6 +100,21 @@ assertReleaseRuntimeSourceIsClean({
   allowDirtyRelease,
   codexRepo,
 });
+
+assertReleaseRuntimeUsesSourceBuild({
+  release,
+  explicitCodexBin,
+  allowExplicitReleaseRuntime,
+});
+
+if (release && !explicitCodexBin) {
+  const commonRsPath = path.join(codexRsDir, "codex-api", "src", "common.rs");
+  const commonRsSource = fs.readFileSync(commonRsPath, "utf8");
+  assertResponsesApiInputStatusSerializationPresent({
+    commonRsSource,
+    commonRsPath,
+  });
+}
 
 if (!skipBuild && !explicitCodexBin) {
   const args = ["build", "-p", "codex-cli", "--bin", "codex"];
