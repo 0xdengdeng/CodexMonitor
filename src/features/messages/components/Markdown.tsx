@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type MouseEvent,
+} from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -71,6 +79,10 @@ const PREVIEWABLE_IMAGE_EXTENSIONS = new Set([
 ]);
 const FAILED_PREVIEW_IMAGE_SOURCE_LIMIT = 200;
 const failedPreviewImageSources = new Set<string>();
+
+// Static across renders: a fresh array here would make react-markdown reprocess
+// every render. Hoisted so the plugin list keeps a stable identity.
+const REMARK_PLUGINS = [remarkGfm, remarkFileLinks];
 
 type FileImagePreviewState = "loading" | "loaded" | "failed";
 
@@ -601,40 +613,88 @@ export function Markdown({
   const content = codeBlock
     ? `\`\`\`\n${normalizedValue}\n\`\`\``
     : normalizedValue;
-  const handleFileLinkClick = (event: React.MouseEvent, path: ParsedFileLocation) => {
+  // The `components` map below is used by react-markdown as a set of component
+  // *types*. React remounts a subtree whenever the type identity at a position
+  // changes, so rebuilding these arrow functions every render remounted every
+  // inline file-image preview on each re-render — resetting it to "loading",
+  // reloading the image (opacity 0→1) and re-evaluating its clamp()/vw height.
+  // That is the bubble "闪/忽大忽小" flicker during streaming. Keeping the live
+  // callbacks in a ref lets the handlers + `components` keep a stable identity
+  // (immune to any upstream prop-identity churn) while still calling the latest
+  // callback at event time.
+  const callbacksRef = useRef({
+    onPreviewFileLink,
+    onOpenFileLink,
+    onOpenFileLinkMenu,
+    onOpenThreadLink,
+    workspacePath,
+  });
+  callbacksRef.current = {
+    onPreviewFileLink,
+    onOpenFileLink,
+    onOpenFileLinkMenu,
+    onOpenThreadLink,
+    workspacePath,
+  };
+
+  const handleFileLinkClick = useCallback(
+    (event: React.MouseEvent, path: ParsedFileLocation) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (callbacksRef.current.onPreviewFileLink?.(event, path)) {
+        return;
+      }
+      callbacksRef.current.onOpenFileLink?.(path);
+    },
+    [],
+  );
+  const handleLocalLinkClick = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    if (onPreviewFileLink?.(event, path)) {
-      return;
-    }
-    onOpenFileLink?.(path);
-  };
-  const handleLocalLinkClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  const handleFileLinkContextMenu = (
-    event: React.MouseEvent,
-    path: ParsedFileLocation,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onOpenFileLinkMenu?.(event, path);
-  };
-  const resolvedHrefFilePathCache = new Map<string, ParsedFileLocation | null>();
-  const resolveHrefFilePath = (url: string) => {
-    if (resolvedHrefFilePathCache.has(url)) {
-      return resolvedHrefFilePathCache.get(url) ?? null;
-    }
-    const resolvedPath = resolveMessageFileHref(url, workspacePath);
-    if (!resolvedPath) {
-      resolvedHrefFilePathCache.set(url, null);
-      return null;
-    }
-    resolvedHrefFilePathCache.set(url, resolvedPath);
-    return resolvedPath;
-  };
-  const components: Components = {
+  }, []);
+  const handleFileLinkContextMenu = useCallback(
+    (event: React.MouseEvent, path: ParsedFileLocation) => {
+      event.preventDefault();
+      event.stopPropagation();
+      callbacksRef.current.onOpenFileLinkMenu?.(event, path);
+    },
+    [],
+  );
+  const resolveHrefFilePath = useCallback(
+    (url: string) => resolveMessageFileHref(url, callbacksRef.current.workspacePath),
+    [],
+  );
+
+  const urlTransform = useCallback(
+    (url: string) => {
+      const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
+      // Keep file-like hrefs intact before scheme sanitization runs, otherwise
+      // Windows absolute paths such as C:/repo/file.ts look like unknown schemes.
+      if (resolveHrefFilePath(url)) {
+        return url;
+      }
+      if (
+        isFileLinkUrl(url) ||
+        url.startsWith("http://") ||
+        url.startsWith("https://") ||
+        url.startsWith("mailto:") ||
+        url.startsWith("#") ||
+        url.startsWith("/") ||
+        url.startsWith("./") ||
+        url.startsWith("../")
+      ) {
+        return url;
+      }
+      if (!hasScheme) {
+        return url;
+      }
+      return "";
+    },
+    [resolveHrefFilePath],
+  );
+
+  const components: Components = useMemo(() => {
+    const map: Components = {
     table: ({ children }) => (
       <div className="markdown-table-wrap">
         <table className="markdown-table">{children}</table>
@@ -654,7 +714,7 @@ export function Markdown({
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              onOpenThreadLink?.(threadId);
+              callbacksRef.current.onOpenThreadLink?.(threadId);
             }}
           >
             {children}
@@ -692,7 +752,7 @@ export function Markdown({
         const formattedHrefFilePath = formatParsedFileLocation(hrefFilePath);
         const clickHandler = (event: React.MouseEvent) =>
           handleFileLinkClick(event, hrefFilePath);
-        const contextMenuHandler = onOpenFileLinkMenu
+        const contextMenuHandler = callbacksRef.current.onOpenFileLinkMenu
           ? (event: React.MouseEvent) => handleFileLinkContextMenu(event, hrefFilePath)
           : undefined;
         return (
@@ -756,44 +816,33 @@ export function Markdown({
         />
       );
     },
-  };
+    };
 
-  if (codeBlockStyle === "message") {
-    components.pre = ({ node, children }) => (
-      <PreBlock node={node as PreProps["node"]} copyUseModifier={codeBlockCopyUseModifier}>
-        {children}
-      </PreBlock>
-    );
-  }
+    if (codeBlockStyle === "message") {
+      map.pre = ({ node, children }) => (
+        <PreBlock node={node as PreProps["node"]} copyUseModifier={codeBlockCopyUseModifier}>
+          {children}
+        </PreBlock>
+      );
+    }
+
+    return map;
+  }, [
+    handleFileLinkClick,
+    handleFileLinkContextMenu,
+    handleLocalLinkClick,
+    resolveHrefFilePath,
+    showFilePath,
+    workspacePath,
+    codeBlockStyle,
+    codeBlockCopyUseModifier,
+  ]);
 
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkFileLinks]}
-        urlTransform={(url) => {
-          const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
-          // Keep file-like hrefs intact before scheme sanitization runs, otherwise
-          // Windows absolute paths such as C:/repo/file.ts look like unknown schemes.
-          if (resolveHrefFilePath(url)) {
-            return url;
-          }
-          if (
-            isFileLinkUrl(url) ||
-            url.startsWith("http://") ||
-            url.startsWith("https://") ||
-            url.startsWith("mailto:") ||
-            url.startsWith("#") ||
-            url.startsWith("/") ||
-            url.startsWith("./") ||
-            url.startsWith("../")
-          ) {
-            return url;
-          }
-          if (!hasScheme) {
-            return url;
-          }
-          return "";
-        }}
+        remarkPlugins={REMARK_PLUGINS}
+        urlTransform={urlTransform}
         components={components}
       >
         {content}

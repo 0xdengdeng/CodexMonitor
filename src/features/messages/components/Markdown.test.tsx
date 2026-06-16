@@ -103,6 +103,47 @@ describe("Markdown file-like href behavior", () => {
     expect(previewButton?.dataset.state).toBe("loaded");
   });
 
+  it("does not remount the inline preview when the parent re-renders with new callbacks", () => {
+    const imagePath = "/Users/example/project/assets/no-flicker.png";
+    const markup = `图片保存在：\n\n\`${imagePath}\``;
+
+    const { container, rerender } = render(
+      <Markdown
+        value={markup}
+        className="markdown"
+        workspacePath="/Users/example/project"
+        onPreviewFileLink={vi.fn(() => false)}
+      />,
+    );
+
+    const previewButton = container.querySelector<HTMLButtonElement>(
+      ".message-file-image-preview",
+    );
+    const previewImage = container.querySelector<HTMLImageElement>(
+      ".message-file-image-preview img",
+    );
+    fireEvent.load(previewImage as Element);
+    expect(previewButton?.dataset.state).toBe("loaded");
+
+    // Streaming re-renders hand Markdown fresh callback identities every frame.
+    // The preview must reconcile in place — a remount would reset it to
+    // "loading", reload the image and thrash layout (the bubble flicker bug).
+    rerender(
+      <Markdown
+        value={markup}
+        className="markdown"
+        workspacePath="/Users/example/project"
+        onPreviewFileLink={vi.fn(() => false)}
+      />,
+    );
+
+    const previewButtonAfter = container.querySelector<HTMLButtonElement>(
+      ".message-file-image-preview",
+    );
+    expect(previewButtonAfter).toBe(previewButton);
+    expect(previewButtonAfter?.dataset.state).toBe("loaded");
+  });
+
   it("resolves relative local image previews against the active workspace", () => {
     const imagePath = "assets/ultraman-vs-monster.png";
 
