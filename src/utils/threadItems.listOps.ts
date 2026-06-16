@@ -37,6 +37,19 @@ function mergeImageGenerationItem(
     existing.status === "completed" && incoming.status === "in_progress"
       ? existing.status
       : incoming.status;
+  const savedPath = hasText(incoming.savedPath)
+    ? incoming.savedPath
+    : existing.savedPath;
+  // Pin the displayed source to the stable local artifact path once we have one.
+  // The same image arrives twice (native item/completed with savedPath, then the
+  // raw image_generation_call with only a base64 data URL); letting the data URL
+  // override savedPath flips <img src> on every update and flickers the card.
+  // Display order matches codex-native-image-flow.md: savedPath, then data URL.
+  const imageSrc = hasText(savedPath)
+    ? savedPath
+    : hasText(incoming.imageSrc)
+      ? incoming.imageSrc
+      : existing.imageSrc;
   return {
     ...existing,
     ...incoming,
@@ -48,8 +61,8 @@ function mergeImageGenerationItem(
     model: hasText(incoming.model) ? incoming.model : existing.model,
     size: hasText(incoming.size) ? incoming.size : existing.size,
     assetId: hasText(incoming.assetId) ? incoming.assetId : existing.assetId,
-    savedPath: hasText(incoming.savedPath) ? incoming.savedPath : existing.savedPath,
-    imageSrc: hasText(incoming.imageSrc) ? incoming.imageSrc : existing.imageSrc,
+    savedPath,
+    imageSrc,
     error:
       incoming.status === "completed"
         ? null

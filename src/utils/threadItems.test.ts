@@ -747,6 +747,46 @@ describe("threadItems", () => {
     }
   });
 
+  it("keeps imageSrc pinned to savedPath when a raw base64 update arrives (no flicker)", () => {
+    // Native item/completed: has the local artifact path.
+    const existing: ConversationItem = {
+      id: "ig_flicker",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "adg-image",
+      size: "1024x1536",
+      assetId: null,
+      savedPath: "/tmp/generated-images/ig_flicker.png",
+      imageSrc: "/tmp/generated-images/ig_flicker.png",
+      error: null,
+    };
+    // Raw image_generation_call replay for the SAME id: only a base64 data URL,
+    // no savedPath. It must not override the stable artifact path.
+    const incoming: ConversationItem = {
+      id: "ig_flicker",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "adg-image",
+      size: "1024x1536",
+      assetId: null,
+      savedPath: null,
+      imageSrc: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
+      error: null,
+    };
+
+    const next = upsertItem([existing], incoming);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("imageGeneration");
+    if (next[0].kind === "imageGeneration") {
+      expect(next[0].savedPath).toBe("/tmp/generated-images/ig_flicker.png");
+      expect(next[0].imageSrc).toBe("/tmp/generated-images/ig_flicker.png");
+    }
+  });
+
   it("preserves existing answers for questions that are empty in a partial userInput upsert", () => {
     const existing: ConversationItem = {
       id: "user-input-2",
