@@ -699,6 +699,26 @@ export function SettingsCodexSection({
       </SettingsToggleRow>
 
       <SettingsToggleRow
+        title={t("settings.codex.useGatewayImageTool")}
+        subtitle={t("settings.codex.useGatewayImageToolHelp")}
+      >
+        <SettingsToggleSwitch
+          pressed={appSettings.managedRuntime.nativeImageGeneration === false}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              managedRuntime: {
+                ...appSettings.managedRuntime,
+                nativeImageGeneration:
+                  appSettings.managedRuntime.nativeImageGeneration === false,
+              },
+            })
+          }
+          aria-label={t("settings.codex.useGatewayImageTool")}
+        />
+      </SettingsToggleRow>
+
+      <SettingsToggleRow
         title={
           <label htmlFor="default-effort">
             {t("settings.codex.reasoningEffort")}
