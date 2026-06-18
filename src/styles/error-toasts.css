@@ -25,6 +25,24 @@
   font-size: 13px;
 }
 
+.error-toast-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-toast-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.error-toast-copy {
+  font-size: 11px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
 .error-toast-dismiss {
   font-size: 18px;
   line-height: 1;
