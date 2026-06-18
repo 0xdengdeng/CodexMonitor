@@ -184,6 +184,22 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
 
     let app = builder
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("agentdesk".to_string()),
+                    }),
+                ])
+                .level(log::LevelFilter::Info)
+                // Keep dependency chatter out of the persisted log; our own crate
+                // stays at info so startup/runtime diagnostics are captured.
+                .level_for("agentdesk", log::LevelFilter::Debug)
+                .max_file_size(5_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                .build(),
+        )
         .plugin(tauri_plugin_liquid_glass::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

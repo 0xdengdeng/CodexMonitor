@@ -83,8 +83,8 @@ pub(crate) fn log_codex_runtime_provenance() {
     let app_is_release = !cfg!(debug_assertions);
     let (level, message) = provenance_report(&provenance, app_is_release);
     match level {
-        ProvenanceLevel::Info => eprintln!("[codex-runtime] {message}"),
-        ProvenanceLevel::Warn => eprintln!("[codex-runtime][WARN] {message}"),
+        ProvenanceLevel::Info => log::info!(target: "agentdesk::runtime", "{message}"),
+        ProvenanceLevel::Warn => log::warn!(target: "agentdesk::runtime", "{message}"),
     }
 }
 
