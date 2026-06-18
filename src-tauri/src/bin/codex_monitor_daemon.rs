@@ -2152,6 +2152,15 @@ mod tests {
 }
 
 fn main() {
+    // The daemon is headless; daemonctl redirects its stderr to a log file, so
+    // route the `log` facade (shared modules + provenance) to stderr via
+    // env_logger. RUST_LOG overrides; default is info. try_init so a re-entrant
+    // start never panics.
+    let _ = env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .format_timestamp_secs()
+        .parse_default_env()
+        .try_init();
     codex_provenance::log_codex_runtime_provenance();
     let config = match parse_args() {
         Ok(config) => config,
