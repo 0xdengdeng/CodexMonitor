@@ -1270,3 +1270,8 @@ export async function sendNotification(
 
   await attemptFallback();
 }
+
+/** Tail of the app log file (agentdesk.log), for copy-diagnostics on error. */
+export async function readAppLogTail(maxBytes = 20000): Promise<string> {
+  return await invoke<string>("read_app_log_tail", { maxBytes });
+}

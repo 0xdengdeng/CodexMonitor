@@ -9,6 +9,7 @@ use tauri::WindowEvent;
 mod backend;
 mod codex;
 mod daemon_binary;
+mod diagnostics;
 mod dictation;
 mod enterprise_ai;
 mod event_sink;
@@ -206,6 +207,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
+            diagnostics::read_app_log_tail,
             settings::get_app_settings,
             settings::update_app_settings,
             settings::runtime_api_key_status,

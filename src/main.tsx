@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App";
+import { FatalErrorScreen } from "@app/components/FatalErrorScreen";
 import { applyAppDocumentTitle, applyAppWindowTitle } from "./utils/appTitle";
 import { isMobilePlatform } from "./utils/platformPaths";
 
@@ -95,30 +96,7 @@ syncMobileViewportHeight();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Sentry.ErrorBoundary
-      fallback={({ error }) => (
-        // Inline styles on purpose: a render crash may be the stylesheet itself,
-        // so the fallback must not depend on app CSS having loaded.
-        <div
-          role="alert"
-          style={{
-            padding: "24px",
-            maxWidth: "560px",
-            margin: "48px auto",
-            fontFamily: "system-ui, sans-serif",
-            lineHeight: 1.5,
-          }}
-        >
-          <h1 style={{ fontSize: "18px", margin: "0 0 8px" }}>启航AI 遇到问题</h1>
-          <p style={{ margin: "0 0 12px" }}>
-            界面发生了无法恢复的错误，已记录。请重启应用；如反复出现，请反馈日志。
-          </p>
-          <pre style={{ whiteSpace: "pre-wrap", opacity: 0.7, fontSize: "12px" }}>
-            {error instanceof Error ? error.message : String(error)}
-          </pre>
-        </div>
-      )}
-    >
+    <Sentry.ErrorBoundary fallback={({ error }) => <FatalErrorScreen error={error} />}>
       <App />
     </Sentry.ErrorBoundary>
   </React.StrictMode>,
