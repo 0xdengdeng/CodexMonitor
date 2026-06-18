@@ -13,6 +13,9 @@ vi.mock("@sentry/react", () => ({
   metrics: {
     count: sentryMetricsCountMock,
   },
+  // Never rendered here (createRoot.render is mocked); just needs to exist so
+  // main.tsx can reference <Sentry.ErrorBoundary> when building the element tree.
+  ErrorBoundary: () => null,
 }));
 
 vi.mock("react-dom/client", () => ({
