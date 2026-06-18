@@ -52,12 +52,12 @@ impl AppState {
             .app_data_dir()
             .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| ".".into()));
         if let Err(err) = configure_managed_codex_home(&data_dir) {
-            eprintln!("failed to configure AgentDesk Codex home: {err}");
+            log::error!(target: "agentdesk::startup", "failed to configure AgentDesk Codex home: {err}");
         }
         if let Err(err) =
             crate::shared::runtime_secret_core::configure_runtime_secret_store(&data_dir)
         {
-            eprintln!("failed to configure AgentDesk runtime secret store: {err}");
+            log::error!(target: "agentdesk::startup", "failed to configure AgentDesk runtime secret store: {err}");
         }
         let storage_path = data_dir.join("workspaces.json");
         let settings_path = data_dir.join("settings.json");
@@ -65,7 +65,7 @@ impl AppState {
         let app_settings = read_settings(&settings_path).unwrap_or_default();
         crate::utils::set_git_runtime_preference(&app_settings.git_runtime_preference);
         if let Err(err) = sync_managed_runtime_config_from_settings(&app_settings) {
-            eprintln!("failed to sync agentDesk runtime config: {err}");
+            log::error!(target: "agentdesk::startup", "failed to sync agentDesk runtime config: {err}");
         }
         Self {
             workspaces: Mutex::new(workspaces),

@@ -25,7 +25,7 @@ pub(crate) fn configure_managed_codex_home(data_dir: &Path) -> Result<PathBuf, S
     env::set_var("CODEX_HOME", &codex_home);
     #[cfg(not(test))]
     if let Err(err) = import_legacy_codex_home_once(&codex_home) {
-        eprintln!("failed to import legacy Codex history: {err}");
+        log::warn!(target: "agentdesk::startup", "failed to import legacy Codex history: {err}");
     }
     Ok(codex_home)
 }
