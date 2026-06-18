@@ -195,8 +195,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: None,
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
         let mut document = toml_edit::Document::new();
 
@@ -221,12 +220,11 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("qihang-ultra-5.5".to_string()),
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
 
         let mut updated = previous.clone();
-        updated.managed_runtime.image_model = Some("adg-image-pro".to_string());
+        updated.managed_runtime.image_model = Some("gpt-image-2-pro".to_string());
 
         assert!(managed_runtime_config_changed(&previous, &updated));
     }
@@ -240,8 +238,7 @@ mod tests {
                 enabled: true,
                 base_url: Some("https://runtime.example.com/v1".to_string()),
                 model: None,
-                image_model: Some("adg-image".to_string()),
-                native_image_generation: true,
+                image_model: Some("gpt-image-2".to_string()),
             };
             current.enterprise_ai = EnterpriseAiConfig {
                 tenant_domain: Some("company1".to_string()),

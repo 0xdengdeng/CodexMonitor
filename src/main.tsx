@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App";
+import { FatalErrorScreen } from "@app/components/FatalErrorScreen";
+import { pushErrorToast } from "@services/toasts";
 import { applyAppDocumentTitle, applyAppWindowTitle } from "./utils/appTitle";
 import { isMobilePlatform } from "./utils/platformPaths";
 
@@ -93,8 +95,25 @@ function syncMobileViewportHeight() {
 disableMobileZoomGestures();
 syncMobileViewportHeight();
 
+// Dev-only console helper to exercise the error-toast "copy diagnostics" path:
+// call `__agentdeskTestErrorToast()` in DevTools. Tree-shaken out of release.
+if (import.meta.env.DEV) {
+  (
+    window as unknown as {
+      __agentdeskTestErrorToast?: (title?: string, message?: string) => void;
+    }
+  ).__agentdeskTestErrorToast = (
+    title = "测试错误",
+    message = "这是一条用于测试『复制诊断』的错误。",
+  ) => pushErrorToast({ title, message });
+  // eslint-disable-next-line no-console
+  console.info("[dev] window.__agentdeskTestErrorToast(title?, message?) is available");
+}
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <Sentry.ErrorBoundary fallback={({ error }) => <FatalErrorScreen error={error} />}>
+      <App />
+    </Sentry.ErrorBoundary>
   </React.StrictMode>,
 );

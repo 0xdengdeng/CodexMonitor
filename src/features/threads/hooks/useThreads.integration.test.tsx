@@ -6,12 +6,11 @@ import type { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { useThreadRows } from "@app/hooks/useThreadRows";
 import {
   archiveThread,
-  generateImage,
   interruptTurn,
+  listGeneratedImages,
   listThreads,
   readThread,
   resumeThread,
-  respondToDynamicToolCallRequest,
   sendUserMessage as sendUserMessageService,
   setThreadName,
   startThread,
@@ -34,14 +33,13 @@ vi.mock("@app/hooks/useAppServerEvents", () => ({
 
 vi.mock("@services/tauri", () => ({
   respondToServerRequest: vi.fn(),
-  respondToDynamicToolCallRequest: vi.fn(),
   respondToUserInputRequest: vi.fn(),
   rememberApprovalRule: vi.fn(),
-  generateImage: vi.fn(),
   sendUserMessage: vi.fn(),
   steerTurn: vi.fn(),
   startReview: vi.fn(),
   startThread: vi.fn(),
+  listGeneratedImages: vi.fn(),
   listThreads: vi.fn(),
   resumeThread: vi.fn(),
   readThread: vi.fn(),
@@ -68,6 +66,7 @@ describe("useThreads UX integration", () => {
     handlers = null;
     localStorage.clear();
     vi.clearAllMocks();
+    vi.mocked(listGeneratedImages).mockResolvedValue([]);
     now = 1000;
     nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now++);
   });
@@ -141,6 +140,112 @@ describe("useThreads UX integration", () => {
     }
   });
 
+  it("keeps runtime generated image files after selected history threads resume", async () => {
+    let resolveResume: (value: Awaited<ReturnType<typeof resumeThread>>) => void =
+      () => undefined;
+    vi.mocked(resumeThread).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveResume = resolve;
+        }),
+    );
+    vi.mocked(listGeneratedImages).mockResolvedValue([
+      {
+        id: "call-runtime-history",
+        workspaceId: "ws-1",
+        threadId: "thread-history",
+        model: "",
+        prompt: "",
+        revisedPrompt: null,
+        size: "",
+        localPath:
+          "/tmp/codex-home/generated_images/thread-history/call-runtime-history.png",
+        mimeType: "image/png",
+        createdAtMs: 2000,
+        status: "completed",
+        anchorMessageText: null,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-history");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(listGeneratedImages)).toHaveBeenCalledWith({
+        workspaceId: "ws-1",
+        threadId: "thread-history",
+      });
+    });
+    expect(result.current.activeItems).toEqual([]);
+
+    await act(async () => {
+      resolveResume({
+        result: {
+          thread: {
+            id: "thread-history",
+            preview: "Generated image",
+            updated_at: 9999,
+            turns: [
+              {
+                items: [
+                  {
+                    type: "userMessage",
+                    id: "user-history-1",
+                    content: [{ type: "text", text: "Generate an image" }],
+                  },
+                  {
+                    type: "function_call",
+                    call_id: "call-runtime-history",
+                    name: "generate_image",
+                    arguments: JSON.stringify({
+                      prompt: "A runtime generated image",
+                    }),
+                  },
+                  {
+                    type: "agentMessage",
+                    id: "assistant-history-1",
+                    text: "Image generated.",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      } as Awaited<ReturnType<typeof resumeThread>>);
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toContainEqual(
+        expect.objectContaining({
+          id: "assistant-history-1",
+          kind: "message",
+          text: "Image generated.",
+        }),
+      );
+    });
+    expect(result.current.activeItems.map((item) => item.id)).toEqual([
+      "user-history-1",
+      "call-runtime-history",
+      "assistant-history-1",
+    ]);
+    expect(result.current.activeItems).toContainEqual(
+      expect.objectContaining({
+        id: "call-runtime-history",
+        kind: "imageGeneration",
+        imageSrc:
+          "/tmp/codex-home/generated_images/thread-history/call-runtime-history.png",
+      }),
+    );
+  });
+
   it("applies runtime codex args before start and selection resume", async () => {
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
     vi.mocked(startThread).mockResolvedValue({
@@ -170,9 +275,7 @@ describe("useThreads UX integration", () => {
     });
 
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
-      nativeImageGeneration: true,
-    });
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
     const startEnsureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
     const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
     expect(startEnsureCallOrder).toBeLessThan(startThreadCallOrder);
@@ -210,16 +313,14 @@ describe("useThreads UX integration", () => {
     });
 
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
-      nativeImageGeneration: true,
-    });
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
 
     const ensureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
     const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
     expect(ensureCallOrder).toBeLessThan(startThreadCallOrder);
   });
 
-  it("passes disabled native image generation through when configured", async () => {
+  it("starts threads without legacy image-generation options", async () => {
     vi.mocked(startThread).mockResolvedValue({
       result: { thread: { id: "thread-dynamic-new" } },
     } as Awaited<ReturnType<typeof startThread>>);
@@ -228,7 +329,6 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        nativeImageGenerationEnabled: false,
       }),
     );
 
@@ -236,9 +336,47 @@ describe("useThreads UX integration", () => {
       await result.current.startThread();
     });
 
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
-      nativeImageGeneration: false,
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+  });
+
+  it("recreates an unmaterialized draft thread when resume cannot find its rollout", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      error: {
+        code: -32602,
+        message: "no rollout found for thread id thread-draft",
+      },
+    } as unknown as Awaited<ReturnType<typeof resumeThread>>);
+    vi.mocked(startThread).mockResolvedValue({
+      result: { thread: { id: "thread-recreated" } },
+    } as Awaited<ReturnType<typeof startThread>>);
+    vi.mocked(sendUserMessageService).mockResolvedValue({
+      result: { turn: { id: "turn-1" } },
+    } as unknown as Awaited<ReturnType<typeof sendUserMessageService>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-draft");
     });
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello after login");
+    });
+
+    expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-draft");
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    expect(vi.mocked(sendUserMessageService)).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-recreated",
+      "hello after login",
+      expect.any(Object),
+    );
+    expect(result.current.activeThreadId).toBe("thread-recreated");
   });
 
   it("still resumes selected thread when runtime codex args sync fails", async () => {
@@ -446,9 +584,7 @@ describe("useThreads UX integration", () => {
     });
 
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
-      nativeImageGeneration: true,
-    });
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
     expect(threadId).toBe("thread-new");
   });
 
@@ -780,6 +916,490 @@ describe("useThreads UX integration", () => {
     });
 
     expect(result.current.planByThread["thread-1"]).toBeNull();
+  });
+
+  it("refreshes the active thread on turn completion to hydrate raw image outputs from rollout", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-1",
+          preview: "Generated image",
+          updated_at: 2000,
+          turns: [
+            {
+              id: "turn-1",
+              items: [
+                {
+                  type: "function_call",
+                  call_id: "call-image-1",
+                  name: "generate_image",
+                  arguments: JSON.stringify({
+                    prompt: "A modern Ultraman in space",
+                  }),
+                },
+                {
+                  type: "function_call_output",
+                  call_id: "call-image-1",
+                  output: [
+                    {
+                      type: "input_text",
+                      text: JSON.stringify({
+                        status: "generated",
+                        saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+                        model: "gpt-image-2",
+                      }),
+                    },
+                    {
+                      type: "input_image",
+                      image_url: "data:image/png;base64,IMAGE",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-1",
+        preview: "Generating image",
+        updated_at: 1000,
+      });
+      handlers?.onItemCompleted?.("ws-1", "thread-1", {
+        id: "local-message-1",
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "Generating..." }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasLocalThreadSnapshot("thread-1")).toBe(true);
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeThreadId).toBe("thread-1");
+    });
+
+    vi.mocked(resumeThread).mockClear();
+
+    act(() => {
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toContainEqual(
+        expect.objectContaining({
+          id: "call-image-1",
+          kind: "imageGeneration",
+          status: "completed",
+          prompt: "A modern Ultraman in space",
+          savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+          imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+          model: "gpt-image-2",
+        }),
+      );
+    });
+  });
+
+  it("hydrates runtime generated image files when thread refresh omits raw image outputs", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-1",
+          preview: "Generated image",
+          updated_at: 2000,
+          turns: [
+            {
+              items: [
+                {
+                  type: "function_call",
+                  call_id: "call-runtime-1",
+                  name: "generate_image",
+                  arguments: JSON.stringify({
+                    prompt: "A runtime generated image",
+                  }),
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    vi.mocked(listGeneratedImages).mockResolvedValue([
+      {
+        id: "call-runtime-1",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        model: "",
+        prompt: "",
+        revisedPrompt: null,
+        size: "",
+        localPath: "/tmp/codex-home/generated_images/thread-1/call-runtime-1.png",
+        mimeType: "image/png",
+        createdAtMs: 2000,
+        status: "completed",
+        anchorMessageText: null,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-1",
+        preview: "Generating image",
+        updated_at: 1000,
+      });
+      handlers?.onItemCompleted?.("ws-1", "thread-1", {
+        id: "local-message-1",
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "Generating..." }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasLocalThreadSnapshot("thread-1")).toBe(true);
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeThreadId).toBe("thread-1");
+    });
+
+    vi.mocked(resumeThread).mockClear();
+    vi.mocked(listGeneratedImages).mockClear();
+
+    act(() => {
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(listGeneratedImages)).toHaveBeenCalledWith({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toContainEqual(
+        expect.objectContaining({
+          id: "call-runtime-1",
+          kind: "imageGeneration",
+          status: "completed",
+          savedPath: "/tmp/codex-home/generated_images/thread-1/call-runtime-1.png",
+          imageSrc: "/tmp/codex-home/generated_images/thread-1/call-runtime-1.png",
+          assetId: null,
+        }),
+      );
+    });
+  });
+
+  it("hydrates runtime generated image files when an already loaded thread is active", async () => {
+    vi.mocked(listGeneratedImages).mockResolvedValue([
+      {
+        id: "call-runtime-selected",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        model: "",
+        prompt: "",
+        revisedPrompt: null,
+        size: "",
+        localPath:
+          "/tmp/codex-home/generated_images/thread-1/call-runtime-selected.png",
+        mimeType: "image/png",
+        createdAtMs: 2000,
+        status: "completed",
+        anchorMessageText: null,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-1",
+        preview: "Generated image",
+        updated_at: 1000,
+      });
+      handlers?.onItemCompleted?.("ws-1", "thread-1", {
+        id: "call-runtime-selected",
+        type: "imageGeneration",
+        status: "in_progress",
+        prompt: "A runtime generated image",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasLocalThreadSnapshot("thread-1")).toBe(true);
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).not.toHaveBeenCalled();
+      expect(vi.mocked(listGeneratedImages)).toHaveBeenCalledWith({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toContainEqual(
+        expect.objectContaining({
+          id: "call-runtime-selected",
+          kind: "imageGeneration",
+          status: "completed",
+          imageSrc:
+            "/tmp/codex-home/generated_images/thread-1/call-runtime-selected.png",
+        }),
+      );
+    });
+  });
+
+  it("resumes local text-only history when generated image anchors are missing", async () => {
+    vi.mocked(listGeneratedImages).mockResolvedValue([
+      {
+        id: "call-history-image",
+        workspaceId: "ws-1",
+        threadId: "thread-history",
+        model: "",
+        prompt: "",
+        revisedPrompt: null,
+        size: "",
+        localPath:
+          "/tmp/codex-home/generated_images/thread-history/call-history-image.png",
+        mimeType: "image/png",
+        createdAtMs: 2000,
+        status: "completed",
+        anchorMessageText: null,
+      },
+    ]);
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-history",
+          preview: "Generated image",
+          updated_at: 2000,
+          turns: [
+            {
+              items: [
+                {
+                  type: "userMessage",
+                  id: "user-history",
+                  content: [{ type: "text", text: "Generate an image" }],
+                },
+                {
+                  type: "response_item",
+                  payload: {
+                    type: "function_call",
+                    call_id: "call-history-image",
+                    name: "generate_image",
+                    arguments: JSON.stringify({
+                      prompt: "A historical rollout image",
+                    }),
+                  },
+                },
+                {
+                  type: "agentMessage",
+                  id: "assistant-history",
+                  text: "Image generated.",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onAgentMessageCompleted?.({
+        workspaceId: "ws-1",
+        threadId: "thread-history",
+        itemId: "local-assistant-only",
+        text: "旧缓存里只有文字，没有图片卡片",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasLocalThreadSnapshot("thread-history")).toBe(
+        true,
+      );
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-history");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-history",
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems.map((item) => item.id)).toEqual([
+        "user-history",
+        "call-history-image",
+        "assistant-history",
+      ]);
+    });
+    expect(result.current.activeItems).toContainEqual(
+      expect.objectContaining({
+        id: "call-history-image",
+        kind: "imageGeneration",
+        status: "completed",
+        imageSrc:
+          "/tmp/codex-home/generated_images/thread-history/call-history-image.png",
+      }),
+    );
+  });
+
+  it("recovers missing generated image anchors for the already active thread", async () => {
+    vi.mocked(listGeneratedImages).mockResolvedValue([
+      {
+        id: "call-active-history-image",
+        workspaceId: "ws-1",
+        threadId: "thread-active-history",
+        model: "",
+        prompt: "",
+        revisedPrompt: null,
+        size: "",
+        localPath:
+          "/tmp/codex-home/generated_images/thread-active-history/call-active-history-image.png",
+        mimeType: "image/png",
+        createdAtMs: 2000,
+        status: "completed",
+        anchorMessageText: null,
+      },
+    ]);
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-active-history",
+          preview: "Generated image",
+          updated_at: 2000,
+          turns: [
+            {
+              items: [
+                {
+                  type: "userMessage",
+                  id: "user-active-history",
+                  content: [{ type: "text", text: "Generate an image" }],
+                },
+                {
+                  type: "response_item",
+                  payload: {
+                    type: "function_call",
+                    call_id: "call-active-history-image",
+                    name: "generate_image",
+                    arguments: JSON.stringify({
+                      prompt: "A historical rollout image",
+                    }),
+                  },
+                },
+                {
+                  type: "agentMessage",
+                  id: "assistant-active-history",
+                  text: "Image generated.",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-active-history",
+        preview: "Generated image",
+        updated_at: 1000,
+      });
+      handlers?.onAgentMessageCompleted?.({
+        workspaceId: "ws-1",
+        threadId: "thread-active-history",
+        itemId: "local-active-assistant-only",
+        text: "旧缓存里只有文字，没有图片卡片",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeThreadId).toBe("thread-active-history");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-active-history",
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems.map((item) => item.id)).toEqual([
+        "user-active-history",
+        "call-active-history-image",
+        "assistant-active-history",
+      ]);
+    });
+    expect(result.current.activeItems).toContainEqual(
+      expect.objectContaining({
+        id: "call-active-history-image",
+        kind: "imageGeneration",
+        status: "completed",
+        imageSrc:
+          "/tmp/codex-home/generated_images/thread-active-history/call-active-history-image.png",
+      }),
+    );
   });
 
   it("keeps plans visible on turn completion when steps remain", () => {
@@ -1896,265 +2516,6 @@ describe("useThreads UX integration", () => {
 
     expect(result.current.threadParentById["thread-parent"]).toBeUndefined();
     expect(localStorage.getItem(STORAGE_KEY_DETACHED_REVIEW_LINKS)).toBeNull();
-  });
-
-  it("returns only model-visible image URLs from dynamic image generation", async () => {
-    vi.mocked(generateImage).mockResolvedValue({
-      id: "asset-1",
-      workspaceId: "ws-1",
-      threadId: "thread-image",
-      source: "adg",
-      model: "adg-image",
-      prompt: "A small blue rocket icon",
-      revisedPrompt: null,
-      size: "1024x1024",
-      localPath: "/Users/example/generated-images/asset-1.png",
-      modelVisibleImageUrl: "data:image/png;base64,AAA",
-      mimeType: "image/png",
-      createdAtMs: 123,
-      requestId: "req-1",
-      status: "completed",
-    });
-
-    renderHook(() =>
-      useThreads({
-        activeWorkspace: workspace,
-        onWorkspaceConnected: vi.fn(),
-      }),
-    );
-
-    await act(async () => {
-      handlers?.onDynamicToolCall?.({
-        workspace_id: "ws-1",
-        request_id: 404,
-        params: {
-          thread_id: "thread-image",
-          turn_id: "turn-1",
-          call_id: "call-1",
-          namespace: "codex_monitor",
-          tool: "generate_image",
-          arguments: {
-            prompt: "A small blue rocket icon",
-            size: "1024x1024",
-          },
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(respondToDynamicToolCallRequest).toHaveBeenCalledWith(
-        "ws-1",
-        404,
-        expect.objectContaining({
-          success: true,
-          contentItems: expect.arrayContaining([
-            { type: "inputImage", imageUrl: "data:image/png;base64,AAA" },
-          ]),
-        }),
-      );
-    });
-    expect(respondToDynamicToolCallRequest).not.toHaveBeenCalledWith(
-      "ws-1",
-      404,
-      expect.objectContaining({
-        contentItems: expect.arrayContaining([
-          expect.objectContaining({
-            imageUrl: "/Users/example/generated-images/asset-1.png",
-          }),
-        ]),
-      }),
-    );
-  });
-
-  it("updates the local image generation card when dynamic generation succeeds", async () => {
-    vi.mocked(generateImage).mockResolvedValue({
-      id: "asset-1",
-      workspaceId: "ws-1",
-      threadId: "thread-image",
-      source: "adg",
-      model: "adg-image",
-      prompt: "A seaside portrait",
-      revisedPrompt: null,
-      size: "1024x1536",
-      localPath: "/Users/example/generated-images/asset-1.png",
-      modelVisibleImageUrl: "data:image/png;base64,AAA",
-      mimeType: "image/png",
-      createdAtMs: 123,
-      requestId: "req-1",
-      status: "completed",
-    });
-
-    const { result } = renderHook(() =>
-      useThreads({
-        activeWorkspace: workspace,
-        onWorkspaceConnected: vi.fn(),
-      }),
-    );
-
-    act(() => {
-      handlers?.onDynamicToolCall?.({
-        workspace_id: "ws-1",
-        request_id: 407,
-        params: {
-          thread_id: "thread-image",
-          turn_id: "turn-1",
-          call_id: "call-1",
-          namespace: "codex_monitor",
-          tool: "generate_image",
-          arguments: {
-            prompt: "A seaside portrait",
-            size: "1024x1536",
-          },
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(respondToDynamicToolCallRequest).toHaveBeenCalledWith(
-        "ws-1",
-        407,
-        expect.objectContaining({ success: true }),
-      );
-    });
-
-    act(() => {
-      result.current.setActiveThreadId("thread-image");
-    });
-
-    await waitFor(() => {
-      const imageItem = result.current.activeItems.find(
-        (item) => item.kind === "imageGeneration" && item.id === "call-1",
-      );
-      expect(imageItem).toMatchObject({
-        kind: "imageGeneration",
-        status: "completed",
-        assetId: "asset-1",
-        savedPath: "/Users/example/generated-images/asset-1.png",
-        imageSrc: "/Users/example/generated-images/asset-1.png",
-      });
-    });
-  });
-
-  it("defaults dynamic image generation size to auto when omitted", async () => {
-    vi.mocked(generateImage).mockResolvedValue({
-      id: "asset-1",
-      workspaceId: "ws-1",
-      threadId: "thread-image",
-      source: "adg",
-      model: "adg-image",
-      prompt: "A cinematic wallpaper",
-      revisedPrompt: null,
-      size: "auto",
-      localPath: "/Users/example/generated-images/asset-1.png",
-      modelVisibleImageUrl: "data:image/png;base64,AAA",
-      mimeType: "image/png",
-      createdAtMs: 123,
-      requestId: "req-1",
-      status: "completed",
-    });
-
-    renderHook(() =>
-      useThreads({
-        activeWorkspace: workspace,
-        onWorkspaceConnected: vi.fn(),
-      }),
-    );
-
-    await act(async () => {
-      handlers?.onDynamicToolCall?.({
-        workspace_id: "ws-1",
-        request_id: 405,
-        params: {
-          thread_id: "thread-image",
-          turn_id: "turn-1",
-          call_id: "call-1",
-          namespace: "codex_monitor",
-          tool: "generate_image",
-          arguments: {
-            prompt: "A cinematic wallpaper",
-          },
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(generateImage).toHaveBeenCalledWith({
-        workspaceId: "ws-1",
-        threadId: "thread-image",
-        prompt: "A cinematic wallpaper",
-        size: "auto",
-      });
-    });
-  });
-
-  it("passes reference image ids through dynamic image generation", async () => {
-    vi.mocked(generateImage).mockResolvedValue({
-      id: "asset-edited",
-      workspaceId: "ws-1",
-      threadId: "thread-image",
-      source: "adg",
-      model: "adg-image",
-      prompt: "Change the outfit to a suit",
-      revisedPrompt: null,
-      size: "1024x1536",
-      localPath: "/Users/example/generated-images/asset-edited.png",
-      modelVisibleImageUrl: "data:image/png;base64,BBB",
-      mimeType: "image/png",
-      createdAtMs: 124,
-      requestId: "req-2",
-      status: "completed",
-    });
-
-    renderHook(() =>
-      useThreads({
-        activeWorkspace: workspace,
-        onWorkspaceConnected: vi.fn(),
-      }),
-    );
-
-    await act(async () => {
-      handlers?.onDynamicToolCall?.({
-        workspace_id: "ws-1",
-        request_id: 406,
-        params: {
-          thread_id: "thread-image",
-          turn_id: "turn-1",
-          call_id: "call-2",
-          namespace: "codex_monitor",
-          tool: "generate_image",
-          arguments: {
-            prompt: "Change the outfit to a suit",
-            size: "1024x1536",
-            referenceImageIds: ["asset-source"],
-          },
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(generateImage).toHaveBeenCalledWith({
-        workspaceId: "ws-1",
-        threadId: "thread-image",
-        prompt: "Change the outfit to a suit",
-        size: "1024x1536",
-        referenceImageIds: ["asset-source"],
-      });
-    });
-    await waitFor(() => {
-      expect(respondToDynamicToolCallRequest).toHaveBeenCalledWith(
-        "ws-1",
-        406,
-        expect.objectContaining({
-          success: true,
-          contentItems: expect.arrayContaining([
-            expect.objectContaining({
-              type: "inputText",
-              text: expect.stringContaining("\"referenceImageIds\":[\"asset-source\"]"),
-            }),
-          ]),
-        }),
-      );
-    });
   });
 
   it("orders thread lists, applies custom names, and keeps pin ordering stable", async () => {

@@ -91,6 +91,7 @@ type UseMainAppLayoutSurfacesArgs = {
   usageWorkspaceOptions: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceOptions"];
   onUsageWorkspaceChange: LayoutNodesOptions["primary"]["homeProps"]["onUsageWorkspaceChange"];
   onOpenEnterpriseAiSettings: () => void;
+  onBeforeComposerSend: ComposerProps["onBeforeSend"];
   onOpenCapabilities: SidebarProps["onOpenCapabilities"];
   gitState: ReturnType<typeof useMainAppGitState>;
   composerWorkspaceState: ReturnType<typeof useMainAppComposerWorkspaceState>;
@@ -217,6 +218,9 @@ type UseMainAppLayoutSurfacesArgs = {
   appModalsAboutOpen: boolean;
   updaterState: LayoutNodesOptions["primary"]["updateToastProps"]["state"];
   startUpdate: LayoutNodesOptions["primary"]["updateToastProps"]["onUpdate"];
+  cancelUpdate: NonNullable<
+    LayoutNodesOptions["primary"]["updateToastProps"]["onCancel"]
+  >;
   dismissUpdate: LayoutNodesOptions["primary"]["updateToastProps"]["onDismiss"];
   postUpdateNotice: LayoutNodesOptions["primary"]["updateToastProps"]["postUpdateNotice"];
   dismissPostUpdateNotice: LayoutNodesOptions["primary"]["updateToastProps"]["onDismissPostUpdateNotice"];
@@ -289,6 +293,7 @@ export function useMainAppLayoutSurfaces({
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
   onOpenEnterpriseAiSettings,
+  onBeforeComposerSend,
   onOpenCapabilities,
   gitState,
   composerWorkspaceState,
@@ -383,6 +388,7 @@ export function useMainAppLayoutSurfaces({
   appModalsAboutOpen,
   updaterState,
   startUpdate,
+  cancelUpdate,
   dismissUpdate,
   postUpdateNotice,
   dismissPostUpdateNotice,
@@ -431,6 +437,7 @@ export function useMainAppLayoutSurfaces({
     onSwitchAccount,
     onCancelSwitchAccount,
     onOpenEnterpriseAiSettings,
+    onBeforeComposerSend,
     onOpenCapabilities,
     onDecision,
     onRemember,
@@ -545,6 +552,7 @@ export function useMainAppLayoutSurfaces({
     appModalsAboutOpen,
     updaterState,
     startUpdate,
+    cancelUpdate,
     dismissUpdate,
     postUpdateNotice,
     dismissPostUpdateNotice,

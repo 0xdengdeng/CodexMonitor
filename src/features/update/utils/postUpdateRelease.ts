@@ -1,7 +1,9 @@
 export const STORAGE_KEY_PENDING_POST_UPDATE_VERSION =
   "codexmonitor.pendingPostUpdateVersion";
-const TOS_UPDATE_BASE_URL =
-  "https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor";
+// Channel-scoped release-notes root. __OTA_PREFIX__ is "codexmonitor" for the
+// stable build and "codexmonitor/beta" for the test build (see vite.config.ts),
+// so each channel fetches its own release notes.
+const TOS_UPDATE_BASE_URL = `https://qihang-ai.tos-cn-beijing.volces.com/${__OTA_PREFIX__}`;
 
 export type PostUpdateReleaseInfo = {
   body: string | null;

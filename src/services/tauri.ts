@@ -5,7 +5,6 @@ import type {
   AppSettings,
   CodexUpdateResult,
   CodexDoctorResult,
-  DynamicToolCallResponse,
   EnterpriseAiLoginResult,
   EnterpriseAiUsageSnapshot,
   GeneratedImageAsset,
@@ -397,16 +396,8 @@ export async function setWorkspaceRuntimeCodexArgs(
   });
 }
 
-export async function startThread(
-  workspaceId: string,
-  options?: { nativeImageGeneration?: boolean },
-) {
-  return invoke<any>("start_thread", {
-    workspaceId,
-    ...(options?.nativeImageGeneration != null
-      ? { nativeImageGeneration: options.nativeImageGeneration }
-      : {}),
-  });
+export async function startThread(workspaceId: string) {
+  return invoke<any>("start_thread", { workspaceId });
 }
 
 export async function forkThread(workspaceId: string, threadId: string) {
@@ -563,40 +554,6 @@ export async function respondToUserInputRequest(
     workspaceId,
     requestId,
     result: { answers },
-  });
-}
-
-export async function respondToDynamicToolCallRequest(
-  workspaceId: string,
-  requestId: number | string,
-  response: DynamicToolCallResponse,
-) {
-  return invoke("respond_to_server_request", {
-    workspaceId,
-    requestId,
-    result: response,
-  });
-}
-
-export async function generateImage({
-  workspaceId,
-  threadId,
-  prompt,
-  size,
-  referenceImageIds,
-}: {
-  workspaceId?: string | null;
-  threadId?: string | null;
-  prompt: string;
-  size?: string | null;
-  referenceImageIds?: string[] | null;
-}): Promise<GeneratedImageAsset> {
-  return invoke<GeneratedImageAsset>("generate_image", {
-    workspaceId,
-    threadId,
-    prompt,
-    size,
-    referenceImageIds,
   });
 }
 
@@ -1312,4 +1269,23 @@ export async function sendNotification(
   }
 
   await attemptFallback();
+}
+
+/** Tail of the app log file (agentdesk.log), for copy-diagnostics on error. */
+export async function readAppLogTail(maxBytes = 20000): Promise<string> {
+  return await invoke<string>("read_app_log_tail", { maxBytes });
+}
+
+/** Tail of the headless daemon log (daemon.log); rejects if it was never created. */
+export async function readDaemonLogTail(maxBytes = 20000): Promise<string> {
+  return await invoke<string>("read_daemon_log_tail", { maxBytes });
+}
+
+/**
+ * Write text to the OS clipboard via the backend. Use this instead of
+ * navigator.clipboard when the copy follows async work (the webview clipboard
+ * requires a live user gesture, which awaits expire).
+ */
+export async function writeClipboard(text: string): Promise<void> {
+  await invoke("write_clipboard", { text });
 }

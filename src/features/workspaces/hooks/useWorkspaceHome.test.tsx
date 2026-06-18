@@ -137,6 +137,43 @@ describe("useWorkspaceHome", () => {
     });
   });
 
+  it("does not start or clear the draft when the run guard blocks", async () => {
+    const addWorktreeAgent = vi.fn();
+    const connectWorkspace = vi.fn();
+    const startThreadForWorkspace = vi.fn();
+    const sendUserMessageToThread = vi.fn();
+    const canStartRun = vi.fn(() => false);
+
+    const { result } = renderHook(() =>
+      useWorkspaceHome({
+        activeWorkspace: workspace,
+        models,
+        selectedModelId: "id-1",
+        canStartRun,
+        addWorktreeAgent,
+        connectWorkspace,
+        startThreadForWorkspace,
+        sendUserMessageToThread,
+      }),
+    );
+
+    act(() => {
+      result.current.setDraft("Needs login");
+    });
+
+    let started = true;
+    await act(async () => {
+      started = await result.current.startRun();
+    });
+
+    expect(started).toBe(false);
+    expect(canStartRun).toHaveBeenCalledTimes(1);
+    expect(startThreadForWorkspace).not.toHaveBeenCalled();
+    expect(sendUserMessageToThread).not.toHaveBeenCalled();
+    expect(result.current.draft).toBe("Needs login");
+    expect(result.current.runs).toHaveLength(0);
+  });
+
   it("blocks worktree runs without model selections", async () => {
     const addWorktreeAgent = vi.fn();
     const connectWorkspace = vi.fn();

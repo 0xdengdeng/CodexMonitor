@@ -2,16 +2,17 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import * as Sentry from "@sentry/react";
 import type {
   CollabAgentRef,
+  ConversationItem,
   CustomPromptOption,
   DebugEntry,
-  DynamicToolCallRequest,
-  DynamicToolCallOutputContentItem,
+  GeneratedImageAsset,
   InterfaceLanguagePreference,
   ServiceTier,
   ThreadListSortKey,
   WorkspaceInfo,
 } from "@/types";
 import { CHAT_SCROLLBACK_DEFAULT } from "@utils/chatScrollback";
+import { imageGenerationIdsMatch } from "@utils/threadItems";
 import { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
@@ -29,9 +30,8 @@ import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
 import { useDetachedReviewTracking } from "./useDetachedReviewTracking";
 import {
   archiveThread as archiveThreadService,
-  generateImage,
+  listGeneratedImages,
   readThread as readThreadService,
-  respondToDynamicToolCallRequest,
   setThreadName as setThreadNameService,
 } from "@services/tauri";
 import {
@@ -44,7 +44,7 @@ import {
   extractThreadFromResponse,
 } from "@threads/utils/threadSummary";
 import { getSubagentDescendantThreadIds } from "@threads/utils/subagentTree";
-import { normalizePublicImageModel } from "@/utils/imageModels";
+import { buildGeneratedImageRecoveryDecision } from "@threads/utils/threadActionHelpers";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -65,7 +65,6 @@ type UseThreadsOptions = {
   steerEnabled?: boolean;
   threadTitleAutogenerationEnabled?: boolean;
   chatHistoryScrollbackItems?: number | null;
-  nativeImageGenerationEnabled?: boolean;
   imageGenerationModel?: string | null;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
@@ -81,22 +80,36 @@ function buildWorkspaceThreadKey(workspaceId: string, threadId: string) {
   return `${workspaceId}:${threadId}`;
 }
 
-function stringArrayArg(...values: unknown[]) {
-  for (const value of values) {
-    if (Array.isArray(value)) {
-      return value
-        .filter((item): item is string => typeof item === "string")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
-    if (typeof value === "string" && value.trim()) {
-      return [value.trim()];
-    }
+const CASCADE_ARCHIVE_SKIP_TTL_MS = 120_000;
+
+function buildGeneratedImageItemFromAsset(
+  asset: GeneratedImageAsset,
+): Extract<ConversationItem, { kind: "imageGeneration" }> | null {
+  const id = String(asset.id ?? "").trim();
+  const localPath = String(asset.localPath ?? "").trim();
+  if (!id || !localPath) {
+    return null;
   }
-  return [];
+  return {
+    id,
+    kind: "imageGeneration",
+    status: asset.status === "failed" ? "failed" : "completed",
+    prompt: String(asset.prompt ?? ""),
+    revisedPrompt: asset.revisedPrompt ?? null,
+    model: String(asset.model ?? ""),
+    size: String(asset.size ?? ""),
+    assetId: null,
+    savedPath: localPath || null,
+    imageSrc: localPath,
+    error: null,
+    createdAt: asset.createdAtMs > 0 ? asset.createdAtMs : undefined,
+  };
 }
 
-const CASCADE_ARCHIVE_SKIP_TTL_MS = 120_000;
+type GeneratedImageHydrationResult = {
+  assetCount: number;
+  missingAnchorIds: string[];
+};
 
 export function useThreads({
   activeWorkspace,
@@ -114,7 +127,6 @@ export function useThreads({
   steerEnabled = false,
   threadTitleAutogenerationEnabled = false,
   chatHistoryScrollbackItems,
-  nativeImageGenerationEnabled = true,
   imageGenerationModel = null,
   customPrompts = [],
   onMessageActivity,
@@ -144,6 +156,7 @@ export function useThreads({
   const itemsByThreadRef = useRef(state.itemsByThread);
   const threadsByWorkspaceRef = useRef(state.threadsByWorkspace);
   const activeTurnIdByThreadRef = useRef(state.activeTurnIdByThread);
+  const threadStatusByIdRef = useRef(state.threadStatusById);
   const subagentThreadByWorkspaceThreadRef = useRef<Record<string, true>>({});
   const threadParentByIdRef = useRef(state.threadParentById);
   const cascadeArchiveSkipRef = useRef<Record<string, number>>({});
@@ -152,6 +165,7 @@ export function useThreads({
   itemsByThreadRef.current = state.itemsByThread;
   threadsByWorkspaceRef.current = state.threadsByWorkspace;
   activeTurnIdByThreadRef.current = state.activeTurnIdByThread;
+  threadStatusByIdRef.current = state.threadStatusById;
   threadParentByIdRef.current = state.threadParentById;
   const rateLimitsByWorkspaceRef = useRef(state.rateLimitsByWorkspace);
   rateLimitsByWorkspaceRef.current = state.rateLimitsByWorkspace;
@@ -564,194 +578,11 @@ export function useThreads({
     [threadHandlers],
   );
 
-  const handleDynamicToolCall = useCallback(
-    (request: DynamicToolCallRequest) => {
-      void (async () => {
-        const { workspace_id, request_id, params } = request;
-        const args = params.arguments ?? {};
-        const prompt =
-          typeof args.prompt === "string" ? args.prompt.trim() : "";
-        const size =
-          typeof args.size === "string" && args.size.trim()
-            ? args.size.trim()
-            : "auto";
-        const referenceImageIds = stringArrayArg(
-          args.referenceImageIds,
-          args.reference_image_ids,
-          args.sourceImageIds,
-          args.source_image_ids,
-          args.referenceImageId,
-          args.reference_image_id,
-          args.sourceImageId,
-          args.source_image_id,
-        );
-        const isImageTool =
-          params.namespace === "codex_monitor" && params.tool === "generate_image";
-        if (!isImageTool || !prompt) {
-          await respondToDynamicToolCallRequest(workspace_id, request_id, {
-            success: false,
-            contentItems: [
-              {
-                type: "inputText",
-                text: JSON.stringify({
-                  error: prompt
-                    ? "Unsupported dynamic tool."
-                    : "Image prompt is required.",
-                }),
-              },
-            ],
-          });
-          return;
-        }
-
-        dispatch({
-          type: "upsertItem",
-          workspaceId: workspace_id,
-          threadId: params.thread_id,
-          item: {
-            id: params.call_id,
-            kind: "imageGeneration",
-            status: "in_progress",
-            prompt,
-            revisedPrompt: null,
-            model: normalizePublicImageModel(null),
-            size,
-            assetId: null,
-            savedPath: null,
-            imageSrc: null,
-            error: null,
-            createdAt: Date.now(),
-          },
-          hasCustomName: Boolean(getCustomName(workspace_id, params.thread_id)),
-        });
-
-        try {
-          const imageRequest = {
-            workspaceId: workspace_id,
-            threadId: params.thread_id,
-            prompt,
-            size,
-            ...(referenceImageIds.length > 0 ? { referenceImageIds } : {}),
-          };
-          const asset = await generateImage({
-            ...imageRequest,
-          });
-          const imageUrl = asset.modelVisibleImageUrl?.trim() ?? "";
-          const metadata = {
-            assetId: asset.id,
-            model: asset.model,
-            size: asset.size,
-            ...(asset.revisedPrompt ? { revisedPrompt: asset.revisedPrompt } : {}),
-            savedPath: asset.localPath,
-            localPath: asset.localPath,
-            requestId: asset.requestId,
-            ...(referenceImageIds.length > 0 ? { referenceImageIds } : {}),
-          };
-          const contentItems: DynamicToolCallOutputContentItem[] = [
-            {
-              type: "inputText" as const,
-              text: JSON.stringify(metadata),
-            },
-          ];
-          if (imageUrl) {
-            contentItems.push({ type: "inputImage" as const, imageUrl });
-          }
-          dispatch({
-            type: "upsertItem",
-            workspaceId: workspace_id,
-            threadId: params.thread_id,
-            item: {
-              id: params.call_id,
-              kind: "imageGeneration",
-              status: "completed",
-              prompt: asset.prompt || prompt,
-              revisedPrompt: asset.revisedPrompt,
-              model: normalizePublicImageModel(asset.model),
-              size: asset.size || size,
-              assetId: asset.id,
-              savedPath: asset.localPath || null,
-              imageSrc: asset.localPath || imageUrl || null,
-              error: null,
-            },
-            hasCustomName: Boolean(getCustomName(workspace_id, params.thread_id)),
-          });
-          safeMessageActivity();
-          await respondToDynamicToolCallRequest(workspace_id, request_id, {
-            success: true,
-            contentItems,
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          dispatch({
-            type: "upsertItem",
-            workspaceId: workspace_id,
-            threadId: params.thread_id,
-            item: {
-              id: params.call_id,
-              kind: "imageGeneration",
-              status: "failed",
-              prompt,
-              revisedPrompt: null,
-              model: normalizePublicImageModel(null),
-              size,
-              assetId: null,
-              savedPath: null,
-              imageSrc: null,
-              error: message,
-              createdAt: Date.now(),
-            },
-            hasCustomName: Boolean(getCustomName(workspace_id, params.thread_id)),
-          });
-          await respondToDynamicToolCallRequest(workspace_id, request_id, {
-            success: false,
-            contentItems: [
-              {
-                type: "inputText",
-                text: JSON.stringify({ error: message }),
-              },
-            ],
-          });
-        }
-      })().catch((error) => {
-        onDebug?.({
-          id: `${Date.now()}-client-dynamic-tool-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "item/tool/call error",
-          payload: error instanceof Error ? error.message : String(error),
-        });
-      });
-    },
-    [dispatch, getCustomName, onDebug, safeMessageActivity],
-  );
-
-  const handlers = useMemo(
-    () => ({
-      ...threadHandlers,
-      onDynamicToolCall: handleDynamicToolCall,
-      onThreadStarted: handleThreadStarted,
-      onThreadArchived: handleThreadArchived,
-      onThreadUnarchived: handleThreadUnarchived,
-      onAccountUpdated: handleAccountUpdated,
-      onAccountLoginCompleted: handleAccountLoginCompleted,
-    }),
-    [
-      threadHandlers,
-      handleThreadStarted,
-      handleThreadArchived,
-      handleThreadUnarchived,
-      handleDynamicToolCall,
-      handleAccountUpdated,
-      handleAccountLoginCompleted,
-    ],
-  );
-
-  useAppServerEvents(handlers);
-
   const {
     startThreadForWorkspace: startThreadForWorkspaceInternal,
     forkThreadForWorkspace,
     resumeThreadForWorkspace,
+    isThreadRuntimeStateMissing,
     refreshThread,
     resetWorkspaceThreads,
     listThreadsForWorkspaces,
@@ -779,6 +610,101 @@ export function useThreads({
     onThreadCodexMetadataDetected,
     imageGenerationModel,
   });
+
+  const hydrateGeneratedImageAssets = useCallback(
+    async (
+      workspaceId: string,
+      threadId: string,
+    ): Promise<GeneratedImageHydrationResult> => {
+      try {
+        const assets = await listGeneratedImages({ workspaceId, threadId });
+        const existingImageIds = (itemsByThreadRef.current[threadId] ?? [])
+          .filter((item) => item.kind === "imageGeneration")
+          .map((item) => item.id);
+        const missingAnchorIds: string[] = [];
+        for (const asset of [...assets].reverse()) {
+          const item = buildGeneratedImageItemFromAsset(asset);
+          if (!item) {
+            continue;
+          }
+          const hasExistingAnchor = existingImageIds.some((existingId) =>
+            imageGenerationIdsMatch(existingId, item.id),
+          );
+          if (!hasExistingAnchor) {
+            missingAnchorIds.push(item.id);
+          }
+          existingImageIds.push(item.id);
+          dispatch({
+            type: "hydrateGeneratedImageItem",
+            threadId,
+            item,
+            anchorMessageText: asset.anchorMessageText,
+          });
+        }
+        return { assetCount: assets.length, missingAnchorIds };
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-thread-runtime-image-hydration-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "thread/runtime-image hydration error",
+          payload: {
+            workspaceId,
+            threadId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+        return { assetCount: 0, missingAnchorIds: [] };
+      }
+    },
+    [dispatch, itemsByThreadRef, onDebug],
+  );
+
+  const handleTurnCompleted = useCallback(
+    (workspaceId: string, threadId: string, turnId: string) => {
+      threadHandlers.onTurnCompleted?.(workspaceId, threadId, turnId);
+      if (workspaceId !== activeWorkspaceId || threadId !== activeThreadId) {
+        return;
+      }
+      void (async () => {
+        try {
+          await refreshThread(workspaceId, threadId);
+        } finally {
+          await hydrateGeneratedImageAssets(workspaceId, threadId);
+        }
+      })();
+    },
+    [
+      activeThreadId,
+      activeWorkspaceId,
+      hydrateGeneratedImageAssets,
+      refreshThread,
+      threadHandlers,
+    ],
+  );
+
+  const handlers = useMemo(
+    () => ({
+      ...threadHandlers,
+      onThreadStarted: handleThreadStarted,
+      onThreadArchived: handleThreadArchived,
+      onThreadUnarchived: handleThreadUnarchived,
+      onTurnCompleted: handleTurnCompleted,
+      onAccountUpdated: handleAccountUpdated,
+      onAccountLoginCompleted: handleAccountLoginCompleted,
+    }),
+    [
+      threadHandlers,
+      handleThreadStarted,
+      handleThreadArchived,
+      handleThreadUnarchived,
+      handleTurnCompleted,
+      handleAccountUpdated,
+      handleAccountLoginCompleted,
+    ],
+  );
+
+  useAppServerEvents(handlers);
 
   const ensureWorkspaceRuntimeCodexArgsBestEffort = useCallback(
     async (workspaceId: string, threadId: string | null, phase: string) => {
@@ -832,9 +758,9 @@ export function useThreads({
       getWorkspaceThreadIds(workspaceId, excludedThreadId).some(
         (candidateThreadId) =>
           candidateThreadId !== excludedThreadId &&
-          Boolean(state.threadStatusById[candidateThreadId]?.isProcessing),
+          Boolean(threadStatusByIdRef.current[candidateThreadId]?.isProcessing),
       ),
-    [getWorkspaceThreadIds, state.threadStatusById],
+    [getWorkspaceThreadIds, threadStatusByIdRef],
   );
 
   const shouldPreflightRuntimeCodexArgsForSend = useCallback(
@@ -843,21 +769,76 @@ export function useThreads({
     [hasProcessingThreadInWorkspace],
   );
 
-  const startThreadForWorkspace = useCallback(
-    async (
-      workspaceId: string,
-      options?: { activate?: boolean; nativeImageGeneration?: boolean },
-    ) => {
-      await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
-      const startOptions = { ...options };
-      const nativeImageGeneration =
-        options?.nativeImageGeneration ?? nativeImageGenerationEnabled;
-      startOptions.nativeImageGeneration = nativeImageGeneration;
-      return startThreadForWorkspaceInternal(workspaceId, startOptions);
+  const recoverMissingGeneratedImageAnchors = useCallback(
+    async (workspaceId: string, threadId: string) => {
+      const hydration = await hydrateGeneratedImageAssets(workspaceId, threadId);
+      const isThreadProcessing =
+        threadStatusByIdRef.current[threadId]?.isProcessing === true;
+      const recoveryDecision = buildGeneratedImageRecoveryDecision({
+        assetCount: hydration.assetCount,
+        missingAnchorIds: hydration.missingAnchorIds,
+        isThreadProcessing,
+      });
+      if (!recoveryDecision.shouldResume) {
+        return false;
+      }
+      const hasActiveTurnInWorkspace = hasProcessingThreadInWorkspace(workspaceId);
+      if (!hasActiveTurnInWorkspace) {
+        await ensureWorkspaceRuntimeCodexArgsBestEffort(
+          workspaceId,
+          threadId,
+          "resume",
+        );
+      }
+      await resumeThreadForWorkspace(
+        workspaceId,
+        threadId,
+        true,
+        recoveryDecision.replaceLocal,
+      );
+      await hydrateGeneratedImageAssets(workspaceId, threadId);
+      return true;
     },
     [
       ensureWorkspaceRuntimeCodexArgsBestEffort,
-      nativeImageGenerationEnabled,
+      hasProcessingThreadInWorkspace,
+      hydrateGeneratedImageAssets,
+      itemsByThreadRef,
+      resumeThreadForWorkspace,
+      threadStatusByIdRef,
+    ],
+  );
+
+  const activeThreadItemCount = activeThreadId
+    ? (state.itemsByThread[activeThreadId]?.length ?? 0)
+    : 0;
+
+  useEffect(() => {
+    if (!activeWorkspaceId || !activeThreadId) {
+      return;
+    }
+    if (loadedThreadsRef.current[activeThreadId]) {
+      return;
+    }
+    void recoverMissingGeneratedImageAnchors(activeWorkspaceId, activeThreadId);
+  }, [
+    activeThreadId,
+    activeThreadItemCount,
+    activeWorkspaceId,
+    loadedThreadsRef,
+    recoverMissingGeneratedImageAnchors,
+  ]);
+
+  const startThreadForWorkspace = useCallback(
+    async (
+      workspaceId: string,
+      options?: { activate?: boolean },
+    ) => {
+      await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
+      return startThreadForWorkspaceInternal(workspaceId, options);
+    },
+    [
+      ensureWorkspaceRuntimeCodexArgsBestEffort,
       startThreadForWorkspaceInternal,
     ],
   );
@@ -868,6 +849,19 @@ export function useThreads({
     }
     return startThreadForWorkspace(activeWorkspaceId);
   }, [activeWorkspaceId, startThreadForWorkspace]);
+
+  const hasLocalThreadSnapshot = useCallback(
+    (threadId: string | null) => {
+      if (!threadId) {
+        return false;
+      }
+      return (
+        loadedThreadsRef.current[threadId] === true ||
+        (itemsByThreadRef.current[threadId]?.length ?? 0) > 0
+      );
+    },
+    [itemsByThreadRef, loadedThreadsRef],
+  );
 
   const ensureThreadForActiveWorkspace = useCallback(async () => {
     if (!activeWorkspace) {
@@ -885,13 +879,22 @@ export function useThreads({
         threadId,
         "resume",
       );
-      await resumeThreadForWorkspace(activeWorkspace.id, threadId);
+      const resumedThreadId = await resumeThreadForWorkspace(activeWorkspace.id, threadId);
+      if (
+        !resumedThreadId &&
+        isThreadRuntimeStateMissing(threadId) &&
+        !hasLocalThreadSnapshot(threadId)
+      ) {
+        threadId = await startThreadForWorkspace(activeWorkspace.id);
+      }
     }
     return threadId;
   }, [
     activeWorkspace,
     activeThreadId,
     ensureWorkspaceRuntimeCodexArgsBestEffort,
+    hasLocalThreadSnapshot,
+    isThreadRuntimeStateMissing,
     resumeThreadForWorkspace,
     startThreadForWorkspace,
   ]);
@@ -910,7 +913,19 @@ export function useThreads({
         }
       } else if (!loadedThreadsRef.current[threadId]) {
         await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, threadId, "resume");
-        await resumeThreadForWorkspace(workspaceId, threadId);
+        const resumedThreadId = await resumeThreadForWorkspace(workspaceId, threadId);
+        if (
+          !resumedThreadId &&
+          isThreadRuntimeStateMissing(threadId) &&
+          !hasLocalThreadSnapshot(threadId)
+        ) {
+          threadId = await startThreadForWorkspace(workspaceId, {
+            activate: shouldActivate,
+          });
+          if (!threadId) {
+            return null;
+          }
+        }
       }
       if (shouldActivate && currentActiveThreadId !== threadId) {
         dispatch({ type: "setActiveThreadId", workspaceId, threadId });
@@ -921,6 +936,8 @@ export function useThreads({
       activeWorkspaceId,
       dispatch,
       ensureWorkspaceRuntimeCodexArgsBestEffort,
+      hasLocalThreadSnapshot,
+      isThreadRuntimeStateMissing,
       loadedThreadsRef,
       resumeThreadForWorkspace,
       startThreadForWorkspace,
@@ -998,19 +1015,6 @@ export function useThreads({
     renameThread,
   });
 
-  const hasLocalThreadSnapshot = useCallback(
-    (threadId: string | null) => {
-      if (!threadId) {
-        return false;
-      }
-      return (
-        loadedThreadsRef.current[threadId] === true ||
-        (itemsByThreadRef.current[threadId]?.length ?? 0) > 0
-      );
-    },
-    [itemsByThreadRef, loadedThreadsRef],
-  );
-
   const setActiveThreadId = useCallback(
     (threadId: string | null, workspaceId?: string) => {
       const targetId = workspaceId ?? activeWorkspaceId;
@@ -1032,6 +1036,13 @@ export function useThreads({
         void (async () => {
           const hasLocalSnapshot = hasLocalThreadSnapshot(threadId);
           if (hasLocalSnapshot) {
+            const recovered = await recoverMissingGeneratedImageAnchors(
+              targetId,
+              threadId,
+            );
+            if (recovered) {
+              return;
+            }
             loadedThreadsRef.current[threadId] = true;
             return;
           }
@@ -1040,6 +1051,7 @@ export function useThreads({
             await ensureWorkspaceRuntimeCodexArgsBestEffort(targetId, threadId, "resume");
           }
           await resumeThreadForWorkspace(targetId, threadId);
+          await hydrateGeneratedImageAssets(targetId, threadId);
         })();
       }
     },
@@ -1048,7 +1060,9 @@ export function useThreads({
       ensureWorkspaceRuntimeCodexArgsBestEffort,
       hasLocalThreadSnapshot,
       hasProcessingThreadInWorkspace,
+      hydrateGeneratedImageAssets,
       loadedThreadsRef,
+      recoverMissingGeneratedImageAnchors,
       resumeThreadForWorkspace,
       state.activeThreadIdByWorkspace,
     ],

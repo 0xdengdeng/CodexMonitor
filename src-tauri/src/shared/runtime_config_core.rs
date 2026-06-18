@@ -8,16 +8,21 @@ use crate::types::ManagedRuntimeConfig;
 
 pub(crate) const MANAGED_RUNTIME_PROVIDER_ID: &str = "agentdesk_managed";
 pub(crate) const MANAGED_RUNTIME_ENV_KEY: &str = runtime_secret_core::RUNTIME_API_KEY_ENV_KEY;
+pub(crate) const DEFAULT_MANAGED_RUNTIME_MODEL: &str = "gpt-5.5";
 
 const MANAGED_RUNTIME_PROVIDER_NAME: &str = "agentDesk Managed Runtime";
 const MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS: i64 = 300_000;
-const MANAGED_RUNTIME_USER_AGENT: &str =
-    concat!(
-        "CodexMonitor/",
-        env!("CARGO_PKG_VERSION"),
-        " AgentDesk codex_cli_rs/",
-        env!("CARGO_PKG_VERSION")
-    );
+// Codex feature keys that pick the image path. CodexMonitor ships a single
+// product path: the converged `generate_image` function tool, fulfilled by the
+// managed gateway. Native image_generation stays off.
+const FEATURE_IMAGE_GENERATION: &str = "image_generation";
+const FEATURE_GENERATE_IMAGE_TOOL: &str = "generate_image_tool";
+const MANAGED_RUNTIME_USER_AGENT: &str = concat!(
+    "CodexMonitor/",
+    env!("CARGO_PKG_VERSION"),
+    " AgentDesk codex_cli_rs/",
+    env!("CARGO_PKG_VERSION")
+);
 
 fn normalized_optional(value: Option<&str>) -> Option<String> {
     let trimmed = value?.trim();
@@ -36,13 +41,21 @@ pub(crate) fn normalize_managed_runtime_config(
         base_url: normalized_optional(config.base_url.as_deref()),
         model: normalized_optional(config.model.as_deref()),
         image_model: normalized_optional(config.image_model.as_deref()),
-        native_image_generation: config.native_image_generation,
     }
 }
 
 pub(crate) fn managed_runtime_config_is_complete(config: &ManagedRuntimeConfig) -> bool {
     let config = normalize_managed_runtime_config(config);
     config.enabled && config.base_url.is_some()
+}
+
+pub(crate) fn effective_managed_runtime_model(config: &ManagedRuntimeConfig) -> Option<String> {
+    if !managed_runtime_config_is_complete(config) {
+        return None;
+    }
+    normalize_managed_runtime_config(config)
+        .model
+        .or_else(|| Some(DEFAULT_MANAGED_RUNTIME_MODEL.to_string()))
 }
 
 pub(crate) fn build_managed_runtime_env(
@@ -99,9 +112,11 @@ pub(crate) fn apply_managed_runtime_config_to_document(
         "model_provider",
         Some(MANAGED_RUNTIME_PROVIDER_ID),
     );
-    if config.model.is_some() {
-        config_toml_core::set_top_level_string(document, "model", config.model.as_deref());
-    }
+    config_toml_core::set_top_level_string(
+        document,
+        "model",
+        effective_managed_runtime_model(&config).as_deref(),
+    );
 
     let providers = config_toml_core::ensure_table(document, "model_providers")?;
     let mut provider = Table::new();
@@ -120,6 +135,10 @@ pub(crate) fn apply_managed_runtime_config_to_document(
     provider["http_headers"] = Item::Table(http_headers);
     providers[MANAGED_RUNTIME_PROVIDER_ID] = Item::Table(provider);
 
+    let features = config_toml_core::ensure_table(document, "features")?;
+    features[FEATURE_IMAGE_GENERATION] = value(false);
+    features[FEATURE_GENERATE_IMAGE_TOOL] = value(true);
+
     Ok(())
 }
 
@@ -135,6 +154,15 @@ fn remove_managed_runtime_provider(document: &mut toml_edit::Document) -> Result
     {
         providers.remove(MANAGED_RUNTIME_PROVIDER_ID);
     }
+    // Drop the image-path feature keys we manage so codex falls back to its own
+    // defaults when the managed runtime is off; never clobber unrelated features.
+    if let Some(features) = document.get_mut("features").and_then(Item::as_table_mut) {
+        features.remove(FEATURE_IMAGE_GENERATION);
+        features.remove(FEATURE_GENERATE_IMAGE_TOOL);
+        if features.is_empty() {
+            document.remove("features");
+        }
+    }
     Ok(())
 }
 
@@ -147,8 +175,8 @@ mod tests {
     use crate::types::ManagedRuntimeConfig;
 
     use super::{
-        build_managed_runtime_env, sync_managed_runtime_config, MANAGED_RUNTIME_ENV_KEY,
-        MANAGED_RUNTIME_PROVIDER_ID,
+        build_managed_runtime_env, sync_managed_runtime_config, DEFAULT_MANAGED_RUNTIME_MODEL,
+        MANAGED_RUNTIME_ENV_KEY, MANAGED_RUNTIME_PROVIDER_ID,
     };
 
     #[test]
@@ -161,8 +189,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("gpt-5.4".to_string()),
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -184,6 +211,45 @@ mod tests {
     }
 
     #[test]
+    fn sync_managed_runtime_config_writes_image_path_features() {
+        let codex_home =
+            std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
+        fs::create_dir_all(&codex_home).expect("create temp codex home");
+        let config_path = codex_home.join("config.toml");
+
+        // Historical/native settings must not change the packaged product path:
+        // CodexMonitor always exposes the Gateway generate_image tool.
+        let native = ManagedRuntimeConfig {
+            enabled: true,
+            base_url: Some("https://runtime.example.com/v1".to_string()),
+            model: Some("gpt-5.5".to_string()),
+            image_model: None,
+        };
+        sync_managed_runtime_config(&codex_home, &native).expect("sync native");
+        let contents = fs::read_to_string(&config_path).expect("read config.toml");
+        assert!(contents.contains("[features]"));
+        assert!(contents.contains("image_generation = false"));
+        assert!(contents.contains("generate_image_tool = true"));
+
+        // native off keeps the same invariant.
+        let converged = ManagedRuntimeConfig { ..native.clone() };
+        sync_managed_runtime_config(&codex_home, &converged).expect("sync converged");
+        let contents = fs::read_to_string(&config_path).expect("read config.toml");
+        assert!(contents.contains("image_generation = false"));
+        assert!(contents.contains("generate_image_tool = true"));
+
+        // managed runtime off -> our feature keys are dropped (codex defaults).
+        let disabled = ManagedRuntimeConfig {
+            enabled: false,
+            ..native
+        };
+        sync_managed_runtime_config(&codex_home, &disabled).expect("sync disabled");
+        let contents = fs::read_to_string(&config_path).expect("read config.toml");
+        assert!(!contents.contains("generate_image_tool"));
+        assert!(!contents.contains("image_generation"));
+    }
+
+    #[test]
     fn sync_managed_runtime_config_writes_image_model_header() {
         let codex_home =
             std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
@@ -193,8 +259,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("qihang-ultra-5.5".to_string()),
-            image_model: Some("adg-image-pro".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2-pro".to_string()),
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -202,7 +267,7 @@ mod tests {
         let contents =
             fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
         assert!(contents.contains("[model_providers.agentdesk_managed.http_headers]"));
-        assert!(contents.contains("X-ADG-Image-Model = \"adg-image-pro\""));
+        assert!(contents.contains("X-ADG-Image-Model = \"gpt-image-2-pro\""));
     }
 
     #[test]
@@ -216,7 +281,6 @@ mod tests {
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("qihang-ultra-5.5".to_string()),
             image_model: None,
-            native_image_generation: true,
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -242,7 +306,6 @@ mod tests {
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("qihang-ultra-5.5".to_string()),
             image_model: None,
-            native_image_generation: true,
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -259,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_managed_runtime_config_allows_model_to_be_omitted() {
+    fn sync_managed_runtime_config_writes_default_model_when_omitted() {
         let codex_home =
             std::env::temp_dir().join(format!("agentdesk-runtime-config-{}", Uuid::new_v4()));
         fs::create_dir_all(&codex_home).expect("create temp codex home");
@@ -268,8 +331,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: None,
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -279,9 +341,9 @@ mod tests {
         assert!(contents.contains(&format!(
             "model_provider = \"{MANAGED_RUNTIME_PROVIDER_ID}\""
         )));
+        assert!(contents.contains(&format!("model = \"{DEFAULT_MANAGED_RUNTIME_MODEL}\"")));
         assert!(contents.contains("[model_providers.agentdesk_managed]"));
         assert!(contents.contains("base_url = \"https://runtime.example.com/v1\""));
-        assert!(!contents.contains("model = "));
     }
 
     #[test]
@@ -290,8 +352,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("gpt-5.4".to_string()),
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
         assert_eq!(
             build_managed_runtime_env(&enabled, Some("sk-secret".to_string())),

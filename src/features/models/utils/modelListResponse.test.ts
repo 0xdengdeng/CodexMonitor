@@ -150,7 +150,7 @@ describe("parseModelListResponse", () => {
       object: "list",
       data: [
         {
-          id: "adg-image",
+          id: "gpt-image-2",
           object: "model",
           type: "image",
           display_name: "ADG Image",
@@ -163,8 +163,8 @@ describe("parseModelListResponse", () => {
     const [model] = parseModelListResponse(response);
 
     expect(model).toMatchObject({
-      id: "adg-image",
-      model: "adg-image",
+      id: "gpt-image-2",
+      model: "gpt-image-2",
       displayName: "ADG Image",
       type: "image",
       capabilities: { image: true },

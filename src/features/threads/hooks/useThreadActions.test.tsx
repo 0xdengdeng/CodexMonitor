@@ -140,7 +140,7 @@ describe("useThreadActions", () => {
     expect(loadedThreadsRef.current["thread-1"]).toBe(true);
   });
 
-  it("passes native image generation preference when starting a thread", async () => {
+  it("starts threads without legacy image-generation options", async () => {
     vi.mocked(startThread).mockResolvedValue({
       result: { thread: { id: "thread-native-image" } },
     });
@@ -148,14 +148,10 @@ describe("useThreadActions", () => {
     const { result } = renderActions();
 
     await act(async () => {
-      await result.current.startThreadForWorkspace("ws-1", {
-        nativeImageGeneration: true,
-      });
+      await result.current.startThreadForWorkspace("ws-1");
     });
 
-    expect(startThread).toHaveBeenCalledWith("ws-1", {
-      nativeImageGeneration: true,
-    });
+    expect(startThread).toHaveBeenCalledWith("ws-1");
   });
 
   it("forks a thread and activates the fork", async () => {

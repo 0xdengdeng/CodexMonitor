@@ -56,7 +56,7 @@
 
 .update-toast-update-pill {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
   width: max-content;
@@ -96,6 +96,27 @@
   padding: 6px 10px;
   border-radius: 8px;
   white-space: nowrap;
+}
+
+.update-toast-pill-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.update-toast-pill-close:hover {
+  background: var(--surface-card-muted);
+  color: var(--text-stronger);
 }
 
 .update-toast-progress {

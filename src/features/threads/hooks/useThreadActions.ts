@@ -22,7 +22,7 @@ import {
   buildThreadSummaryFromThread,
   extractThreadFromResponse,
 } from "@threads/utils/threadSummary";
-import { asString } from "@threads/utils/threadNormalize";
+import { asString, extractRpcErrorMessage } from "@threads/utils/threadNormalize";
 import {
   getParentThreadIdFromThread,
   shouldHideSubagentThreadFromSidebar,
@@ -43,9 +43,16 @@ const THREAD_LIST_MAX_PAGES_OLDER = 6;
 const THREAD_LIST_MAX_PAGES_DEFAULT = 6;
 const THREAD_LIST_CURSOR_PAGE_START = "__codex_monitor_page_start__";
 
+function isThreadRuntimeStateMissingMessage(message: string, threadId: string) {
+  return (
+    (message.includes("thread not found") ||
+      message.includes("no rollout found for thread id")) &&
+    message.includes(threadId)
+  );
+}
+
 type StartThreadOptions = {
   activate?: boolean;
-  nativeImageGeneration?: boolean;
 };
 
 type UseThreadActionsOptions = {
@@ -100,6 +107,7 @@ export function useThreadActions({
   onThreadCodexMetadataDetected,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
+  const missingRuntimeStateThreadIdsRef = useRef<Set<string>>(new Set());
   const threadStatusByIdRef = useRef(threadStatusById);
   const activeTurnIdByThreadRef = useRef(activeTurnIdByThread);
   threadStatusByIdRef.current = threadStatusById;
@@ -162,12 +170,7 @@ export function useThreadActions({
         payload: { workspaceId },
       });
       try {
-        const response =
-          options?.nativeImageGeneration != null
-            ? await startThreadService(workspaceId, {
-                nativeImageGeneration: options.nativeImageGeneration,
-              })
-            : await startThreadService(workspaceId);
+        const response = await startThreadService(workspaceId);
         onDebug?.({
           id: `${Date.now()}-server-thread-start`,
           timestamp: Date.now(),
@@ -248,8 +251,16 @@ export function useThreadActions({
           label: "thread/resume response",
           payload: response,
         });
+        const rpcError = extractRpcErrorMessage(response);
+        if (rpcError) {
+          if (isThreadRuntimeStateMissingMessage(rpcError, threadId)) {
+            missingRuntimeStateThreadIdsRef.current.add(threadId);
+          }
+          return null;
+        }
         const thread = extractThreadFromResponse(response);
         if (thread) {
+          missingRuntimeStateThreadIdsRef.current.delete(threadId);
           dispatch({ type: "ensureThread", workspaceId, threadId });
           applyThreadMetadata(workspaceId, threadId, thread, {
             notifySubagent: true,
@@ -878,6 +889,8 @@ export function useThreadActions({
     startThreadForWorkspace,
     forkThreadForWorkspace,
     resumeThreadForWorkspace,
+    isThreadRuntimeStateMissing: (threadId: string) =>
+      missingRuntimeStateThreadIdsRef.current.has(threadId),
     refreshThread,
     resetWorkspaceThreads,
     listThreadsForWorkspaces,

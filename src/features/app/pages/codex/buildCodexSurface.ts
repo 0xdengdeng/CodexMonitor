@@ -56,6 +56,7 @@ export function buildCodexSurface({
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
   onOpenEnterpriseAiSettings,
+  onBeforeComposerSend,
   onOpenCapabilities,
   gitState,
   composerWorkspaceState,
@@ -133,6 +134,7 @@ export function buildCodexSurface({
   appModalsAboutOpen,
   updaterState,
   startUpdate,
+  cancelUpdate,
   dismissUpdate,
   postUpdateNotice,
   dismissPostUpdateNotice,
@@ -240,6 +242,7 @@ export function buildCodexSurface({
     composerProps: composerWorkspaceState.showComposer
       ? {
           onSend: handleComposerSendWithDraftStart,
+          onBeforeSend: onBeforeComposerSend,
           onStop: interruptTurn,
           canStop: composerWorkspaceState.canInterrupt,
           disabled: composerWorkspaceState.isReviewing,
@@ -330,6 +333,7 @@ export function buildCodexSurface({
     updateToastProps: {
       state: appModalsAboutOpen ? { stage: "idle" as const } : updaterState,
       onUpdate: startUpdate,
+      onCancel: cancelUpdate,
       onDismiss: dismissUpdate,
       postUpdateNotice,
       onDismissPostUpdateNotice: dismissPostUpdateNotice,

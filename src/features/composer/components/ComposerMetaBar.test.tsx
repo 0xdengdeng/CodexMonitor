@@ -92,6 +92,18 @@ describe("ComposerMetaBar", () => {
     expect(onSelectModel).toHaveBeenCalledWith("gpt-5.5");
   });
 
+  it("leaves the model control blank when no models are available", () => {
+    renderMetaBar(null, {
+      models: [],
+      selectedModelId: null,
+    });
+
+    const modelControl = screen.getByRole("combobox", { name: "Model" });
+
+    expect(modelControl.textContent).toBe("");
+    expect(modelControl).toHaveProperty("disabled", true);
+  });
+
   it("localizes reasoning effort labels", () => {
     renderMetaBar(null, {}, "zh-CN");
 

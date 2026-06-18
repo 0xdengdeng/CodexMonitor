@@ -72,7 +72,6 @@ function normalizeManagedRuntime(
     baseUrl: normalizeNullableString(value?.baseUrl),
     model: normalizeNullableString(value?.model),
     imageModel: normalizeNullableString(normalizePublicImageModel(value?.imageModel)),
-    nativeImageGeneration: value?.nativeImageGeneration !== false,
   };
 }
 
@@ -212,7 +211,6 @@ function buildDefaultSettings(): AppSettings {
       baseUrl: null,
       model: null,
       imageModel: null,
-      nativeImageGeneration: true,
     },
     enterpriseAi: {
       tenantDomain: null,

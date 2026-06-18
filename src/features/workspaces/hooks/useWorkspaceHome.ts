@@ -39,6 +39,7 @@ type UseWorkspaceHomeOptions = {
   effort?: string | null;
   serviceTier?: ServiceTier | null | undefined;
   collaborationMode?: Record<string, unknown> | null;
+  canStartRun?: () => boolean;
   seedThreadCodexParams?: (
     workspaceId: string,
     threadId: string,
@@ -192,6 +193,7 @@ export function useWorkspaceHome({
   effort = null,
   serviceTier = undefined,
   collaborationMode = null,
+  canStartRun,
   seedThreadCodexParams,
   addWorktreeAgent,
   connectWorkspace,
@@ -397,6 +399,9 @@ export function useWorkspaceHome({
     const prompt = draft.trim();
     const hasImages = images.length > 0;
     if ((!prompt && !hasImages) || isSubmitting) {
+      return false;
+    }
+    if (canStartRun && !canStartRun()) {
       return false;
     }
 
@@ -627,6 +632,7 @@ export function useWorkspaceHome({
     activeWorkspace,
     activeWorkspaceId,
     addWorktreeAgent,
+    canStartRun,
     collaborationMode,
     connectWorkspace,
     onWorktreeCreated,

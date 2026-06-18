@@ -116,6 +116,334 @@ describe("threadReducer", () => {
     expect(next.itemsByThread["thread-1"]).toEqual([]);
   });
 
+  it("ignores generated image files without conversation or path anchors and hydrates existing anchors", () => {
+    const orphan = threadReducer(initialState, {
+      type: "hydrateGeneratedImageItem",
+      threadId: "thread-1",
+      item: {
+        id: "call-runtime-1",
+        kind: "imageGeneration",
+        status: "completed",
+        prompt: "",
+        revisedPrompt: null,
+        model: "",
+        size: "",
+        assetId: null,
+        savedPath: "/tmp/call-runtime-1.png",
+        imageSrc: "/tmp/call-runtime-1.png",
+        error: null,
+      },
+    });
+
+    expect(orphan.itemsByThread["thread-1"]).toBeUndefined();
+
+    const anchored = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: {
+          "thread-1": [
+            {
+              id: "user-1",
+              kind: "message",
+              role: "user",
+              text: "Generate an image",
+            },
+            {
+              id: "call-runtime-1",
+              kind: "imageGeneration",
+              status: "in_progress",
+              prompt: "Generate an image",
+              revisedPrompt: null,
+              model: "",
+              size: "",
+              assetId: null,
+              imageSrc: null,
+              savedPath: null,
+              error: null,
+            },
+            {
+              id: "assistant-1",
+              kind: "message",
+              role: "assistant",
+              text: "Done",
+            },
+          ],
+        },
+      },
+      {
+        type: "hydrateGeneratedImageItem",
+        threadId: "thread-1",
+        item: {
+          id: "call-runtime-1",
+          kind: "imageGeneration",
+          status: "completed",
+          prompt: "",
+          revisedPrompt: null,
+          model: "",
+          size: "",
+          assetId: null,
+          savedPath: "/tmp/call-runtime-1.png",
+          imageSrc: "/tmp/call-runtime-1.png",
+          error: null,
+        },
+      },
+    );
+
+    expect(anchored.itemsByThread["thread-1"]?.map((item) => item.id)).toEqual([
+      "user-1",
+      "call-runtime-1",
+      "assistant-1",
+    ]);
+    expect(anchored.itemsByThread["thread-1"]?.[1]).toMatchObject({
+      id: "call-runtime-1",
+      kind: "imageGeneration",
+      status: "completed",
+      imageSrc: "/tmp/call-runtime-1.png",
+      savedPath: "/tmp/call-runtime-1.png",
+    });
+  });
+
+  it("inserts replayed images after their anchor message instead of at the bottom", () => {
+    // Resume returns only the assistant messages (function outputs stripped), so
+    // each runtime image is hydrated with the anchor message text the backend
+    // read from the rollout. Images must land after their own message.
+    const baseList: ConversationItem[] = [
+      { id: "user-1", kind: "message", role: "user", text: "draw two" },
+      { id: "a-1", kind: "message", role: "assistant", text: "first one" },
+      { id: "a-2", kind: "message", role: "assistant", text: "second one" },
+      { id: "a-3", kind: "message", role: "assistant", text: "all done" },
+    ];
+    const imageItem = (id: string): ConversationItem => ({
+      id,
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "",
+      revisedPrompt: null,
+      model: "",
+      size: "",
+      assetId: null,
+      savedPath: `/tmp/codex-home/generated_images/thread-1/019_${id}.png`,
+      imageSrc: `/tmp/codex-home/generated_images/thread-1/019_${id}.png`,
+      error: null,
+    });
+
+    const afterFirst = threadReducer(
+      { ...initialState, itemsByThread: { "thread-1": baseList } },
+      {
+        type: "hydrateGeneratedImageItem",
+        threadId: "thread-1",
+        item: imageItem("call_aaa"),
+        anchorMessageText: "first one",
+      },
+    );
+    const afterSecond = threadReducer(afterFirst, {
+      type: "hydrateGeneratedImageItem",
+      threadId: "thread-1",
+      item: imageItem("call_bbb"),
+      anchorMessageText: "second one",
+    });
+
+    expect(
+      afterSecond.itemsByThread["thread-1"]?.map((item) => item.id),
+    ).toEqual(["user-1", "a-1", "call_aaa", "a-2", "call_bbb", "a-3"]);
+  });
+
+  it("hydrates scoped generated image files even when text messages do not mention their paths", () => {
+    const localPath =
+      "/tmp/codex-home/generated_images/thread-1/019ed8d8_call_live-image.png";
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: {
+          "thread-1": [
+            {
+              id: "user-1",
+              kind: "message",
+              role: "user",
+              text: "生成一张图",
+              createdAt: 1000,
+            },
+            {
+              id: "assistant-progress",
+              kind: "message",
+              role: "assistant",
+              text: "第四张完成！现在生成最后一张。",
+              createdAt: 2000,
+            },
+          ],
+        },
+      },
+      {
+        type: "hydrateGeneratedImageItem",
+        threadId: "thread-1",
+        item: {
+          id: "call-live-image",
+          kind: "imageGeneration",
+          status: "completed",
+          prompt: "",
+          revisedPrompt: null,
+          model: "",
+          size: "",
+          assetId: null,
+          savedPath: localPath,
+          imageSrc: localPath,
+          error: null,
+          createdAt: 1500,
+        },
+      },
+    );
+
+    expect(next.itemsByThread["thread-1"]?.map((item) => item.id)).toEqual([
+      "user-1",
+      "call-live-image",
+      "assistant-progress",
+    ]);
+    expect(next.itemsByThread["thread-1"]?.[1]).toMatchObject({
+      id: "call-live-image",
+      kind: "imageGeneration",
+      imageSrc: localPath,
+    });
+  });
+
+  it("hydrates generated image files before the saved path summary when raw call anchors are missing", () => {
+    const localPath =
+      "/tmp/codex-home/generated_images/thread-1/019ed87c_call_call-runtime-1.png";
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: {
+          "thread-1": [
+            {
+              id: "user-1",
+              kind: "message",
+              role: "user",
+              text: "Generate one image",
+            },
+            {
+              id: "assistant-progress",
+              kind: "message",
+              role: "assistant",
+              text: "Image generated.",
+            },
+            {
+              id: "assistant-summary",
+              kind: "message",
+              role: "assistant",
+              text: `已生成，图片保存在：\n\n\`${localPath}\``,
+            },
+          ],
+        },
+      },
+      {
+        type: "hydrateGeneratedImageItem",
+        threadId: "thread-1",
+        item: {
+          id: "call-runtime-1",
+          kind: "imageGeneration",
+          status: "completed",
+          prompt: "",
+          revisedPrompt: null,
+          model: "",
+          size: "",
+          assetId: null,
+          savedPath: localPath,
+          imageSrc: localPath,
+          error: null,
+        },
+      },
+    );
+
+    expect(next.itemsByThread["thread-1"]?.map((item) => item.id)).toEqual([
+      "user-1",
+      "assistant-progress",
+      "call-runtime-1",
+      "assistant-summary",
+    ]);
+    expect(next.itemsByThread["thread-1"]?.[2]).toMatchObject({
+      id: "call-runtime-1",
+      kind: "imageGeneration",
+      status: "completed",
+      savedPath: localPath,
+      imageSrc: localPath,
+    });
+  });
+
+  it("hydrates generated image files into scoped call anchors instead of falling back to summaries", () => {
+    const localPath =
+      "/tmp/codex-home/generated_images/thread-1/019ed87c_call_call-runtime-1.png";
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: {
+          "thread-1": [
+            {
+              id: "user-1",
+              kind: "message",
+              role: "user",
+              text: "Generate one image",
+            },
+            {
+              id: "turn-1:call-runtime-1",
+              kind: "imageGeneration",
+              status: "in_progress",
+              prompt: "Generate one image",
+              revisedPrompt: null,
+              model: "",
+              size: "",
+              assetId: null,
+              imageSrc: null,
+              savedPath: null,
+              error: null,
+            },
+            {
+              id: "assistant-progress",
+              kind: "message",
+              role: "assistant",
+              text: "Image generated.",
+            },
+            {
+              id: "assistant-summary",
+              kind: "message",
+              role: "assistant",
+              text: `已生成，图片保存在：\n\n\`${localPath}\``,
+            },
+          ],
+        },
+      },
+      {
+        type: "hydrateGeneratedImageItem",
+        threadId: "thread-1",
+        item: {
+          id: "call-runtime-1",
+          kind: "imageGeneration",
+          status: "completed",
+          prompt: "",
+          revisedPrompt: null,
+          model: "",
+          size: "",
+          assetId: null,
+          savedPath: localPath,
+          imageSrc: localPath,
+          error: null,
+        },
+      },
+    );
+
+    expect(next.itemsByThread["thread-1"]?.map((item) => item.id)).toEqual([
+      "user-1",
+      "turn-1:call-runtime-1",
+      "assistant-progress",
+      "assistant-summary",
+    ]);
+    expect(next.itemsByThread["thread-1"]?.[1]).toMatchObject({
+      id: "turn-1:call-runtime-1",
+      kind: "imageGeneration",
+      status: "completed",
+      savedPath: localPath,
+      imageSrc: localPath,
+    });
+  });
+
   it("updates thread timestamp when newer activity arrives", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1000 },

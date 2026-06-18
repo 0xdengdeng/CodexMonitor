@@ -64,6 +64,30 @@ describe("useModels", () => {
     });
   });
 
+  it("keeps models empty when runtime models are disabled", async () => {
+    vi.mocked(getRuntimeModelList).mockResolvedValueOnce({
+      object: "list",
+      data: [
+        {
+          id: "adg-pro",
+          object: "model",
+          display_name: "ADG Pro",
+          owned_by: "adg",
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: null, enabled: false }),
+    );
+
+    await flushHookUpdates();
+
+    expect(getRuntimeModelList).not.toHaveBeenCalled();
+    expect(result.current.models).toEqual([]);
+    expect(result.current.selectedModelId).toBeNull();
+  });
+
   it("treats an empty ADG runtime catalog as authoritative", async () => {
     vi.mocked(getRuntimeModelList).mockResolvedValueOnce({
       object: "list",
@@ -72,6 +96,39 @@ describe("useModels", () => {
 
     const { result } = renderHook(() =>
       useModels({ activeWorkspace: workspace }),
+    );
+
+    await waitFor(() => expect(getRuntimeModelList).toHaveBeenCalled());
+    await flushHookUpdates();
+
+    expect(result.current.models).toEqual([]);
+    expect(result.current.selectedModelId).toBeNull();
+    expect(getModelList).not.toHaveBeenCalled();
+    expect(getConfigModel).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to workspace models when ADG fallback is disabled", async () => {
+    vi.mocked(getRuntimeModelList).mockRejectedValueOnce(new Error("ADG unavailable"));
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "openai-model",
+            model: "gpt-5.5",
+            displayName: "GPT-5.5",
+            supportedReasoningEfforts: [],
+            defaultReasoningEffort: null,
+            isDefault: true,
+          },
+        ],
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useModels({
+        activeWorkspace: workspace,
+        allowWorkspaceFallback: false,
+      }),
     );
 
     await waitFor(() => expect(getRuntimeModelList).toHaveBeenCalled());

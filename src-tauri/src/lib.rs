@@ -9,6 +9,7 @@ use tauri::WindowEvent;
 mod backend;
 mod codex;
 mod daemon_binary;
+mod diagnostics;
 mod dictation;
 mod enterprise_ai;
 mod event_sink;
@@ -117,6 +118,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            crate::codex::provenance::log_codex_runtime_provenance();
             let state = state::AppState::load(&app.handle());
             app.manage(state);
             #[cfg(target_os = "macos")]
@@ -183,12 +185,31 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
 
     let app = builder
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("agentdesk".to_string()),
+                    }),
+                ])
+                .level(log::LevelFilter::Info)
+                // Keep dependency chatter out of the persisted log; our own crate
+                // stays at info so startup/runtime diagnostics are captured.
+                .level_for("agentdesk", log::LevelFilter::Debug)
+                .max_file_size(5_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                .build(),
+        )
         .plugin(tauri_plugin_liquid_glass::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
+            diagnostics::read_app_log_tail,
+            diagnostics::read_daemon_log_tail,
+            diagnostics::write_clipboard,
             settings::get_app_settings,
             settings::update_app_settings,
             settings::runtime_api_key_status,
@@ -202,7 +223,6 @@ pub fn run() {
             enterprise_ai::enterprise_ai_validate,
             enterprise_ai::enterprise_ai_logout,
             enterprise_ai::enterprise_ai_usage,
-            image_generation::generate_image,
             image_generation::list_generated_images,
             files::file_read,
             files::file_write,

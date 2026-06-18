@@ -56,7 +56,9 @@ type UseMainAppComposerWorkspaceStateArgs = {
     | "followUpMessageBehavior"
     | "experimentalAppsEnabled"
     | "pauseQueuedMessagesWhenResponseRequired"
-  >;
+  > & {
+    canSubmitRequest?: () => boolean;
+  };
   models: {
     models: ModelOption[];
     selectedModelId: string | null;
@@ -262,6 +264,7 @@ export function useMainAppComposerWorkspaceState({
     effort: resolvedEffort,
     serviceTier: selectedServiceTier,
     collaborationMode: collaborationModePayload,
+    canStartRun: settings.canSubmitRequest,
     seedThreadCodexParams,
     addWorktreeAgent,
     connectWorkspace,

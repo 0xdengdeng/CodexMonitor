@@ -53,6 +53,7 @@ type ComposerProps = {
     appMentions?: AppMention[],
     submitIntent?: ComposerSendIntent,
   ) => void;
+  onBeforeSend?: () => boolean;
   onStop: () => void;
   canStop: boolean;
   disabled?: boolean;
@@ -160,6 +161,7 @@ const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
 
 export const Composer = memo(function Composer({
   onSend,
+  onBeforeSend,
   onStop,
   canStop,
   disabled = false,
@@ -387,6 +389,9 @@ export const Composer = memo(function Composer({
     if (!trimmed && attachedImages.length === 0) {
       return;
     }
+    if (onBeforeSend && !onBeforeSend()) {
+      return;
+    }
     if (trimmed) {
       recordHistory(trimmed);
     }
@@ -403,6 +408,7 @@ export const Composer = memo(function Composer({
     appMentionBindings,
     attachedImages,
     disabled,
+    onBeforeSend,
     onSend,
     recordHistory,
     resetHistoryNavigation,

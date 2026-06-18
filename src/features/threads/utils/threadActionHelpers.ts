@@ -48,6 +48,12 @@ export type ResumeHydrationPlan = {
   reviewing: boolean;
 };
 
+export type GeneratedImageRecoveryDecision = {
+  reason: "none" | "missing-image-anchor";
+  replaceLocal: boolean;
+  shouldResume: boolean;
+};
+
 export type ThreadPreviewUpdate = {
   threadId: string;
   text: string;
@@ -117,6 +123,32 @@ export function getThreadListNextCursor(result: Record<string, unknown>) {
   return null;
 }
 
+export function buildGeneratedImageRecoveryDecision({
+  assetCount,
+  isThreadProcessing,
+  missingAnchorIds,
+}: {
+  assetCount: number;
+  isThreadProcessing: boolean;
+  missingAnchorIds: string[];
+}): GeneratedImageRecoveryDecision {
+  if (isThreadProcessing || assetCount === 0) {
+    return { shouldResume: false, replaceLocal: false, reason: "none" };
+  }
+  // Images already in the conversation are positioned by anchor hydration
+  // (insertAfterAnchorMessage), so we no longer resume just to re-order cached
+  // images. Resuming here would drop the images (resume strips function outputs)
+  // and re-add them on every thread re-entry — the visible reload/flash.
+  if (missingAnchorIds.length > 0) {
+    return {
+      shouldResume: true,
+      replaceLocal: true,
+      reason: "missing-image-anchor",
+    };
+  }
+  return { shouldResume: false, replaceLocal: false, reason: "none" };
+}
+
 export function buildResumeHydrationPlan({
   getCustomName,
   localActiveTurnId,
@@ -139,7 +171,10 @@ export function buildResumeHydrationPlan({
   imageGenerationModel?: string | null;
 }): ResumeHydrationPlan {
   const items = buildItemsFromThread(thread, { imageGenerationModel });
-  if (localItems.length > 0 && !replaceLocal) {
+  const hasResumedImageGenerationItems = items.some(
+    (item) => item.kind === "imageGeneration",
+  );
+  if (localItems.length > 0 && !replaceLocal && !hasResumedImageGenerationItems) {
     return {
       keepLocalProcessing: false,
       lastMessageText: null,
@@ -172,9 +207,14 @@ export function buildResumeHydrationPlan({
     items.length > 0
       ? replaceLocal
         ? items
-        : localItems.length > 0 && !hasOverlap
+        : localItems.length > 0 && !hasOverlap && !hasResumedImageGenerationItems
           ? localItems
-          : mergeThreadItems(items, localItems)
+          : mergeThreadItems(items, localItems, {
+              appendUnmatchedLocal: !hasResumedImageGenerationItems,
+              appendUnmatchedLocalKinds: hasResumedImageGenerationItems
+                ? ["imageGeneration"]
+                : undefined,
+            })
       : localItems;
   const preview = asString(thread.preview ?? "");
   const customName = getCustomName(workspaceId, threadId);

@@ -11,7 +11,10 @@ use crate::backend::app_server::{
     build_codex_command_with_bin, build_codex_path_env, check_codex_installation, WorkspaceSession,
 };
 use crate::shared::process_core::tokio_command;
-use crate::types::{AppSettings, WorkspaceEntry};
+use crate::shared::runtime_config_core::{
+    effective_managed_runtime_model, DEFAULT_MANAGED_RUNTIME_MODEL, MANAGED_RUNTIME_PROVIDER_ID,
+};
+use crate::types::{AppSettings, ManagedRuntimeConfig, WorkspaceEntry};
 
 const DEFAULT_COMMIT_MESSAGE_PROMPT: &str =
     "Generate a concise git commit message for the following changes. \
@@ -390,6 +393,7 @@ pub(crate) async fn codex_doctor_core(
 pub(crate) async fn run_background_prompt_core<F>(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     prompt: String,
     model: Option<&str>,
@@ -412,11 +416,11 @@ where
             .ok_or("workspace not connected")?
             .clone()
     };
+    let managed_runtime = app_settings.lock().await.managed_runtime.clone();
+    let managed_runtime_model = effective_managed_runtime_model(&managed_runtime);
 
-    let thread_params = json!({
-        "cwd": workspace_path.clone(),
-        "approvalPolicy": "never"
-    });
+    let thread_params =
+        build_background_thread_start_params(workspace_path.clone(), &managed_runtime);
     let thread_result = session
         .send_request_for_workspace(&workspace_id, "thread/start", thread_params)
         .await?;
@@ -464,7 +468,7 @@ where
         "approvalPolicy": "never",
         "sandboxPolicy": { "type": "readOnly" },
     });
-    if let Some(model_id) = model {
+    if let Some(model_id) = model.or(managed_runtime_model.as_deref()) {
         turn_params["model"] = json!(model_id);
     }
     let turn_result = session
@@ -556,9 +560,24 @@ where
     Ok(trimmed)
 }
 
+fn build_background_thread_start_params(
+    workspace_path: String,
+    managed_runtime: &ManagedRuntimeConfig,
+) -> Value {
+    let mut params = json!({
+        "cwd": workspace_path,
+        "approvalPolicy": "never"
+    });
+    params["modelProvider"] = json!(MANAGED_RUNTIME_PROVIDER_ID);
+    params["model"] = json!(effective_managed_runtime_model(managed_runtime)
+        .unwrap_or_else(|| DEFAULT_MANAGED_RUNTIME_MODEL.to_string()));
+    params
+}
+
 pub(crate) async fn generate_commit_message_core<F>(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     diff: &str,
     template: &str,
@@ -572,6 +591,7 @@ where
     run_background_prompt_core(
         sessions,
         workspaces,
+        app_settings,
         workspace_id,
         prompt,
         model,
@@ -585,6 +605,7 @@ where
 pub(crate) async fn generate_run_metadata_core<F>(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     prompt: &str,
     on_hide_thread: F,
@@ -601,6 +622,7 @@ where
     let response = run_background_prompt_core(
         sessions,
         workspaces,
+        app_settings,
         workspace_id,
         metadata_prompt,
         None,
@@ -616,6 +638,7 @@ where
 pub(crate) async fn generate_agent_description_core<F>(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     description: &str,
     on_hide_thread: F,
@@ -632,6 +655,7 @@ where
     let response = run_background_prompt_core(
         sessions,
         workspaces,
+        app_settings,
         workspace_id,
         prompt,
         None,
@@ -647,9 +671,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        build_commit_message_prompt_for_diff, parse_agent_description_value,
-        parse_run_metadata_value,
+        build_background_thread_start_params, build_commit_message_prompt_for_diff,
+        parse_agent_description_value, parse_run_metadata_value,
     };
+    use crate::types::ManagedRuntimeConfig;
+    use serde_json::json;
 
     #[test]
     fn build_commit_message_prompt_for_diff_requires_changes() {
@@ -658,6 +684,41 @@ mod tests {
             result.expect_err("should fail"),
             "No changes to generate commit message for"
         );
+    }
+
+    #[test]
+    fn background_thread_start_params_force_managed_runtime_provider_when_configured() {
+        let params = build_background_thread_start_params(
+            "/tmp/workspace".to_string(),
+            &ManagedRuntimeConfig {
+                enabled: true,
+                base_url: Some("https://adg.example.com/v1".to_string()),
+                model: None,
+                image_model: None,
+            },
+        );
+
+        assert_eq!(params.get("cwd"), Some(&json!("/tmp/workspace")));
+        assert_eq!(
+            params.get("modelProvider"),
+            Some(&json!("agentdesk_managed"))
+        );
+        assert_eq!(params.get("model"), Some(&json!("gpt-5.5")));
+    }
+
+    #[test]
+    fn background_thread_start_params_force_managed_runtime_provider_when_config_is_incomplete() {
+        let params = build_background_thread_start_params(
+            "/tmp/workspace".to_string(),
+            &ManagedRuntimeConfig::default(),
+        );
+
+        assert_eq!(params.get("cwd"), Some(&json!("/tmp/workspace")));
+        assert_eq!(
+            params.get("modelProvider"),
+            Some(&json!("agentdesk_managed"))
+        );
+        assert_eq!(params.get("model"), Some(&json!("gpt-5.5")));
     }
 
     #[test]

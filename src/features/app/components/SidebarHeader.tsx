@@ -220,7 +220,6 @@ export function SidebarHeader({
             onClick={handleSortMenuToggle}
             data-tauri-drag-region="false"
             aria-label={t("sidebar.header.organizeSort")}
-            title={t("sidebar.header.organizeSort")}
             data-tooltip={t("sidebar.header.organizeSort")}
             data-tooltip-align="end"
             data-tooltip-placement="bottom"
@@ -309,7 +308,6 @@ export function SidebarHeader({
           data-tauri-drag-region="false"
           aria-label={t("sidebar.header.capabilities")}
           type="button"
-          title={t("sidebar.header.capabilities")}
           data-tooltip={t("sidebar.header.capabilities")}
           data-tooltip-align="end"
           data-tooltip-placement="bottom"
@@ -322,7 +320,6 @@ export function SidebarHeader({
           data-tauri-drag-region="false"
           aria-label={t("sidebar.header.refreshAll")}
           type="button"
-          title={t("sidebar.header.refreshAll")}
           data-tooltip={t("sidebar.header.refreshAll")}
           data-tooltip-align="end"
           data-tooltip-placement="bottom"

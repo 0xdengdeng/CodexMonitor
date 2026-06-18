@@ -78,6 +78,74 @@ describe("release workflow Git sidecars", () => {
   });
 });
 
+describe("release manifest gate", () => {
+  it("does not publish the stable OTA manifest from package release workflows", () => {
+    for (const workflowPath of workflowPaths) {
+      const workflow = readWorkflow(workflowPath);
+
+      expect(workflow).not.toContain("npm run ota:publish:tos");
+      expect(workflow).not.toContain("Publish latest.json to TOS");
+      expect(workflow).not.toContain("Publish to TOS");
+    }
+  });
+
+  it("provides a dedicated workflow for switching the stable OTA manifest", () => {
+    const workflow = readWorkflow(".github/workflows/publish-ota-manifest.yml");
+
+    expect(workflow).toContain("name: Publish OTA Manifest");
+    expect(workflow).toContain("workflow_dispatch");
+    expect(workflow).toContain("gh release download");
+    expect(workflow).toContain("npm run ota:publish:tos");
+    expect(workflow).toContain("TOS_UPLOAD_REFERENCED_ARTIFACTS: \"false\"");
+  });
+
+  it("keeps test and stable builds on the same updater endpoint", () => {
+    const baseConfig = JSON.parse(readWorkflow("src-tauri/tauri.conf.json"));
+    const betaConfig = JSON.parse(readWorkflow("src-tauri/tauri.beta.conf.json"));
+
+    expect(betaConfig.plugins?.updater?.endpoints).toBeUndefined();
+    expect(baseConfig.plugins.updater.endpoints).toEqual([
+      "https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json",
+    ]);
+  });
+
+  it("does not publish a separate beta OTA manifest", () => {
+    const workflow = readWorkflow(".github/workflows/publish-ota-manifest.yml");
+
+    expect(workflow).toContain('gh release download "v${RELEASE_TAG}"');
+    expect(workflow).toContain('EXPECTED_MANIFEST_VERSION="${VERSION%-beta}"');
+    expect(workflow).toContain("OTA_PREFIX: codexmonitor");
+    expect(workflow).not.toContain("codexmonitor/beta");
+    expect(workflow).not.toContain("TAG_SUFFIX");
+    expect(workflow).not.toContain("channel:");
+  });
+
+  it("marks beta GitHub releases as prereleases", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+
+    expect(workflow).toContain('if [ "${CHANNEL}" = "beta" ]; then');
+    expect(workflow).toContain("release_flags+=(--prerelease)");
+  });
+
+  it("builds beta releases with a beta identity instead of local dev identity", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+
+    expect(workflow).toContain("启航AI智慧平台 Beta");
+    expect(workflow).toContain("--config src-tauri/tauri.beta.conf.json");
+    expect(workflow).not.toContain("inputs.channel == 'beta' && '--config src-tauri/tauri.dev.conf.json'");
+  });
+
+  it("adds an Applications shortcut to macOS DMG images", () => {
+    const workflow = readWorkflow(".github/workflows/release.yml");
+    const shortcutCommand = 'ln -s /Applications "release-artifacts/dmg-root/Applications"';
+
+    expect(workflow).toContain(shortcutCommand);
+    expect(workflow.indexOf(shortcutCommand)).toBeLessThan(
+      workflow.indexOf('hdiutil create -volname "${PRODUCT_NAME}"'),
+    );
+  });
+});
+
 describe("macOS release signing script", () => {
   it("re-signs embedded Git Mach-O resources before signing the app bundle", () => {
     const script = readFileSync(

@@ -13,10 +13,12 @@ import {
 
 type UseModelsOptions = {
   activeWorkspace: WorkspaceInfo | null;
+  enabled?: boolean;
   onDebug?: (entry: DebugEntry) => void;
   preferredModelId?: string | null;
   preferredEffort?: string | null;
   selectionKey?: string | null;
+  allowWorkspaceFallback?: boolean;
 };
 
 const MODEL_REFRESH_INTERVAL_MS = 60_000;
@@ -43,10 +45,12 @@ const pickDefaultModel = (models: ModelOption[], configModel: string | null) =>
 
 export function useModels({
   activeWorkspace,
+  enabled = true,
   onDebug,
   preferredModelId = null,
   preferredEffort = null,
   selectionKey = null,
+  allowWorkspaceFallback = true,
 }: UseModelsOptions) {
   const { t } = useI18n();
   const [models, setModels] = useState<ModelOption[]>([]);
@@ -103,6 +107,19 @@ export function useModels({
     setSelectedEffortState(next);
   }, []);
 
+  useEffect(() => {
+    if (enabled) {
+      return;
+    }
+    lastFetchedWorkspaceId.current = null;
+    hasUserSelectedModel.current = false;
+    hasUserSelectedEffort.current = false;
+    setConfigModel(null);
+    setModels([]);
+    setSelectedModelIdState(null);
+    setSelectedEffortState(null);
+  }, [enabled]);
+
   const selectedModel = useMemo(
     () => models.find((model) => model.id === selectedModelId) ?? null,
     [models, selectedModelId],
@@ -151,6 +168,9 @@ export function useModels({
   );
 
   const refreshModels = useCallback(async () => {
+    if (!enabled) {
+      return;
+    }
     if (inFlight.current) {
       return;
     }
@@ -248,6 +268,10 @@ export function useModels({
           label: "runtime model/list error",
           payload: error instanceof Error ? error.message : String(error),
         });
+        if (!allowWorkspaceFallback) {
+          applyModels([], null);
+          return;
+        }
       }
 
       if (!workspaceId || !isConnected) {
@@ -307,6 +331,8 @@ export function useModels({
       inFlight.current = false;
     }
   }, [
+    enabled,
+    allowWorkspaceFallback,
     isConnected,
     onDebug,
     preferredModelId,
@@ -318,13 +344,19 @@ export function useModels({
   ]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
     if (lastFetchedWorkspaceId.current === workspaceId && models.length > 0) {
       return;
     }
     refreshModels();
-  }, [isConnected, models.length, refreshModels, workspaceId]);
+  }, [enabled, isConnected, models.length, refreshModels, workspaceId]);
 
   useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
     const intervalId = window.setInterval(() => {
       void refreshModels();
     }, MODEL_REFRESH_INTERVAL_MS);

@@ -35,13 +35,7 @@ pub(super) async fn try_handle(
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            let native_image_generation =
-                parse_optional_bool(params, "nativeImageGeneration").unwrap_or(true);
-            Some(
-                state
-                    .start_thread(workspace_id, native_image_generation)
-                    .await,
-            )
+            Some(state.start_thread(workspace_id).await)
         }
         "resume_thread" => {
             let workspace_id = match parse_string(params, "workspaceId") {

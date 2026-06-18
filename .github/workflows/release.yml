@@ -7,6 +7,14 @@ on:
         description: Run ID from "Build Codex Sidecar" workflow to consume (blank = latest successful)
         required: false
         default: ""
+      channel:
+        description: Release channel — stable (production) or beta (test build, macOS only)
+        required: false
+        default: stable
+        type: choice
+        options:
+          - stable
+          - beta
 
 permissions:
   contents: write
@@ -38,6 +46,12 @@ jobs:
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
+      # Channel-derived values. Beta builds use a separate bundle id and
+      # "启航AI智慧平台 Beta.app" so they never collide with stable or local dev data.
+      # Both channels intentionally use the same updater endpoint; beta artifacts
+      # are for manual verification and must not publish a separate OTA manifest.
+      PRODUCT_NAME: ${{ inputs.channel == 'beta' && '启航AI智慧平台 Beta' || '启航AI智慧平台' }}
+      TAURI_CONFIG_ARGS: ${{ inputs.channel == 'beta' && '--config src-tauri/tauri.beta.conf.json' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -178,11 +192,11 @@ jobs:
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/agentdesk.key")"
-          npm run tauri -- build --target ${{ matrix.target }} --bundles app
+          npm run tauri -- build --target ${{ matrix.target }} --bundles app ${TAURI_CONFIG_ARGS}
 
       - name: Bundle OpenSSL and re-sign
         env:
-          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/启航AI智慧平台.app
+          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/${{ env.PRODUCT_NAME }}.app
           DAEMON_BINARY_PATH: src-tauri/target/${{ matrix.target }}/release/agentdesk-daemon
           DAEMONCTL_BINARY_PATH: src-tauri/target/${{ matrix.target }}/release/agentdesk-daemonctl
           MAC_TARGET_ARCH: ${{ matrix.arch }}
@@ -193,7 +207,7 @@ jobs:
 
       - name: Notarize and staple
         env:
-          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/启航AI智慧平台.app
+          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/${{ env.PRODUCT_NAME }}.app
           ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
@@ -223,7 +237,7 @@ jobs:
 
       - name: Package artifacts
         env:
-          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/启航AI智慧平台.app
+          APP_PATH: src-tauri/target/${{ matrix.target }}/release/bundle/macos/${{ env.PRODUCT_NAME }}.app
           BUNDLE_DIR: src-tauri/target/${{ matrix.target }}/release/bundle/macos
           ARCH: ${{ matrix.arch }}
         run: |
@@ -237,20 +251,22 @@ jobs:
           PY
           )
 
-          mkdir -p release-artifacts release-artifacts/dmg-root
-          rm -rf "release-artifacts/dmg-root/启航AI智慧平台.app"
-          ditto "$APP_PATH" "release-artifacts/dmg-root/启航AI智慧平台.app"
+          mkdir -p release-artifacts
+          rm -rf release-artifacts/dmg-root
+          mkdir -p release-artifacts/dmg-root
+          ditto "$APP_PATH" "release-artifacts/dmg-root/${PRODUCT_NAME}.app"
+          ln -s /Applications "release-artifacts/dmg-root/Applications"
 
           ditto -c -k --keepParent "$APP_PATH" "release-artifacts/AgentDesk-${ARCH}.zip"
 
-          hdiutil create -volname "启航AI智慧平台" \
+          hdiutil create -volname "${PRODUCT_NAME}" \
             -srcfolder release-artifacts/dmg-root \
             -ov -format UDZO \
             "release-artifacts/AgentDesk_${VERSION}_${ARCH}.dmg"
 
           COPYFILE_DISABLE=1 tar -czf \
             "${BUNDLE_DIR}/AgentDesk.app.tar.gz" \
-            -C "${BUNDLE_DIR}" "启航AI智慧平台.app"
+            -C "${BUNDLE_DIR}" "${PRODUCT_NAME}.app"
 
           npm run tauri signer sign -- \
             -f "$HOME/.tauri/agentdesk.key" \
@@ -273,6 +289,9 @@ jobs:
             release-artifacts/AgentDesk-${{ matrix.arch }}.app.tar.gz.sig
 
   build_windows:
+    # Beta is macOS-only for now (two channels would share one Windows AppId
+    # and collide on install). Stable builds Windows as before.
+    if: ${{ inputs.channel != 'beta' }}
     runs-on: windows-latest
     environment: release
     env:
@@ -552,6 +571,11 @@ jobs:
     needs:
       - build_macos
       - build_windows
+    # build_windows is skipped on beta; still release as long as macOS built.
+    if: ${{ always() && needs.build_macos.result == 'success' && (needs.build_windows.result == 'success' || needs.build_windows.result == 'skipped') }}
+    env:
+      TAG_SUFFIX: ${{ inputs.channel == 'beta' && '-beta' || '' }}
+      CHANNEL: ${{ inputs.channel }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -566,6 +590,7 @@ jobs:
           merge-multiple: true
 
       - name: Download Windows artifacts
+        if: ${{ inputs.channel != 'beta' }}
         uses: actions/download-artifact@v4
         with:
           name: windows-artifacts
@@ -603,9 +628,16 @@ jobs:
           PY
           )
 
-          LAST_TAG=$(git tag --sort=-version:refname \
-            | grep -v "^v${VERSION}$" \
-            | head -n 1 || true)
+          if [ "${CHANNEL}" = "beta" ]; then
+            LAST_TAG=$(git tag --sort=-version:refname \
+              | grep -v "^v${VERSION}${TAG_SUFFIX}$" \
+              | head -n 1 || true)
+          else
+            LAST_TAG=$(git tag --sort=-version:refname \
+              | grep -E '^v[0-9]+(\.[0-9]+){2}$' \
+              | grep -v "^v${VERSION}$" \
+              | head -n 1 || true)
+          fi
           RANGE_END="${GITHUB_SHA}"
           if [ -n "$LAST_TAG" ]; then
             git log "${LAST_TAG}..${RANGE_END}" --pretty=format:"%s" > release-artifacts/release-commits.txt
@@ -660,9 +692,10 @@ jobs:
           artifacts_dir = Path("release-artifacts")
 
           release_repository = "${RELEASE_REPOSITORY}"
+          channel = "${CHANNEL}"
 
           def release_url(filename):
-            return f"https://github.com/{release_repository}/releases/download/v${VERSION}/{quote(filename)}"
+            return f"https://github.com/{release_repository}/releases/download/v${VERSION}${TAG_SUFFIX}/{quote(filename)}"
 
           def detect_arch(name):
             lowered = name.lower()
@@ -688,36 +721,38 @@ jobs:
               "signature": sig_path.read_text().strip(),
             }
 
-          exe_candidates = sorted(artifacts_dir.rglob("*.exe"), key=lambda p: p.name.lower())
-          windows_installer = None
-          preferred_installers = []
-          for candidate in exe_candidates:
-            lowered = candidate.name.lower()
-            if "agentdesk" in lowered and ("setup" in lowered or "installer" in lowered):
-              preferred_installers.append(candidate)
-          if preferred_installers:
-            windows_installer = preferred_installers[0]
-          else:
+          # Beta is macOS-only; the stable channel still requires Windows.
+          if channel != "beta":
+            exe_candidates = sorted(artifacts_dir.rglob("*.exe"), key=lambda p: p.name.lower())
+            windows_installer = None
+            preferred_installers = []
             for candidate in exe_candidates:
               lowered = candidate.name.lower()
-              if "setup" in lowered or "installer" in lowered:
-                windows_installer = candidate
-                break
-            if windows_installer is None and exe_candidates:
-              windows_installer = exe_candidates[0]
-          if windows_installer is None:
-            raise SystemExit("No Windows installer (.exe) found for latest.json")
+              if "agentdesk" in lowered and ("setup" in lowered or "installer" in lowered):
+                preferred_installers.append(candidate)
+            if preferred_installers:
+              windows_installer = preferred_installers[0]
+            else:
+              for candidate in exe_candidates:
+                lowered = candidate.name.lower()
+                if "setup" in lowered or "installer" in lowered:
+                  windows_installer = candidate
+                  break
+              if windows_installer is None and exe_candidates:
+                windows_installer = exe_candidates[0]
+            if windows_installer is None:
+              raise SystemExit("No Windows installer (.exe) found for latest.json")
 
-          print(f"Selected Windows installer for latest.json: {windows_installer.name}")
+            print(f"Selected Windows installer for latest.json: {windows_installer.name}")
 
-          win_sig_path = windows_installer.with_suffix(windows_installer.suffix + ".sig")
-          if not win_sig_path.exists():
-            raise SystemExit(f"Missing signature for {windows_installer.name}")
+            win_sig_path = windows_installer.with_suffix(windows_installer.suffix + ".sig")
+            if not win_sig_path.exists():
+              raise SystemExit(f"Missing signature for {windows_installer.name}")
 
-          platforms["windows-x86_64"] = {
-            "url": release_url(windows_installer.name),
-            "signature": win_sig_path.read_text().strip(),
-          }
+            platforms["windows-x86_64"] = {
+              "url": release_url(windows_installer.name),
+              "signature": win_sig_path.read_text().strip(),
+            }
 
           payload = {
             "version": "${VERSION}",
@@ -788,44 +823,37 @@ jobs:
             find release-artifacts -type f | sort
             exit 1
           fi
-          if [ ${#windows_exes[@]} -eq 0 ]; then
+          # Beta is macOS-only; only require/attach Windows artifacts on stable.
+          if [ "${CHANNEL}" != "beta" ] && [ ${#windows_exes[@]} -eq 0 ]; then
             echo "No Windows .exe artifacts found for release upload"
             find release-artifacts -type f | sort
             exit 1
           fi
           # MSI is optional — NSIS-only Windows builds produce no .msi.
 
-          gh release create "v${VERSION}" \
-            --title "v${VERSION}" \
-            --notes-file release-artifacts/release-notes.md \
-            --target "$GITHUB_SHA" \
-            "${macos_zips[@]}" \
-            "${macos_dmgs[@]}" \
-            "${macos_tarballs[@]}" \
-            "${macos_sigs[@]}" \
-            "${windows_exes[@]}" \
-            release-artifacts/latest.json
+          release_assets=(
+            "${macos_zips[@]}"
+            "${macos_dmgs[@]}"
+            "${macos_tarballs[@]}"
+            "${macos_sigs[@]}"
+          )
+          if [ "${CHANNEL}" != "beta" ]; then
+            release_assets+=("${windows_exes[@]}")
+          fi
 
-      # TOS hosts only the stable OTA manifest. The actual update artifacts
-      # stay on the GitHub release created above, so clients never see a
-      # manifest that points at assets which have not been published yet.
-      - name: Publish latest.json to TOS
-        timeout-minutes: 10
-        env:
-          TOS_ACCESS_KEY_ID: ${{ secrets.TOS_ACCESS_KEY_ID }}
-          TOS_SECRET_ACCESS_KEY: ${{ secrets.TOS_SECRET_ACCESS_KEY }}
-          TOS_REGION: cn-beijing
-          TOS_ENDPOINT: tos-cn-beijing.volces.com
-          TOS_BUCKET: qihang-ai
-          TOS_PUBLIC_BASE_URL: https://qihang-ai.tos-cn-beijing.volces.com
-          TOS_REWRITE_ARTIFACT_URLS: "false"
-          TOS_UPLOAD_REFERENCED_ARTIFACTS: "false"
-          OTA_PREFIX: codexmonitor
-          OTA_ARTIFACTS_DIR: release-artifacts
-        run: |
-          set -euo pipefail
-          npm ci
-          npm run ota:publish:tos
+          release_flags=(
+            --title "v${VERSION}${TAG_SUFFIX}"
+            --notes-file release-artifacts/release-notes.md
+            --target "$GITHUB_SHA"
+          )
+          if [ "${CHANNEL}" = "beta" ]; then
+            release_flags+=(--prerelease)
+          fi
+
+          gh release create "v${VERSION}${TAG_SUFFIX}" \
+            "${release_flags[@]}" \
+            "${release_assets[@]}" \
+            release-artifacts/latest.json
 
       # Post-release version bump is left to a human commit. The auto-PR
       # path required granting GitHub Actions PR-create permission on the

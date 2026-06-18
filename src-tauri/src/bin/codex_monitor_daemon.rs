@@ -7,6 +7,8 @@ mod codex_args;
 mod codex_config;
 #[path = "../codex/home.rs"]
 mod codex_home;
+#[path = "../codex/provenance.rs"]
+mod codex_provenance;
 #[path = "../codex/runtime.rs"]
 mod codex_runtime;
 #[path = "../files/io.rs"]
@@ -804,16 +806,12 @@ impl DaemonState {
         files_core::file_write_core(&self.workspaces, scope, kind, workspace_id, content).await
     }
 
-    async fn start_thread(
-        &self,
-        workspace_id: String,
-        native_image_generation: bool,
-    ) -> Result<Value, String> {
+    async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
         codex_core::start_thread_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
-            native_image_generation,
         )
         .await
     }
@@ -823,7 +821,8 @@ impl DaemonState {
         workspace_id: String,
         thread_id: String,
     ) -> Result<Value, String> {
-        codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
+        codex_core::resume_thread_core(&self.sessions, &self.app_settings, workspace_id, thread_id)
+            .await
     }
 
     async fn read_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
@@ -975,6 +974,7 @@ impl DaemonState {
         codex_core::send_user_message_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             thread_id,
             text,
@@ -1474,6 +1474,7 @@ impl DaemonState {
         codex_aux_core::generate_commit_message_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             &diff,
             &commit_message_prompt,
@@ -1493,6 +1494,7 @@ impl DaemonState {
         codex_aux_core::generate_run_metadata_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             &prompt,
             |workspace_id, thread_id| {
@@ -1510,6 +1512,7 @@ impl DaemonState {
         codex_aux_core::generate_agent_description_core(
             &self.sessions,
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             &description,
             |workspace_id, thread_id| {
@@ -2149,6 +2152,16 @@ mod tests {
 }
 
 fn main() {
+    // The daemon is headless; daemonctl redirects its stderr to a log file, so
+    // route the `log` facade (shared modules + provenance) to stderr via
+    // env_logger. RUST_LOG overrides; default is info. try_init so a re-entrant
+    // start never panics.
+    let _ = env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .format_timestamp_secs()
+        .parse_default_env()
+        .try_init();
+    codex_provenance::log_codex_runtime_provenance();
     let config = match parse_args() {
         Ok(config) => config,
         Err(err) => {

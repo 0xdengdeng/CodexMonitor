@@ -1102,9 +1102,28 @@ async fn daemon_start(
         .arg(listen_addr)
         .arg("--data-dir")
         .arg(data_dir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdin(Stdio::null());
+
+    // The daemon is headless (no terminal, no Sentry). Capture its stdout/stderr
+    // to a file instead of discarding it, so remote/iOS failures are diagnosable.
+    // Best-effort: fall back to null if the log file cannot be opened.
+    match open_daemon_log_file(data_dir) {
+        Ok(file) => {
+            let stderr_handle = file.try_clone();
+            command.stdout(Stdio::from(file));
+            match stderr_handle {
+                Ok(stderr_file) => {
+                    command.stderr(Stdio::from(stderr_file));
+                }
+                Err(_) => {
+                    command.stderr(Stdio::null());
+                }
+            }
+        }
+        Err(_) => {
+            command.stdout(Stdio::null()).stderr(Stdio::null());
+        }
+    }
 
     if insecure_no_auth {
         command.arg("--insecure-no-auth");
@@ -1124,6 +1143,26 @@ async fn daemon_start(
         last_error: None,
         listen_addr: Some(listen_addr.to_string()),
     })
+}
+
+/// Open (append) the daemon's log file under `<data_dir>/logs/daemon.log`,
+/// rolling a large existing log to `daemon.log.old` first so a long-running
+/// daemon doesn't grow it unbounded. Returns an error only if the directory or
+/// file cannot be created, in which case the caller falls back to discarding
+/// output.
+fn open_daemon_log_file(data_dir: &Path) -> std::io::Result<std::fs::File> {
+    let log_dir = data_dir.join("logs");
+    std::fs::create_dir_all(&log_dir)?;
+    let log_path = log_dir.join("daemon.log");
+    if let Ok(meta) = std::fs::metadata(&log_path) {
+        if meta.len() > 5_000_000 {
+            let _ = std::fs::rename(&log_path, log_dir.join("daemon.log.old"));
+        }
+    }
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
 }
 
 async fn daemon_stop(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus {

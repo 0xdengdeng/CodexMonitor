@@ -101,7 +101,6 @@ import {
   resolveInterfaceLanguage,
   translate,
 } from "@/features/i18n/i18n";
-import { resolveImageGenerationRuntime } from "@app/utils/imageGenerationRuntime";
 
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
@@ -205,9 +204,7 @@ export default function MainApp() {
     refreshWorkspaces,
   });
   const updaterEnabled = !isMobileRuntime;
-  const imageGenerationRuntime = resolveImageGenerationRuntime(
-    appSettings.managedRuntime,
-  );
+  const imageGenerationModel = appSettings.managedRuntime.imageModel?.trim() || null;
 
   const workspacesById = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
@@ -312,6 +309,8 @@ export default function MainApp() {
     setSelectedEffort
   } = useModels({
     activeWorkspace,
+    enabled: appSettings.enterpriseAi.status === "connected",
+    allowWorkspaceFallback: false,
     onDebug: addDebugEntry,
     preferredModelId,
     preferredEffort,
@@ -607,9 +606,7 @@ export default function MainApp() {
     chatHistoryScrollbackItems: appSettingsLoading
       ? null
       : appSettings.chatHistoryScrollbackItems,
-    nativeImageGenerationEnabled:
-      imageGenerationRuntime.nativeImageGenerationEnabled,
-    imageGenerationModel: imageGenerationRuntime.imageGenerationModel,
+    imageGenerationModel,
     customPrompts: prompts,
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
@@ -639,6 +636,7 @@ export default function MainApp() {
   const {
     updaterState,
     startUpdate,
+    cancelUpdate,
     dismissUpdate,
     postUpdateNotice,
     dismissPostUpdateNotice,
@@ -1178,6 +1176,14 @@ export default function MainApp() {
     setEnterpriseAiLoginOpen(true);
   }, [appSettings.enterpriseAi.status, modalActions]);
 
+  const requireEnterpriseAiLogin = useCallback(() => {
+    if (appSettings.enterpriseAi.status === "connected") {
+      return true;
+    }
+    setEnterpriseAiLoginOpen(true);
+    return false;
+  }, [appSettings.enterpriseAi.status]);
+
   const closeEnterpriseAiLogin = useCallback(() => {
     setEnterpriseAiLoginOpen(false);
   }, []);
@@ -1331,6 +1337,7 @@ export default function MainApp() {
       experimentalAppsEnabled: appSettings.experimentalAppsEnabled,
       pauseQueuedMessagesWhenResponseRequired:
         appSettings.pauseQueuedMessagesWhenResponseRequired,
+      canSubmitRequest: requireEnterpriseAiLogin,
     },
     models: {
       models,
@@ -1849,6 +1856,7 @@ export default function MainApp() {
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
     onOpenEnterpriseAiSettings: openEnterpriseAiEntry,
+    onBeforeComposerSend: requireEnterpriseAiLogin,
     onOpenCapabilities: openCapabilities,
     gitState,
     selectedServiceTier: selectedServiceTier ?? null,
@@ -1968,6 +1976,7 @@ export default function MainApp() {
       appModalsProps.settingsOpen && appModalsProps.settingsSection === 'about',
     updaterState,
     startUpdate,
+    cancelUpdate,
     dismissUpdate,
     postUpdateNotice,
     dismissPostUpdateNotice,

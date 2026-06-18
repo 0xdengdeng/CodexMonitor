@@ -43,10 +43,10 @@ describe("PlanPanel", () => {
             status: "completed",
             prompt: "wide banner",
             revisedPrompt: null,
-            model: "adg-image",
+            model: "gpt-image-2",
             size: "1792x768",
-            assetId: "asset-1",
-            savedPath: "/tmp/generated-images/asset-1.png",
+            assetId: null,
+            savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
             imageSrc: "data:image/png;base64,AAA",
             error: null,
           },
@@ -59,9 +59,9 @@ describe("PlanPanel", () => {
     expect(screen.getByText("Background tasks")).toBeTruthy();
     expect(screen.getByText("npm run tauri:dev")).toBeTruthy();
     expect(screen.getByText("Generated images")).toBeTruthy();
-    expect(screen.getByText("adg-image")).toBeTruthy();
+    expect(screen.getByText("gpt-image-2")).toBeTruthy();
     expect(screen.getByText("1792x768")).toBeTruthy();
-    expect(screen.queryByText("/tmp/generated-images")).toBeNull();
+    expect(screen.queryByText("/tmp/codex-home/generated_images")).toBeNull();
   });
 
   it("opens background tasks from the overview", async () => {
@@ -97,10 +97,10 @@ describe("PlanPanel", () => {
             status: "completed",
             prompt: "wide banner",
             revisedPrompt: null,
-            model: "adg-image",
+            model: "gpt-image-2",
             size: "1792x768",
-            assetId: "asset-1",
-            savedPath: "/tmp/generated-images/asset-1.png",
+            assetId: null,
+            savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
             imageSrc: "data:image/png;base64,AAA",
             error: null,
           },
@@ -126,10 +126,10 @@ describe("PlanPanel", () => {
             status: "completed",
             prompt: "wide banner",
             revisedPrompt: null,
-            model: "adg-image",
+            model: "gpt-image-2",
             size: "1792x768",
-            assetId: "asset-1",
-            savedPath: "/tmp/generated-images/asset-1.png",
+            assetId: null,
+            savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
             imageSrc: "data:image/png;base64,AAA",
             error: null,
           },
@@ -155,7 +155,7 @@ describe("PlanPanel", () => {
             status: "in_progress",
             prompt: "portrait cover",
             revisedPrompt: null,
-            model: "adg-image",
+            model: "gpt-image-2",
             size: "1024x1536",
             assetId: null,
             savedPath: null,

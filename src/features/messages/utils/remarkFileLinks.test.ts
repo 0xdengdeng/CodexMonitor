@@ -42,7 +42,7 @@ describe("remarkFileLinks", () => {
 
   it("turns local file paths with spaces into a single link", () => {
     const path =
-      "/Users/example/Library/Application Support/com.agentdesk.app.dev/generated-images/images/asset-146820c6-a259-4492-aa57-050b0cfb3862.png";
+      "/Users/example/Library/Application Support/com.agentdesk.app/codex-home/generated_images/thread-1/019ed5b3_call_CTHs6ibo.png";
     const tree = runRemarkFileLinks(textParagraph(`保存路径： ${path}`));
     const links = tree.children?.[0]?.children?.filter((child) => child.type === "link") ?? [];
 

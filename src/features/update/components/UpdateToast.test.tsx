@@ -50,6 +50,7 @@ describe("UpdateToast", () => {
 
   it("renders a persistent update reminder after the update toast is dismissed", () => {
     const onUpdate = vi.fn();
+    const onDismiss = vi.fn();
     const state: UpdateState = {
       stage: "available",
       version: "1.2.3",
@@ -57,7 +58,7 @@ describe("UpdateToast", () => {
     };
 
     render(
-      <UpdateToast state={state} onUpdate={onUpdate} onDismiss={vi.fn()} />,
+      <UpdateToast state={state} onUpdate={onUpdate} onDismiss={onDismiss} />,
     );
 
     expect(screen.getByText("New version")).toBeTruthy();
@@ -67,6 +68,10 @@ describe("UpdateToast", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
 
     expect(onUpdate).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
   it("renders downloading state with progress", () => {
@@ -87,6 +92,27 @@ describe("UpdateToast", () => {
       throw new Error("Expected progress fill element");
     }
     expect(fill.getAttribute("style")).toContain("width: 50%");
+  });
+
+  it("lets you cancel an in-flight download", () => {
+    const onCancel = vi.fn();
+    const state: UpdateState = {
+      stage: "downloading",
+      progress: { totalBytes: 1000, downloadedBytes: 500 },
+    };
+
+    render(
+      <UpdateToast
+        state={state}
+        onUpdate={vi.fn()}
+        onCancel={onCancel}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("renders error state and lets you dismiss or retry", () => {

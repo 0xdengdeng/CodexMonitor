@@ -385,12 +385,6 @@ pub(crate) struct ManagedRuntimeConfig {
     pub(crate) model: Option<String>,
     #[serde(default, rename = "imageModel")]
     pub(crate) image_model: Option<String>,
-    #[serde(default = "default_true", rename = "nativeImageGeneration")]
-    pub(crate) native_image_generation: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 impl Default for ManagedRuntimeConfig {
@@ -400,7 +394,6 @@ impl Default for ManagedRuntimeConfig {
             base_url: None,
             model: None,
             image_model: None,
-            native_image_generation: true,
         }
     }
 }

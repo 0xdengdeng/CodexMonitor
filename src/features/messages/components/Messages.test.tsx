@@ -515,7 +515,7 @@ describe("Messages", () => {
 
   it("opens generated image paths with spaces in the shared file preview", () => {
     const savedPath =
-      "/Users/xiaodeng/Library/Application Support/com.agentdesk.app.dev/generated-images/images/asset-146820c6-a259-4492-aa57-050b0cfb3862.png";
+      "/Users/xiaodeng/Library/Application Support/com.agentdesk.app/codex-home/generated_images/thread-1/019ed5b3_call_CTHs6ibo.png";
     const items: ConversationItem[] = [
       {
         id: "msg-generated-image-path",
@@ -538,7 +538,7 @@ describe("Messages", () => {
 
     const fileLink = container.querySelector(".message-file-link");
     expect(fileLink).toBeTruthy();
-    expect(screen.getByText("asset-146820c6-a259-4492-aa57-050b0cfb3862.png")).toBeTruthy();
+    expect(screen.getByText("019ed5b3_call_CTHs6ibo.png")).toBeTruthy();
 
     fireEvent.click(fileLink as Element);
 
@@ -1909,10 +1909,10 @@ describe("Messages", () => {
         status: "completed",
         prompt: "A small blue rocket icon",
         revisedPrompt: null,
-        model: "adg-image",
+        model: "gpt-image-2",
         size: "1024x1024",
-        assetId: "asset-1",
-        savedPath: "/tmp/generated-images/asset-1.png",
+        assetId: null,
+        savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
         imageSrc: "data:image/png;base64,AAA",
         error: null,
         createdAt: new Date(2025, 4, 7, 14, 5).getTime(),
@@ -1931,7 +1931,7 @@ describe("Messages", () => {
     );
 
     expect(screen.getByText("Image generated")).toBeTruthy();
-    expect(screen.getByText("adg-image")).toBeTruthy();
+    expect(screen.getByText("gpt-image-2")).toBeTruthy();
     expect(screen.getByText("1024x1024")).toBeTruthy();
     expect(screen.getByText("14:05")).toBeTruthy();
     expect(screen.getByAltText("Generated image")).toBeTruthy();
@@ -1947,7 +1947,7 @@ describe("Messages", () => {
         status: "in_progress",
         prompt: "A wide banner",
         revisedPrompt: null,
-        model: "adg-image",
+        model: "gpt-image-2",
         size: "1792x768",
         assetId: null,
         savedPath: null,
@@ -1985,10 +1985,10 @@ describe("Messages", () => {
         status: "completed",
         prompt: "A hidden image prompt",
         revisedPrompt: null,
-        model: "adg-image",
+        model: "gpt-image-2",
         size: "1024x1024",
-        assetId: "asset-1",
-        savedPath: "/tmp/generated-images/asset-1.png",
+        assetId: null,
+        savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
         imageSrc: "data:image/png;base64,AAA",
         error: null,
       } as ConversationItem,
@@ -2025,10 +2025,10 @@ describe("Messages", () => {
         status: "completed",
         prompt: "A wide banner",
         revisedPrompt: null,
-        model: "adg-image",
+        model: "gpt-image-2",
         size: "1792x768",
-        assetId: "asset-1",
-        savedPath: "/tmp/generated-images/banner.png",
+        assetId: null,
+        savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_banner.png",
         imageSrc: "data:image/png;base64,AAA",
         error: null,
       } as ConversationItem,
@@ -2058,10 +2058,10 @@ describe("Messages", () => {
         status: "completed",
         prompt: "A large generated illustration",
         revisedPrompt: null,
-        model: "adg-image",
+        model: "gpt-image-2",
         size: "auto",
-        assetId: "asset-1",
-        savedPath: "/tmp/generated-images/large.png",
+        assetId: null,
+        savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_large.png",
         imageSrc: "data:image/png;base64,AAA",
         error: null,
       } as ConversationItem,

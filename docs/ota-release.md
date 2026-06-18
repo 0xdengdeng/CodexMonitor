@@ -12,7 +12,10 @@ This app uses the Tauri updater so installed desktop clients can update in app w
 - Updater public key: `src-tauri/tauri.conf.json > plugins.updater.pubkey`
 - Updater artifacts: enabled with `bundle.createUpdaterArtifacts`
 
-The release build creates signed updater artifacts and `latest.json`. The TOS publish script rewrites `latest.json` platform URLs to the public TOS release path, uploads all release artifacts under the versioned release prefix, and uploads the manifest to the stable `codexmonitor/latest.json` key. Installed clients read that manifest on update checks.
+The release build creates signed updater artifacts and a candidate `latest.json`.
+Do not publish the candidate manifest to the stable
+`codexmonitor/latest.json` key until the packaged build has passed manual
+verification. Installed clients read the stable manifest on update checks.
 
 ## Required Signing Secrets
 
@@ -84,12 +87,27 @@ signature from the expected certificate.
 
 1. Merge the release branch into `main`.
 2. Confirm `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` have the same version.
-3. Build the production release artifacts.
-4. Place the artifacts, signatures, `latest.json`, and `release-notes.md` in `release-artifacts/`.
-5. Run `npm run ota:publish:tos`.
-6. Confirm `https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json` returns the published manifest.
-7. Install the previous version locally, then use `Check for Updates...` to verify the app downloads, installs, and relaunches into `vX.Y.Z`.
-8. Open a follow-up PR that bumps the repo to the next patch version after a successful release.
+3. Build the production release artifacts and create/upload the GitHub release.
+4. Do not change the stable TOS `latest.json` yet.
+5. Install the packaged build manually from the release artifacts and verify the
+   version, launch path, signing/notarization, bundled runtime behavior, and
+   the release-specific smoke checklist.
+6. After the user explicitly confirms the packaged build is good, publish the
+   candidate manifest to TOS so `codexmonitor/latest.json` points at the new
+   version.
+7. Confirm `https://qihang-ai.tos-cn-beijing.volces.com/codexmonitor/latest.json` returns the newly approved manifest.
+8. Install the previous version locally, then use `Check for Updates...` to verify the app downloads, installs, and relaunches into `vX.Y.Z`.
+9. Open a follow-up PR that bumps the repo to the next patch version after a successful release.
+
+## Stable Manifest Gate
+
+- Treat `codexmonitor/latest.json` as the customer-facing release switch.
+- Build and upload package artifacts first; publish or update the stable
+  manifest only after manual verification passes.
+- If a built version is rejected during verification, leave the stable manifest
+  pointed at the last approved version.
+- Use `.github/workflows/publish-ota-manifest.yml` to switch the stable manifest
+  to a specific already-published release version without rebuilding artifacts.
 
 ## Smoke Test Checklist
 
