@@ -117,6 +117,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            crate::codex::provenance::log_codex_runtime_provenance();
             let state = state::AppState::load(&app.handle());
             app.manage(state);
             #[cfg(target_os = "macos")]

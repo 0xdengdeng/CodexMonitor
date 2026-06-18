@@ -7,6 +7,8 @@ mod codex_args;
 mod codex_config;
 #[path = "../codex/home.rs"]
 mod codex_home;
+#[path = "../codex/provenance.rs"]
+mod codex_provenance;
 #[path = "../codex/runtime.rs"]
 mod codex_runtime;
 #[path = "../files/io.rs"]
@@ -2150,6 +2152,7 @@ mod tests {
 }
 
 fn main() {
+    codex_provenance::log_codex_runtime_provenance();
     let config = match parse_args() {
         Ok(config) => config,
         Err(err) => {

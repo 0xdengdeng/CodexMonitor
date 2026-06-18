@@ -152,3 +152,27 @@ const manifest = {
 fs.writeFileSync(`${targetBinary}.json`, `${JSON.stringify(manifest, null, 2)}\n`);
 
 console.log(`Synced bundled Codex runtime: ${path.relative(repoRoot, targetBinary)}`);
+
+warnIfRuntimeProcessRunning();
+
+// A running app/daemon keeps the PREVIOUS codex-runtime binary loaded until it
+// is restarted, so a fresh sync silently has no effect on an already-running
+// AgentDesk. Surface that loudly here instead of letting it run stale. Advisory
+// only: skip quietly where `pgrep` is unavailable (Windows / minimal images) —
+// this is a dev-ergonomics nudge, not a correctness gate.
+function warnIfRuntimeProcessRunning() {
+  if (process.platform === "win32") return;
+  let result;
+  try {
+    result = spawnSync("pgrep", ["-f", "codex-runtime app-server"], { encoding: "utf8" });
+  } catch {
+    return; // pgrep not present; nothing to advise.
+  }
+  if (result.status === 0 && result.stdout.trim() !== "") {
+    console.warn(
+      "\n⚠️  A codex-runtime app-server is still running the PREVIOUS binary.\n" +
+        "   Restart AgentDesk (or the daemon) to load the runtime you just synced —\n" +
+        "   the running process holds the old binary in memory until then.\n",
+    );
+  }
+}

@@ -7,6 +7,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 pub(crate) mod args;
 pub(crate) mod config;
 pub(crate) mod home;
+pub(crate) mod provenance;
 pub(crate) mod runtime;
 
 pub(crate) use crate::backend::app_server::WorkspaceSession;
