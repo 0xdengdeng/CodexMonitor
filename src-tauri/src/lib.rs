@@ -208,6 +208,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             diagnostics::read_app_log_tail,
+            diagnostics::read_daemon_log_tail,
             settings::get_app_settings,
             settings::update_app_settings,
             settings::runtime_api_key_status,

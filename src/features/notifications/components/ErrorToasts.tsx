@@ -28,7 +28,7 @@ function ErrorToastRow({
 
   const handleCopy = async () => {
     try {
-      await copyDiagnostics(new Error(`${toast.title}: ${toast.message}`));
+      await copyDiagnostics(`${toast.title}: ${toast.message}`);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {

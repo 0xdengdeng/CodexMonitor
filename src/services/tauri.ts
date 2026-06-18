@@ -1275,3 +1275,8 @@ export async function sendNotification(
 export async function readAppLogTail(maxBytes = 20000): Promise<string> {
   return await invoke<string>("read_app_log_tail", { maxBytes });
 }
+
+/** Tail of the headless daemon log (daemon.log); rejects if it was never created. */
+export async function readDaemonLogTail(maxBytes = 20000): Promise<string> {
+  return await invoke<string>("read_daemon_log_tail", { maxBytes });
+}

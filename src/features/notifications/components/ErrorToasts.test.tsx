@@ -45,8 +45,9 @@ describe("ErrorToasts", () => {
 
     await waitFor(() => expect(mockedCopyDiagnostics).toHaveBeenCalledTimes(1));
     const passed = mockedCopyDiagnostics.mock.calls[0]?.[0];
-    expect(passed).toBeInstanceOf(Error);
-    expect((passed as Error).message).toContain("Boom");
+    expect(typeof passed).toBe("string");
+    expect(passed as string).toContain("Boom");
+    expect(passed as string).toContain("bad thing");
     expect(await screen.findByText("Copied ✓")).toBeTruthy();
   });
 });
