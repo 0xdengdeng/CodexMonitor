@@ -1,5 +1,10 @@
 import type { ConversationItem } from "@/types";
-import { normalizeItem, prepareThreadItems, upsertItem } from "@utils/threadItems";
+import {
+  imageGenerationIdsMatch,
+  normalizeItem,
+  prepareThreadItems,
+  upsertItem,
+} from "@utils/threadItems";
 import type { ThreadAction, ThreadState } from "../useThreadsReducer";
 import {
   addSummaryBoundary,
@@ -13,6 +18,91 @@ import {
   mergeStreamingText,
   prefersUpdatedSort,
 } from "./common";
+
+function findGeneratedImageTextAnchorIndex(
+  list: ConversationItem[],
+  item: ConversationItem,
+): number {
+  if (item.kind !== "imageGeneration") {
+    return -1;
+  }
+
+  const pathTokens = [item.savedPath, item.imageSrc].filter(
+    (value): value is string =>
+      typeof value === "string" &&
+      value.trim().length > 0 &&
+      !value.startsWith("data:"),
+  );
+  if (pathTokens.length === 0) {
+    return -1;
+  }
+
+  const tokens = new Set(pathTokens.map((value) => value.trim()));
+  const callId = item.id.trim();
+  if (callId.length > 0) {
+    tokens.add(callId);
+    if (callId.startsWith("call_")) {
+      tokens.add(`_call_${callId.slice("call_".length)}`);
+    }
+  }
+
+  return list.findIndex((entry) => {
+    if (entry.kind !== "message") {
+      return false;
+    }
+    return [...tokens].some((token) => entry.text.includes(token));
+  });
+}
+
+function pathBelongsToThreadGeneratedImages(path: string, threadId: string) {
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  const generatedImagesIndex = parts.findIndex((part) =>
+    /^generated[_-]images$/i.test(part),
+  );
+  return (
+    generatedImagesIndex >= 0 &&
+    parts[generatedImagesIndex + 1] === threadId
+  );
+}
+
+function isThreadScopedGeneratedImageArtifact(
+  item: ConversationItem,
+  threadId: string,
+) {
+  if (item.kind !== "imageGeneration") {
+    return false;
+  }
+  return [item.savedPath, item.imageSrc].some(
+    (value) =>
+      typeof value === "string" &&
+      value.trim().length > 0 &&
+      !value.startsWith("data:") &&
+      pathBelongsToThreadGeneratedImages(value.trim(), threadId),
+  );
+}
+
+function getItemCreatedAt(item: ConversationItem) {
+  return "createdAt" in item &&
+    typeof item.createdAt === "number" &&
+    Number.isFinite(item.createdAt)
+    ? item.createdAt
+    : null;
+}
+
+function insertByCreatedAt(list: ConversationItem[], item: ConversationItem) {
+  const itemCreatedAt = getItemCreatedAt(item);
+  if (itemCreatedAt === null) {
+    return [...list, item];
+  }
+  const insertIndex = list.findIndex((entry) => {
+    const entryCreatedAt = getItemCreatedAt(entry);
+    return entryCreatedAt !== null && entryCreatedAt > itemCreatedAt;
+  });
+  if (insertIndex < 0) {
+    return [...list, item];
+  }
+  return [...list.slice(0, insertIndex), item, ...list.slice(insertIndex)];
+}
 
 export function reduceThreadItems(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
@@ -177,6 +267,63 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
           [action.threadId]: updatedItems,
         },
         threadsByWorkspace: nextThreadsByWorkspace,
+      };
+    }
+    case "hydrateGeneratedImageItem": {
+      const list = state.itemsByThread[action.threadId] ?? [];
+      const item = normalizeItem(action.item);
+      const conversationAnchor =
+        item.kind === "imageGeneration"
+          ? list.find(
+              (entry) =>
+                entry.kind === "imageGeneration" &&
+                imageGenerationIdsMatch(entry.id, item.id),
+            )
+          : undefined;
+      if (!conversationAnchor) {
+        const textAnchorIndex = findGeneratedImageTextAnchorIndex(list, item);
+        if (textAnchorIndex >= 0) {
+          return {
+            ...state,
+            itemsByThread: {
+              ...state.itemsByThread,
+              [action.threadId]: prepareThreadItems(
+                [
+                  ...list.slice(0, textAnchorIndex),
+                  item,
+                  ...list.slice(textAnchorIndex),
+                ],
+                { maxItemsPerThread: state.maxItemsPerThread },
+              ),
+            },
+          };
+        }
+        if (!isThreadScopedGeneratedImageArtifact(item, action.threadId)) {
+          return state;
+        }
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: prepareThreadItems(
+              insertByCreatedAt(list, item),
+              {
+                maxItemsPerThread: state.maxItemsPerThread,
+              },
+            ),
+          },
+        };
+      }
+      const anchoredItem =
+        conversationAnchor.id === item.id ? item : { ...item, id: conversationAnchor.id };
+      return {
+        ...state,
+        itemsByThread: {
+          ...state.itemsByThread,
+          [action.threadId]: prepareThreadItems(upsertItem(list, anchoredItem), {
+            maxItemsPerThread: state.maxItemsPerThread,
+          }),
+        },
       };
     }
     case "setThreadItems":

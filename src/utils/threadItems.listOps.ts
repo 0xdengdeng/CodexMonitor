@@ -1,4 +1,5 @@
 import type { ConversationItem } from "../types";
+import { imageGenerationIdsMatch } from "./threadItems.imageGeneration";
 import { normalizeThreadTimestamp } from "./threadItems.shared";
 
 function mergeUserInputQuestions(
@@ -41,10 +42,8 @@ function mergeImageGenerationItem(
     ? incoming.savedPath
     : existing.savedPath;
   // Pin the displayed source to the stable local artifact path once we have one.
-  // The same image arrives twice (native item/completed with savedPath, then the
-  // raw image_generation_call with only a base64 data URL); letting the data URL
-  // override savedPath flips <img src> on every update and flickers the card.
-  // Display order matches codex-native-image-flow.md: savedPath, then data URL.
+  // Runtime raw events may include both saved_path metadata and a transient data URL;
+  // keeping the local path avoids flipping <img src> on refresh.
   const imageSrc = hasText(savedPath)
     ? savedPath
     : hasText(incoming.imageSrc)
@@ -269,20 +268,63 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
 export function mergeThreadItems(
   remoteItems: ConversationItem[],
   localItems: ConversationItem[],
+  options?: {
+    appendUnmatchedLocal?: boolean;
+    appendUnmatchedLocalKinds?: ConversationItem["kind"][];
+  },
 ) {
   if (!localItems.length) {
     return remoteItems;
   }
+  const appendUnmatchedLocal = options?.appendUnmatchedLocal ?? true;
+  const appendUnmatchedLocalKinds = new Set(options?.appendUnmatchedLocalKinds ?? []);
   const byId = new Map(remoteItems.map((item) => [item.id, item]));
   const localItemsById = new Map(localItems.map((item) => [item.id, item]));
+  const findLocalItem = (remote: ConversationItem) => {
+    const exact = localItemsById.get(remote.id);
+    if (exact || remote.kind !== "imageGeneration") {
+      return exact;
+    }
+    return localItems.find(
+      (local) =>
+        local.kind === "imageGeneration" &&
+        imageGenerationIdsMatch(remote.id, local.id),
+    );
+  };
+  const hasRemoteItem = (local: ConversationItem) => {
+    if (byId.has(local.id)) {
+      return true;
+    }
+    if (local.kind === "message") {
+      return remoteItems.some(
+        (remote) =>
+          remote.kind === "message" &&
+          remote.role === local.role &&
+          remote.text.trim() === local.text.trim(),
+      );
+    }
+    return (
+      local.kind === "imageGeneration" &&
+      remoteItems.some(
+        (remote) =>
+          remote.kind === "imageGeneration" &&
+          imageGenerationIdsMatch(remote.id, local.id),
+      )
+    );
+  };
   const merged = remoteItems.map((item) => {
-    const local = localItemsById.get(item.id);
+    const local = findLocalItem(item);
     return local ? chooseRicherItem(item, local) : item;
   });
-  localItems.forEach((item) => {
-    if (!byId.has(item.id)) {
-      merged.push(item);
-    }
-  });
+  if (appendUnmatchedLocal || appendUnmatchedLocalKinds.size > 0) {
+    localItems.forEach((item) => {
+      if (
+        !hasRemoteItem(item) &&
+        (appendUnmatchedLocal || appendUnmatchedLocalKinds.has(item.kind))
+      ) {
+        merged.push(item);
+      }
+    });
+  }
   return merged;
 }

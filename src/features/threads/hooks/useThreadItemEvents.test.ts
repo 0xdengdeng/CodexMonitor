@@ -13,11 +13,7 @@ vi.mock("@utils/threadItems", () => ({
     const type = String(item.type ?? "");
     const id = String(item.id ?? "").trim();
     const normalizedTurnId = String(turnId ?? "").trim();
-    if (
-      (type !== "imageGeneration" && type !== "image_generation_call") ||
-      !normalizedTurnId ||
-      !id
-    ) {
+    if (type !== "imageGeneration" || !normalizedTurnId || !id) {
       return item;
     }
     const callId = String(item.callId ?? item.call_id ?? id).trim() || id;
@@ -248,61 +244,7 @@ describe("useThreadItemEvents", () => {
     );
   });
 
-  it("adds lifecycle status for raw image generation response items", () => {
-    const { result } = makeOptions();
-    const item: ItemPayload = {
-      type: "image_generation_call",
-      id: "image-raw-1",
-      result: "",
-    };
-
-    act(() => {
-      result.current.onItemStarted("ws-1", "thread-1", item);
-    });
-    expect(buildConversationItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "image_generation_call",
-        id: "image-raw-1",
-        status: "inProgress",
-      }),
-    );
-
-    act(() => {
-      result.current.onItemCompleted("ws-1", "thread-1", item);
-    });
-    expect(buildConversationItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "image_generation_call",
-        id: "image-raw-1",
-        status: "completed",
-      }),
-    );
-  });
-
-  it("scopes raw image generation item ids by turn", () => {
-    const { result } = makeOptions();
-    const item: ItemPayload = {
-      type: "image_generation_call",
-      id: "ig_1",
-      result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
-    };
-
-    act(() => {
-      result.current.onItemCompleted("ws-1", "thread-1", item, "turn-1");
-    });
-
-    expect(buildConversationItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "image_generation_call",
-        id: "turn-1:ig_1",
-        callId: "ig_1",
-        call_id: "ig_1",
-        status: "completed",
-      }),
-    );
-  });
-
-  it("passes the configured image model for native image generation items", () => {
+  it("passes the configured image model for image generation items", () => {
     const { result } = makeOptions({ imageGenerationModel: "gpt-image-2" });
     const item: ItemPayload = {
       type: "imageGeneration",

@@ -3,16 +3,82 @@ import type { ConversationItem } from "../types";
 import {
   buildConversationItem,
   buildConversationItemFromThreadItem,
+  buildRawDynamicToolOutputItem,
   buildItemsFromThread,
+  getRawFunctionCallId,
   getThreadCreatedTimestamp,
   getThreadTimestamp,
+  imageGenerationIdsMatch,
+  isRawDisplayResponseItem,
   mergeThreadItems,
   normalizeItem,
+  parseRawDynamicToolCall,
   prepareThreadItems,
+  unwrapRawResponseItem,
   upsertItem,
 } from "./threadItems";
 
 describe("threadItems", () => {
+  it("matches generated image call ids across scoped turn anchors", () => {
+    expect(imageGenerationIdsMatch("turn-1:call-image-1", "call-image-1")).toBe(
+      true,
+    );
+    expect(imageGenerationIdsMatch("call-image-1", "turn-1:call-image-1")).toBe(
+      true,
+    );
+    expect(imageGenerationIdsMatch("turn-1:call-image-1", "call-image-2")).toBe(
+      false,
+    );
+  });
+
+  it("unwraps response_item envelopes before parsing raw generated image calls", () => {
+    const wrappedCall = {
+      type: "response_item",
+      payload: {
+        type: "function_call",
+        call_id: "call-wrapped-image",
+        name: "generate_image",
+        arguments: JSON.stringify({ prompt: "A wrapped live image" }),
+      },
+    };
+    const call = parseRawDynamicToolCall(unwrapRawResponseItem(wrappedCall));
+
+    expect(call).toMatchObject({
+      id: "call-wrapped-image",
+      tool: "generate_image",
+      arguments: { prompt: "A wrapped live image" },
+    });
+
+    const wrappedOutput = {
+      type: "response_item",
+      payload: {
+        type: "function_call_output",
+        call_id: "call-wrapped-image",
+        output: [
+          {
+            type: "input_text",
+            text: JSON.stringify({
+              status: "generated",
+              saved_path:
+                "/tmp/codex-home/generated_images/thread-1/019_call_wrapped_image.png",
+            }),
+          },
+        ],
+      },
+    };
+    const output = buildRawDynamicToolOutputItem(
+      unwrapRawResponseItem(wrappedOutput),
+      call ?? undefined,
+    );
+
+    expect(output).toMatchObject({
+      type: "dynamicToolCall",
+      id: "call-wrapped-image",
+      tool: "generate_image",
+      status: "completed",
+    });
+  });
+
   it("truncates long message text in normalizeItem", () => {
     const text = "a".repeat(21000);
     const item: ConversationItem = {
@@ -459,6 +525,132 @@ describe("threadItems", () => {
     }
   });
 
+  it("exposes shared raw runtime item normalization for live and history paths", () => {
+    const call = parseRawDynamicToolCall({
+      type: "function_call",
+      call_id: "call-shared-1",
+      name: "codex_monitor.generate_image",
+      arguments: JSON.stringify({
+        prompt: "A shared normalization image",
+        size: "1024x1024",
+      }),
+    });
+
+    expect(call).toEqual({
+      id: "call-shared-1",
+      namespace: null,
+      tool: "generate_image",
+      arguments: {
+        prompt: "A shared normalization image",
+        size: "1024x1024",
+      },
+    });
+
+    const metadata = {
+      status: "generated",
+      saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_shared_1.png",
+      model: "gpt-image-2",
+    };
+    const output = {
+      type: "function_call_output",
+      call_id: "call-shared-1",
+      output: [{ type: "input_text", text: JSON.stringify(metadata) }],
+    };
+
+    expect(getRawFunctionCallId(output)).toBe("call-shared-1");
+    expect(buildRawDynamicToolOutputItem(output, call ?? undefined)).toEqual({
+      type: "dynamicToolCall",
+      id: "call-shared-1",
+      namespace: null,
+      tool: "generate_image",
+      status: "completed",
+      arguments: {
+        prompt: "A shared normalization image",
+        size: "1024x1024",
+      },
+      contentItems: [{ type: "inputText", text: JSON.stringify(metadata) }],
+      success: true,
+    });
+    expect(
+      isRawDisplayResponseItem({
+        type: "message",
+        id: "msg-shared-1",
+        role: "assistant",
+        content: [{ type: "output_text", text: "Done." }],
+      }),
+    ).toBe(true);
+  });
+
+  it("uses first non-empty raw call id and tool fields", () => {
+    const call = parseRawDynamicToolCall({
+      type: "function_call",
+      call_id: "",
+      callId: "call-camel-1",
+      name: "",
+      tool: "codex_monitor.generate_image",
+      arguments: JSON.stringify({
+        prompt: "Fallback field image",
+      }),
+    });
+
+    expect(call).toEqual({
+      id: "call-camel-1",
+      namespace: null,
+      tool: "generate_image",
+      arguments: {
+        prompt: "Fallback field image",
+      },
+    });
+    expect(
+      getRawFunctionCallId({
+        type: "function_call_output",
+        call_id: "",
+        callId: "call-camel-1",
+        id: "ignored-id",
+      }),
+    ).toBe("call-camel-1");
+  });
+
+  it("does not infer uncached raw tool image outputs as generated images without generated image artifact metadata", () => {
+    const output = {
+      type: "function_call_output",
+      call_id: "call-unrelated-image",
+      output: [
+        {
+          type: "input_text",
+          text: JSON.stringify({
+            saved_path: "/tmp/uploads/diagram.png",
+            status: "completed",
+          }),
+        },
+        { type: "input_image", image_url: "data:image/png;base64,DIAGRAM" },
+      ],
+    };
+
+    expect(buildRawDynamicToolOutputItem(output)).toBeNull();
+  });
+
+  it("does not infer uncached raw image outputs from another thread as generated images", () => {
+    const output = {
+      type: "function_call_output",
+      call_id: "call-other-thread-image",
+      output: [
+        {
+          type: "input_text",
+          text: JSON.stringify({
+            saved_path:
+              "/tmp/codex-home/generated_images/thread-other/019_call_other_thread.png",
+            status: "generated",
+          }),
+        },
+      ],
+    };
+
+    expect(
+      buildRawDynamicToolOutputItem(output, undefined, { threadId: "thread-1" }),
+    ).toBeNull();
+  });
+
   it("defaults web search items to completed status", () => {
     const item = buildConversationItem({
       type: "webSearch",
@@ -561,7 +753,7 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "A seaside portrait",
       revisedPrompt: null,
-      model: "adg-image",
+      model: "gpt-image-2",
       size: "1024x1536",
       assetId: null,
       savedPath: null,
@@ -574,11 +766,11 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "A seaside portrait",
       revisedPrompt: null,
-      model: "adg-image",
+      model: "gpt-image-2",
       size: "1024x1536",
-      assetId: "asset-1",
-      savedPath: "/tmp/generated-images/asset-1.png",
-      imageSrc: "/tmp/generated-images/asset-1.png",
+      assetId: null,
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
       error: null,
     };
 
@@ -586,9 +778,53 @@ describe("threadItems", () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].kind).toBe("imageGeneration");
     if (merged[0].kind === "imageGeneration") {
-      expect(merged[0].assetId).toBe("asset-1");
-      expect(merged[0].savedPath).toBe("/tmp/generated-images/asset-1.png");
-      expect(merged[0].imageSrc).toBe("/tmp/generated-images/asset-1.png");
+      expect(merged[0].assetId).toBeNull();
+      expect(merged[0].savedPath).toBe(
+        "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+      );
+      expect(merged[0].imageSrc).toBe(
+        "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+      );
+    }
+  });
+
+  it("merges scoped and unscoped generated image ids without appending stale copies", () => {
+    const remote: ConversationItem = {
+      id: "turn-1:call-image-1",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "gpt-image-2",
+      size: "1024x1536",
+      assetId: null,
+      savedPath: null,
+      imageSrc: null,
+      error: null,
+    };
+    const local: ConversationItem = {
+      id: "call-image-1",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A seaside portrait",
+      revisedPrompt: null,
+      model: "gpt-image-2",
+      size: "1024x1536",
+      assetId: null,
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+      error: null,
+    };
+
+    const merged = mergeThreadItems([remote], [local]);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].kind).toBe("imageGeneration");
+    if (merged[0].kind === "imageGeneration") {
+      expect(merged[0].id).toBe("turn-1:call-image-1");
+      expect(merged[0].savedPath).toBe(
+        "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+      );
     }
   });
 
@@ -716,11 +952,11 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "A seaside portrait",
       revisedPrompt: null,
-      model: "adg-image",
+      model: "gpt-image-2",
       size: "1024x1536",
-      assetId: "asset-1",
-      savedPath: "/tmp/generated-images/asset-1.png",
-      imageSrc: "/tmp/generated-images/asset-1.png",
+      assetId: null,
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
       error: null,
     };
     const incoming: ConversationItem = {
@@ -729,7 +965,7 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "A seaside portrait",
       revisedPrompt: null,
-      model: "adg-image",
+      model: "gpt-image-2",
       size: "1024x1536",
       assetId: null,
       savedPath: null,
@@ -741,9 +977,13 @@ describe("threadItems", () => {
     expect(next).toHaveLength(1);
     expect(next[0].kind).toBe("imageGeneration");
     if (next[0].kind === "imageGeneration") {
-      expect(next[0].assetId).toBe("asset-1");
-      expect(next[0].savedPath).toBe("/tmp/generated-images/asset-1.png");
-      expect(next[0].imageSrc).toBe("/tmp/generated-images/asset-1.png");
+      expect(next[0].assetId).toBeNull();
+      expect(next[0].savedPath).toBe(
+        "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+      );
+      expect(next[0].imageSrc).toBe(
+        "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+      );
     }
   });
 
@@ -755,22 +995,22 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "A seaside portrait",
       revisedPrompt: null,
-      model: "adg-image",
+      model: "gpt-image-2",
       size: "1024x1536",
       assetId: null,
-      savedPath: "/tmp/generated-images/ig_flicker.png",
-      imageSrc: "/tmp/generated-images/ig_flicker.png",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_flicker.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_flicker.png",
       error: null,
     };
-    // Raw image_generation_call replay for the SAME id: only a base64 data URL,
-    // no savedPath. It must not override the stable artifact path.
+    // Runtime refresh for the same id may include a base64 data URL without
+    // savedPath. It must not override the stable artifact path.
     const incoming: ConversationItem = {
       id: "ig_flicker",
       kind: "imageGeneration",
       status: "completed",
       prompt: "A seaside portrait",
       revisedPrompt: null,
-      model: "adg-image",
+      model: "gpt-image-2",
       size: "1024x1536",
       assetId: null,
       savedPath: null,
@@ -782,8 +1022,12 @@ describe("threadItems", () => {
     expect(next).toHaveLength(1);
     expect(next[0].kind).toBe("imageGeneration");
     if (next[0].kind === "imageGeneration") {
-      expect(next[0].savedPath).toBe("/tmp/generated-images/ig_flicker.png");
-      expect(next[0].imageSrc).toBe("/tmp/generated-images/ig_flicker.png");
+      expect(next[0].savedPath).toBe(
+        "/tmp/codex-home/generated_images/thread-1/019_call_flicker.png",
+      );
+      expect(next[0].imageSrc).toBe(
+        "/tmp/codex-home/generated_images/thread-1/019_call_flicker.png",
+      );
     }
   });
 
@@ -1093,8 +1337,8 @@ describe("threadItems", () => {
       model: "gpt-image-2",
       size: "1024x1536",
       revisedPrompt: "A polished blue rocket icon",
-      result: "/tmp/generated-images/rocket.png",
-      savedPath: "/tmp/generated-images/rocket.png",
+      result: "/tmp/codex-home/generated_images/thread-1/019_call_rocket.png",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_rocket.png",
     });
 
     expect(item).toEqual({
@@ -1106,10 +1350,36 @@ describe("threadItems", () => {
       model: "gpt-image-2",
       size: "1024x1536",
       assetId: null,
-      savedPath: "/tmp/generated-images/rocket.png",
-      imageSrc: "/tmp/generated-images/rocket.png",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_rocket.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_rocket.png",
       error: null,
       createdAt: undefined,
+    });
+  });
+
+  it("builds upstream snake_case image generation response items", () => {
+    const result =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
+    const item = buildConversationItem(
+      {
+        type: "image_generation_call",
+        id: "image-native-1",
+        status: "completed",
+        model: "gpt-image-1",
+        size: "1024x1024",
+        revised_prompt: "A polished local app screenshot",
+        result,
+      },
+      { imageGenerationModel: "gpt-image-2" },
+    );
+
+    expect(item).toMatchObject({
+      id: "image-native-1",
+      kind: "imageGeneration",
+      status: "completed",
+      revisedPrompt: "A polished local app screenshot",
+      model: "gpt-image-2",
+      imageSrc: `data:image/png;base64,${result}`,
     });
   });
 
@@ -1117,7 +1387,7 @@ describe("threadItems", () => {
     const item = buildConversationItem(
       {
         type: "imageGeneration",
-        id: "image-native-1",
+        id: "call-image-1",
         status: "generating",
         model: "qihang-ultra-5.5",
         size: "1024x1536",
@@ -1126,7 +1396,7 @@ describe("threadItems", () => {
     );
 
     expect(item).toMatchObject({
-      id: "image-native-1",
+      id: "call-image-1",
       kind: "imageGeneration",
       model: "gpt-image-2",
       size: "1024x1536",
@@ -1136,15 +1406,15 @@ describe("threadItems", () => {
   it("completes upstream image generation items when the end payload has a saved image", () => {
     const item = buildConversationItem({
       type: "imageGeneration",
-      id: "ig-native-1",
+      id: "call-image-1",
       status: "generating",
       revisedPrompt: "A polished original short-video cover",
       result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
-      savedPath: "/tmp/generated-images/ig-native-1.png",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
     });
 
     expect(item).toEqual({
-      id: "ig-native-1",
+      id: "call-image-1",
       kind: "imageGeneration",
       status: "completed",
       prompt: "",
@@ -1152,40 +1422,8 @@ describe("threadItems", () => {
       model: "",
       size: "",
       assetId: null,
-      savedPath: "/tmp/generated-images/ig-native-1.png",
-      imageSrc: "/tmp/generated-images/ig-native-1.png",
-      error: null,
-      createdAt: undefined,
-    });
-  });
-
-  it("normalizes raw image_generation_call response items during thread replay", () => {
-    const result =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
-    const item = buildConversationItem(
-      {
-        type: "image_generation_call",
-        id: "ig-native-raw",
-        status: "generating",
-        model: "qihang-ultra-5.5",
-        size: "1024x1536",
-        revised_prompt: "A tokusatsu-inspired original light hero in space",
-        result,
-      },
-      { imageGenerationModel: "gpt-image-2" },
-    );
-
-    expect(item).toEqual({
-      id: "ig-native-raw",
-      kind: "imageGeneration",
-      status: "completed",
-      prompt: "",
-      revisedPrompt: "A tokusatsu-inspired original light hero in space",
-      model: "gpt-image-2",
-      size: "1024x1536",
-      assetId: null,
-      savedPath: null,
-      imageSrc: `data:image/png;base64,${result}`,
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
       error: null,
       createdAt: undefined,
     });
@@ -1227,10 +1465,26 @@ describe("threadItems", () => {
                 content: [{ type: "output_text", text: "我先帮你生成一张图。" }],
               },
               {
-                type: "image_generation_call",
-                id: "ig-1",
-                status: "completed",
-                result: "AAA",
+                type: "function_call",
+                call_id: "call-image-1",
+                name: "generate_image",
+                arguments: JSON.stringify({
+                  prompt: "A generated image",
+                }),
+              },
+              {
+                type: "function_call_output",
+                call_id: "call-image-1",
+                output: [
+                  {
+                    type: "input_text",
+                    text: JSON.stringify({
+                      status: "generated",
+                      model: "gpt-image-2",
+                      saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_image_1.png",
+                    }),
+                  },
+                ],
               },
             ],
           },
@@ -1249,45 +1503,10 @@ describe("threadItems", () => {
       createdAt: Date.parse("2026-06-14T08:00:00Z"),
     });
     expect(items[1]).toMatchObject({
-      id: "turn-1:ig-1",
+      id: "call-image-1",
       kind: "imageGeneration",
       model: "gpt-image-2",
     });
-  });
-
-  it("keeps same image generation call ids from different turns as separate items", () => {
-    const items = buildItemsFromThread(
-      {
-        turns: [
-          {
-            id: "turn-1",
-            items: [
-              {
-                type: "image_generation_call",
-                id: "ig_1",
-                status: "completed",
-                result: "AAA",
-              },
-            ],
-          },
-          {
-            id: "turn-2",
-            items: [
-              {
-                type: "image_generation_call",
-                id: "ig_1",
-                status: "completed",
-                result: "BBB",
-              },
-            ],
-          },
-        ],
-      },
-      { imageGenerationModel: "gpt-image-2" },
-    );
-
-    expect(items).toHaveLength(2);
-    expect(items.map((item) => item.id)).toEqual(["turn-1:ig_1", "turn-2:ig_1"]);
   });
 
   it("coalesces duplicate image generation records during thread replay", () => {
@@ -1300,19 +1519,35 @@ describe("threadItems", () => {
             items: [
               {
                 type: "imageGeneration",
-                id: "ig-native-dupe",
+                id: "call-dupe",
                 status: "completed",
                 size: "1024x1536",
-                savedPath: "/tmp/generated-images/ig-native-dupe.png",
+                savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_dupe.png",
               },
               {
-                type: "image_generation_call",
-                id: "ig-native-dupe",
-                status: "generating",
-                model: "qihang-ultra-5.5",
-                size: "1024x1536",
-                revised_prompt: "A tokusatsu-inspired original light hero in space",
-                result,
+                type: "function_call",
+                call_id: "call-dupe",
+                name: "generate_image",
+                arguments: JSON.stringify({
+                  prompt: "A tokusatsu-inspired original light hero in space",
+                  size: "1024x1536",
+                }),
+              },
+              {
+                type: "function_call_output",
+                call_id: "call-dupe",
+                output: [
+                  {
+                    type: "input_text",
+                    text: JSON.stringify({
+                      status: "generated",
+                      model: "gpt-image-2",
+                      size: "1024x1536",
+                      saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_dupe.png",
+                    }),
+                  },
+                  { type: "input_image", image_url: `data:image/png;base64,${result}` },
+                ],
               },
             ],
           },
@@ -1323,12 +1558,12 @@ describe("threadItems", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
-      id: "ig-native-dupe",
+      id: "call-dupe",
       kind: "imageGeneration",
       status: "completed",
       model: "gpt-image-2",
       size: "1024x1536",
-      savedPath: "/tmp/generated-images/ig-native-dupe.png",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_dupe.png",
     });
   });
 
@@ -1340,7 +1575,7 @@ describe("threadItems", () => {
             items: [
               {
                 type: "imageGeneration",
-                id: "ig-native-replay",
+                id: "call-image-replay",
                 status: "generating",
                 model: "qihang-ultra-5.5",
                 size: "1024x1536",
@@ -1354,17 +1589,17 @@ describe("threadItems", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
-      id: "ig-native-replay",
+      id: "call-image-replay",
       kind: "imageGeneration",
       model: "gpt-image-2",
     });
   });
 
-  it("normalizes AgentDesk image dynamic tool calls into image generation items", () => {
+  it("normalizes runtime generate_image tool calls into image generation items", () => {
     const item = buildConversationItem({
       type: "dynamicToolCall",
       id: "call-1",
-      namespace: "codex_monitor",
+      namespace: "",
       tool: "generate_image",
       status: "completed",
       arguments: {
@@ -1372,8 +1607,15 @@ describe("threadItems", () => {
         size: "1024x1024",
       },
       contentItems: [
-        { type: "inputText", text: "{\"assetId\":\"asset-1\",\"model\":\"adg-image\"}" },
-        { type: "inputImage", imageUrl: "/tmp/generated-images/asset-1.png" },
+        {
+          type: "inputText",
+          text: JSON.stringify({
+            status: "generated",
+            model: "gpt-image-2",
+            saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+          }),
+        },
+        { type: "inputImage", imageUrl: "data:image/png;base64,AAA" },
       ],
       success: true,
     });
@@ -1384,17 +1626,186 @@ describe("threadItems", () => {
       status: "completed",
       prompt: "A small blue rocket icon",
       revisedPrompt: null,
-      model: "adg-image",
+      model: "gpt-image-2",
       size: "1024x1024",
-      assetId: "asset-1",
-      savedPath: "/tmp/generated-images/asset-1.png",
-      imageSrc: "/tmp/generated-images/asset-1.png",
+      assetId: null,
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+      imageSrc: "data:image/png;base64,AAA",
       error: null,
       createdAt: undefined,
     });
   });
 
-  it("normalizes raw response function calls into image generation items during thread replay", () => {
+  it("normalizes legacy codex_monitor.generate_image calls during thread replay", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          id: "turn-legacy",
+          started_at: "2026-06-18T02:08:24Z",
+          items: [
+            {
+              type: "message",
+              id: "assistant-intro",
+              role: "assistant",
+              content: [{ type: "output_text", text: "开始生成第一张。" }],
+            },
+            {
+              type: "function_call",
+              call_id: "call-legacy-image",
+              namespace: "codex_monitor",
+              name: "generate_image",
+              arguments: JSON.stringify({ prompt: "A restored image" }),
+            },
+            {
+              type: "function_call_output",
+              call_id: "call-legacy-image",
+              output: [
+                {
+                  type: "input_text",
+                  text: JSON.stringify({
+                    status: "generated",
+                    saved_path:
+                      "/tmp/codex-home/generated_images/thread-1/019_call_legacy_image.png",
+                    model: "gpt-image-1",
+                  }),
+                },
+              ],
+            },
+            {
+              type: "message",
+              id: "assistant-summary",
+              role: "assistant",
+              content: [
+                {
+                  type: "output_text",
+                  text:
+                    "图片已生成：/tmp/codex-home/generated_images/thread-1/019_call_legacy_image.png",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items.map((item) => item.id)).toEqual([
+      "assistant-intro",
+      "call-legacy-image",
+      "assistant-summary",
+    ]);
+    expect(items[1]).toMatchObject({
+      kind: "imageGeneration",
+      status: "completed",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_legacy_image.png",
+      createdAt: Date.parse("2026-06-18T02:08:24Z"),
+    });
+  });
+
+  it("keeps id-less raw assistant messages as ordering anchors during thread replay", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          id: "turn-actual",
+          started_at: "2026-06-18T02:08:24Z",
+          items: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "开始开麦生成。" }],
+            },
+            {
+              type: "function_call",
+              call_id: "call-actual-image",
+              name: "generate_image",
+              arguments: JSON.stringify({ prompt: "A restored rollout image" }),
+            },
+            {
+              type: "function_call_output",
+              call_id: "call-actual-image",
+              output: [
+                {
+                  type: "input_text",
+                  text: JSON.stringify({
+                    status: "generated",
+                    saved_path:
+                      "/tmp/codex-home/generated_images/thread-1/019_call_actual_image.png",
+                  }),
+                },
+              ],
+            },
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "图片已生成。" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items.map((item) => item.id)).toEqual([
+      "turn-actual:raw-message:0",
+      "call-actual-image",
+      "turn-actual:raw-message:3",
+    ]);
+    expect(items.map((item) => item.kind)).toEqual([
+      "message",
+      "imageGeneration",
+      "message",
+    ]);
+  });
+
+  it("renders saved_path outputs as images even when the function call is missing", () => {
+    const items = buildItemsFromThread({
+      id: "thread-1",
+      turns: [
+        {
+          id: "turn-output-only",
+          items: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "开始生成。" }],
+            },
+            {
+              type: "function_call_output",
+              call_id: "call-output-only",
+              output: [
+                {
+                  type: "input_text",
+                  text: JSON.stringify({
+                    status: "generated",
+                    saved_path:
+                      "/tmp/codex-home/generated_images/thread-1/019_call_output_only.png",
+                    model: "gpt-image-2",
+                  }),
+                },
+              ],
+            },
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: "生成完成。" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items.map((item) => item.id)).toEqual([
+      "turn-output-only:raw-message:0",
+      "call-output-only",
+      "turn-output-only:raw-message:2",
+    ]);
+    expect(items[1]).toMatchObject({
+      kind: "imageGeneration",
+      status: "completed",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_output_only.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_output_only.png",
+    });
+  });
+
+  it("normalizes raw runtime generate_image function calls during thread replay", () => {
     const items = buildItemsFromThread({
       turns: [
         {
@@ -1402,7 +1813,6 @@ describe("threadItems", () => {
             {
               type: "function_call",
               call_id: "call-1",
-              namespace: "codex_monitor",
               name: "generate_image",
               arguments: JSON.stringify({
                 prompt: "A seaside portrait",
@@ -1416,11 +1826,10 @@ describe("threadItems", () => {
                 {
                   type: "input_text",
                   text: JSON.stringify({
-                    assetId: "asset-1",
-                    model: "adg-image",
+                    status: "generated",
+                    model: "gpt-image-2",
                     size: "1024x1536",
-                    savedPath: "/tmp/generated-images/asset-1.png",
-                    localPath: "/tmp/generated-images/asset-1.png",
+                    saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
                   }),
                 },
                 {
@@ -1442,15 +1851,125 @@ describe("threadItems", () => {
         status: "completed",
         prompt: "A seaside portrait",
         revisedPrompt: null,
-        model: "adg-image",
+        model: "gpt-image-2",
         size: "1024x1536",
-        assetId: "asset-1",
-        savedPath: "/tmp/generated-images/asset-1.png",
-        imageSrc: "data:image/png;base64,AAA",
+        assetId: null,
+        savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
+        imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
         error: null,
         createdAt: undefined,
       },
     ]);
+  });
+
+  it("anchors runtime generate_image function calls before the final assistant message", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          started_at: "2026-06-14T08:00:00Z",
+          items: [
+            {
+              type: "userMessage",
+              id: "msg-user-1",
+              content: [{ type: "text", text: "Generate an image" }],
+            },
+            {
+              type: "function_call",
+              call_id: "call-anchor-1",
+              name: "generate_image",
+              arguments: JSON.stringify({
+                prompt: "A runtime generated image",
+              }),
+            },
+            {
+              type: "agentMessage",
+              id: "msg-assistant-1",
+              text: "Image generated.",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items.map((item) => item.id)).toEqual([
+      "msg-user-1",
+      "call-anchor-1",
+      "msg-assistant-1",
+    ]);
+    expect(items[1]).toMatchObject({
+      id: "call-anchor-1",
+      kind: "imageGeneration",
+      status: "in_progress",
+      prompt: "A runtime generated image",
+      createdAt: Date.parse("2026-06-14T08:00:00Z"),
+    });
+  });
+
+  it("unwraps historical response_item payloads before anchoring runtime images", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          started_at: "2026-06-14T08:00:00Z",
+          items: [
+            {
+              type: "userMessage",
+              id: "msg-user-history",
+              content: [{ type: "text", text: "Generate an image" }],
+            },
+            {
+              type: "response_item",
+              payload: {
+                type: "function_call",
+                call_id: "call-history-image",
+                name: "generate_image",
+                arguments: JSON.stringify({
+                  prompt: "A historical rollout image",
+                }),
+              },
+            },
+            {
+              type: "response_item",
+              payload: {
+                type: "function_call_output",
+                call_id: "call-history-image",
+                output: [
+                  {
+                    type: "input_text",
+                    text: JSON.stringify({
+                      status: "generated",
+                      model: "gpt-image-2",
+                      saved_path:
+                        "/tmp/codex-home/generated_images/thread-1/019_call_history_image.png",
+                    }),
+                  },
+                ],
+              },
+            },
+            {
+              type: "agentMessage",
+              id: "msg-assistant-history",
+              text: "Image generated.",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items.map((item) => item.id)).toEqual([
+      "msg-user-history",
+      "call-history-image",
+      "msg-assistant-history",
+    ]);
+    expect(items[1]).toMatchObject({
+      id: "call-history-image",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "A historical rollout image",
+      model: "gpt-image-2",
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_history_image.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_history_image.png",
+      createdAt: Date.parse("2026-06-14T08:00:00Z"),
+    });
   });
 
   it("normalizes bare raw generate_image function calls into image generation items", () => {
@@ -1474,9 +1993,9 @@ describe("threadItems", () => {
                 {
                   type: "input_text",
                   text: JSON.stringify({
-                    assetId: "asset-bare-1",
-                    model: "adg-image",
-                    savedPath: "/tmp/generated-images/asset-bare-1.png",
+                    status: "generated",
+                    model: "gpt-image-2",
+                    saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_bare_1.png",
                   }),
                 },
                 {
@@ -1495,9 +2014,61 @@ describe("threadItems", () => {
       id: "call-bare-1",
       kind: "imageGeneration",
       prompt: "A neon city poster",
-      assetId: "asset-bare-1",
-      savedPath: "/tmp/generated-images/asset-bare-1.png",
-      imageSrc: "data:image/png;base64,BBB",
+      assetId: null,
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_bare_1.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_bare_1.png",
+    });
+  });
+
+  it("normalizes gateway generate_image outputs that only include saved_path metadata", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          items: [
+            {
+              type: "function_call",
+              call_id: "call-gateway-1",
+              name: "generate_image",
+              arguments: JSON.stringify({
+                prompt: "An Ultraman style hero in a city battle",
+                size: "1024x1024",
+              }),
+            },
+            {
+              type: "function_call_output",
+              call_id: "call-gateway-1",
+              output: [
+                {
+                  type: "input_text",
+                  text: JSON.stringify({
+                    status: "generated",
+                    saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_gateway_1.png",
+                    model: "gpt-image-2",
+                    size: "1024x1024",
+                  }),
+                },
+                {
+                  type: "input_image",
+                  image_url: "data:image/png;base64,CCC",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "call-gateway-1",
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "An Ultraman style hero in a city battle",
+      assetId: null,
+      savedPath: "/tmp/codex-home/generated_images/thread-1/019_call_gateway_1.png",
+      imageSrc: "/tmp/codex-home/generated_images/thread-1/019_call_gateway_1.png",
+      model: "gpt-image-2",
+      size: "1024x1024",
     });
   });
 

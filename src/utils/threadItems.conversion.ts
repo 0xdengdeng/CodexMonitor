@@ -8,6 +8,33 @@ type ThreadItemConversionOptions = {
   imageGenerationModel?: string | null;
 };
 
+type RawDynamicToolOutputOptions = {
+  threadId?: string | null;
+};
+
+export type RawDynamicToolCall = {
+  id: string;
+  namespace: string | null;
+  tool: string;
+  arguments: Record<string, unknown>;
+};
+
+function asRecordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function firstNonEmptyString(...values: unknown[]) {
+  for (const value of values) {
+    const text = asString(value).trim();
+    if (text) {
+      return text;
+    }
+  }
+  return "";
+}
+
 function extractImageInputValue(input: Record<string, unknown>) {
   const value =
     asString(input.url ?? "") ||
@@ -242,13 +269,9 @@ function firstContentImageUrl(items: Array<Record<string, unknown>>) {
 function buildImageGenerationFromDynamicToolCall(
   item: Record<string, unknown>,
 ): ConversationItem | null {
-  const namespaceRaw = item.namespace;
-  const namespace =
-    typeof namespaceRaw === "string" && namespaceRaw.trim().length > 0
-      ? namespaceRaw.trim()
-      : null;
+  const namespace = asString(item.namespace).trim();
   const tool = asString(item.tool).trim();
-  if (namespace !== "codex_monitor" || tool !== "generate_image") {
+  if (!isGenerateImageTool(namespace, tool)) {
     return null;
   }
   const id = asString(item.id);
@@ -352,61 +375,243 @@ function normalizeDynamicToolOutputContentItems(output: unknown) {
   return text ? [{ type: "inputText", text }] : [];
 }
 
-function getRawFunctionCallId(item: Record<string, unknown>) {
-  return asString(item.call_id ?? item.callId ?? item.id);
+export function getRawFunctionCallId(value: unknown) {
+  const item = asRecordValue(value);
+  if (!item) {
+    return "";
+  }
+  return firstNonEmptyString(item.call_id, item.callId, item.id);
 }
 
 function normalizeRawDynamicToolName(tool: string) {
-  return tool === "codex_monitor.generate_image" ? "generate_image" : tool;
+  const trimmed = tool.trim();
+  return trimmed === "codex_monitor.generate_image" ? "generate_image" : trimmed;
 }
 
-function normalizeRawDynamicToolNamespace(namespace: string, tool: string) {
-  if (!namespace && normalizeRawDynamicToolName(tool) === "generate_image") {
-    return "codex_monitor";
+function isGenerateImageTool(namespace: string, tool: string) {
+  const normalizedNamespace = namespace.trim();
+  const normalizedTool = normalizeRawDynamicToolName(tool);
+  return (
+    normalizedTool === "generate_image" &&
+    (!normalizedNamespace || normalizedNamespace === "codex_monitor")
+  );
+}
+
+function isThreadScopedGeneratedImagePath(path: string, threadId?: string | null) {
+  const expectedThreadId = asString(threadId).trim();
+  if (!expectedThreadId) {
+    return false;
   }
-  return namespace;
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  const generatedImagesIndex = parts.findIndex((part) =>
+    /^generated[_-]images$/i.test(part),
+  );
+  return (
+    generatedImagesIndex >= 0 &&
+    parts[generatedImagesIndex + 1] === expectedThreadId
+  );
 }
 
 function isDynamicFunctionCall(item: Record<string, unknown>) {
-  const type = asString(item.type);
-  const namespace = asString(item.namespace);
-  const tool = normalizeRawDynamicToolName(asString(item.name ?? item.tool));
-  if (type !== "function_call" || !tool) {
-    return false;
+  return parseRawDynamicToolCall(item) !== null;
+}
+
+export function parseRawDynamicToolCall(value: unknown): RawDynamicToolCall | null {
+  const item = asRecordValue(value);
+  if (!item || asString(item.type) !== "function_call") {
+    return null;
   }
-  return namespace === "codex_monitor" || (!namespace && tool === "generate_image");
+  const callId = getRawFunctionCallId(item);
+  const namespace = firstNonEmptyString(item.namespace);
+  const tool = normalizeRawDynamicToolName(firstNonEmptyString(item.name, item.tool));
+  if (!callId || !isGenerateImageTool(namespace, tool)) {
+    return null;
+  }
+  return {
+    id: callId,
+    namespace: namespace || null,
+    tool,
+    arguments: normalizeDynamicToolArguments(item.arguments),
+  };
+}
+
+export function buildRawDynamicToolOutputItem(
+  value: unknown,
+  call?: RawDynamicToolCall,
+  options?: RawDynamicToolOutputOptions,
+) {
+  const item = asRecordValue(value);
+  if (!item || asString(item.type) !== "function_call_output") {
+    return null;
+  }
+  const callId = getRawFunctionCallId(item);
+  const contentItems = normalizeDynamicToolOutputContentItems(item.output);
+  const metadata = parseImageGenerationMetadata(firstContentText(contentItems));
+  const artifactPath = firstNonEmptyString(
+    metadata.savedPath,
+    metadata.saved_path,
+    metadata.localPath,
+    metadata.local_path,
+  );
+  const hasRecoverableImageArtifact =
+    isThreadScopedGeneratedImagePath(artifactPath, options?.threadId);
+  const resolvedCall =
+    call ??
+    (callId && hasRecoverableImageArtifact
+      ? {
+          id: callId,
+          namespace: null,
+          tool: "generate_image",
+          arguments: {},
+        }
+      : null);
+  if (!resolvedCall) {
+    return null;
+  }
+  const success = !asString(metadata.error ?? metadata.message);
+  return {
+    type: "dynamicToolCall",
+    id: resolvedCall.id,
+    namespace: resolvedCall.namespace,
+    tool: resolvedCall.tool,
+    status: success ? "completed" : "failed",
+    arguments: resolvedCall.arguments,
+    contentItems,
+    success,
+  };
 }
 
 function buildDynamicToolCallFromRawFunctionOutput(
   item: Record<string, unknown>,
   callsById: Map<string, Record<string, unknown>>,
   fallbackCreatedAt?: number,
+  threadId?: string | null,
 ) {
-  if (asString(item.type) !== "function_call_output") {
-    return null;
-  }
   const callId = getRawFunctionCallId(item);
   const call = callId ? callsById.get(callId) : undefined;
+  const output = buildRawDynamicToolOutputItem(
+    item,
+    call ? (parseRawDynamicToolCall(call) ?? undefined) : undefined,
+    { threadId },
+  );
+  if (!output) {
+    return null;
+  }
+  return {
+    ...output,
+    createdAt: getMessageCreatedAt(
+      item,
+      call ? getMessageCreatedAt(call, fallbackCreatedAt) : fallbackCreatedAt,
+    ),
+  };
+}
+
+function buildDynamicToolCallFromRawFunctionCall(
+  item: Record<string, unknown>,
+  fallbackCreatedAt?: number,
+) {
+  const call = parseRawDynamicToolCall(item);
   if (!call) {
     return null;
   }
-  const contentItems = normalizeDynamicToolOutputContentItems(item.output);
-  const metadata = parseImageGenerationMetadata(firstContentText(contentItems));
-  const success = !asString(metadata.error ?? metadata.message);
   return {
     type: "dynamicToolCall",
-    id: callId,
-    namespace: normalizeRawDynamicToolNamespace(
-      asString(call.namespace),
-      asString(call.name ?? call.tool),
-    ),
-    tool: normalizeRawDynamicToolName(asString(call.name ?? call.tool)),
-    status: success ? "completed" : "failed",
-    arguments: normalizeDynamicToolArguments(call.arguments),
-    contentItems,
-    success,
-    createdAt: getMessageCreatedAt(item, getMessageCreatedAt(call, fallbackCreatedAt)),
+    id: call.id,
+    namespace: call.namespace,
+    tool: call.tool,
+    status: "in_progress",
+    arguments: call.arguments,
+    contentItems: [],
+    success: undefined,
+    createdAt: getMessageCreatedAt(item, fallbackCreatedAt),
   };
+}
+
+function isRawImageGenerationItem(value: unknown): value is Record<string, unknown> {
+  const item = asRecordValue(value);
+  if (!item) {
+    return false;
+  }
+  const itemType = asString(item.type);
+  return itemType === "imageGeneration" || itemType === "image_generation_call";
+}
+
+function hasRawAssistantMessageText(item: Record<string, unknown>) {
+  if (asString(item.type) !== "message" || asString(item.role) !== "assistant") {
+    return false;
+  }
+  const content = Array.isArray(item.content) ? item.content : [];
+  return content.some((entry) => {
+    const record = asRecordValue(entry);
+    if (!record) {
+      return false;
+    }
+    const type = asString(record.type);
+    if (type !== "output_text" && type !== "text") {
+      return false;
+    }
+    return asString(record.text).trim().length > 0;
+  });
+}
+
+export function isRawDisplayResponseItem(
+  value: unknown,
+): value is Record<string, unknown> {
+  const item = asRecordValue(value);
+  if (!item) {
+    return false;
+  }
+  return isRawImageGenerationItem(item) || hasRawAssistantMessageText(item);
+}
+
+export function unwrapRawResponseItem(value: unknown): Record<string, unknown> | null {
+  const item = asRecordValue(value);
+  if (!item) {
+    return null;
+  }
+  if (asString(item.type) !== "response_item") {
+    return item;
+  }
+  const payload = item.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return item;
+  }
+  const payloadRecord = { ...(payload as Record<string, unknown>) };
+  if (payloadRecord.timestamp === undefined && item.timestamp !== undefined) {
+    payloadRecord.timestamp = item.timestamp;
+  }
+  if (payloadRecord.createdAt === undefined && item.createdAt !== undefined) {
+    payloadRecord.createdAt = item.createdAt;
+  }
+  if (payloadRecord.created_at === undefined && item.created_at !== undefined) {
+    payloadRecord.created_at = item.created_at;
+  }
+  if (payloadRecord.id === undefined && item.id !== undefined) {
+    payloadRecord.id = item.id;
+  }
+  return payloadRecord;
+}
+
+function withThreadItemFallbackId(
+  item: Record<string, unknown>,
+  turnId: string,
+  itemIndex: number,
+) {
+  if (asString(item.id).trim()) {
+    return item;
+  }
+  if (
+    asString(item.type) === "message" &&
+    asString(item.role) === "assistant" &&
+    extractRawAssistantMessageText(item).trim()
+  ) {
+    const stableTurnId = turnId || "turn";
+    return {
+      ...item,
+      id: `${stableTurnId}:raw-message:${itemIndex}`,
+    };
+  }
+  return item;
 }
 
 export function buildConversationItem(
@@ -576,7 +781,7 @@ export function buildConversationItem(
       output: "",
     };
   }
-  if (type === "imageGeneration" || type === "image_generation_call") {
+  if (isImageGenerationItemType(type)) {
     return buildImageGenerationItem(item, options);
   }
   if (type === "contextCompaction") {
@@ -656,6 +861,7 @@ export function buildItemsFromThread(
   thread: Record<string, unknown>,
   options?: ThreadItemConversionOptions,
 ) {
+  const threadId = asString(thread.id);
   const turns = Array.isArray(thread.turns) ? thread.turns : [];
   let items: ConversationItem[] = [];
   turns.forEach((turn) => {
@@ -665,8 +871,11 @@ export function buildItemsFromThread(
     const turnItems = Array.isArray(turnRecord.items)
       ? (turnRecord.items as Record<string, unknown>[])
       : [];
+    const normalizedTurnItems = turnItems.map((item, index) =>
+      withThreadItemFallbackId(unwrapRawResponseItem(item) ?? item, turnId, index),
+    );
     const dynamicFunctionCallsById = new Map<string, Record<string, unknown>>();
-    turnItems.forEach((item) => {
+    normalizedTurnItems.forEach((item) => {
       if (!isDynamicFunctionCall(item)) {
         return;
       }
@@ -675,13 +884,16 @@ export function buildItemsFromThread(
         dynamicFunctionCallsById.set(callId, item);
       }
     });
-    turnItems.forEach((item) => {
+    normalizedTurnItems.forEach((item) => {
       const normalizedItem =
         buildDynamicToolCallFromRawFunctionOutput(
           item,
           dynamicFunctionCallsById,
           turnCreatedAt,
-        ) ?? item;
+          asString(thread.id ?? threadId),
+        ) ??
+        buildDynamicToolCallFromRawFunctionCall(item, turnCreatedAt) ??
+        item;
       const displayItem = scopeImageGenerationItemForTurn(normalizedItem, turnId);
       const converted = buildConversationItemFromThreadItem(
         displayItem,

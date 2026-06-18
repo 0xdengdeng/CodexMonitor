@@ -53,7 +53,6 @@ function isThreadRuntimeStateMissingMessage(message: string, threadId: string) {
 
 type StartThreadOptions = {
   activate?: boolean;
-  nativeImageGeneration?: boolean;
 };
 
 type UseThreadActionsOptions = {
@@ -171,12 +170,7 @@ export function useThreadActions({
         payload: { workspaceId },
       });
       try {
-        const response =
-          options?.nativeImageGeneration != null
-            ? await startThreadService(workspaceId, {
-                nativeImageGeneration: options.nativeImageGeneration,
-              })
-            : await startThreadService(workspaceId);
+        const response = await startThreadService(workspaceId);
         onDebug?.({
           id: `${Date.now()}-server-thread-start`,
           timestamp: Date.now(),

@@ -107,6 +107,11 @@ export type ThreadAction =
       item: ConversationItem;
       hasCustomName?: boolean;
     }
+  | {
+      type: "hydrateGeneratedImageItem";
+      threadId: string;
+      item: ConversationItem;
+    }
   | { type: "setThreadItems"; threadId: string; items: ConversationItem[] }
   | {
       type: "appendReasoningSummary";

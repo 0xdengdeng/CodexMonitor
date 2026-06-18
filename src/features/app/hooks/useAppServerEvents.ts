@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import type {
   AppServerEvent,
   ApprovalRequest,
-  DynamicToolCallRequest,
   RequestUserInputRequest,
 } from "../../../types";
 import { subscribeAppServerEvents } from "../../../services/events";
@@ -14,6 +13,14 @@ import {
   isSupportedAppServerMethod,
 } from "../../../utils/appServerEvents";
 import type { SupportedAppServerMethod } from "../../../utils/appServerEvents";
+import {
+  buildRawDynamicToolOutputItem,
+  getRawFunctionCallId,
+  isRawDisplayResponseItem,
+  parseRawDynamicToolCall,
+  type RawDynamicToolCall,
+  unwrapRawResponseItem,
+} from "../../../utils/threadItems";
 
 type AgentDelta = {
   workspaceId: string;
@@ -58,7 +65,6 @@ type AppServerEventHandlers = {
   ) => void;
   onApprovalRequest?: (request: ApprovalRequest) => void;
   onRequestUserInput?: (request: RequestUserInputRequest) => void;
-  onDynamicToolCall?: (request: DynamicToolCallRequest) => void;
   onAgentMessageDelta?: (event: AgentDelta) => void;
   onAgentMessageCompleted?: (event: AgentCompleted) => void;
   onAppServerEvent?: (event: AppServerEvent) => void;
@@ -138,7 +144,6 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "item/reasoning/summaryTextDelta",
   "item/reasoning/textDelta",
   "item/started",
-  "item/tool/call",
   "item/tool/requestUserInput",
   "rawResponseItem/completed",
   "thread/archived",
@@ -174,46 +179,7 @@ function readFirstString(...values: unknown[]): string {
   return "";
 }
 
-type RawDynamicToolCall = {
-  id: string;
-  namespace: string | null;
-  tool: string;
-  arguments: Record<string, unknown>;
-};
-
 const RAW_DYNAMIC_TOOL_CALL_CACHE_LIMIT = 200;
-
-function parseJsonRecord(text: string): Record<string, unknown> | null {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("{")) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    return asRecord(parsed);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeRawDynamicToolName(tool: string) {
-  return tool === "codex_monitor.generate_image" ? "generate_image" : tool;
-}
-
-function normalizeRawDynamicToolNamespace(namespace: string, tool: string) {
-  if (!namespace && normalizeRawDynamicToolName(tool) === "generate_image") {
-    return "codex_monitor";
-  }
-  return namespace;
-}
-
-function normalizeRawDynamicToolArguments(value: unknown): Record<string, unknown> {
-  const record = asRecord(value);
-  if (record) {
-    return record;
-  }
-  return typeof value === "string" ? (parseJsonRecord(value) ?? {}) : {};
-}
 
 function extractErrorMessage(error: unknown): string {
   if (typeof error === "string") {
@@ -318,108 +284,6 @@ function parseHookEvent(
   };
 }
 
-function isRawImageGenerationItem(value: unknown): value is Record<string, unknown> {
-  const item = asRecord(value);
-  if (!item) {
-    return false;
-  }
-  const itemType = readFirstString(item.type);
-  return itemType === "image_generation_call" || itemType === "imageGeneration";
-}
-
-function getRawFunctionCallId(item: Record<string, unknown>) {
-  return readFirstString(item.call_id, item.callId, item.id);
-}
-
-function parseRawDynamicToolCall(value: unknown): RawDynamicToolCall | null {
-  const item = asRecord(value);
-  if (!item || readFirstString(item.type) !== "function_call") {
-    return null;
-  }
-  const id = getRawFunctionCallId(item);
-  const rawNamespace = readFirstString(item.namespace);
-  const rawTool = readFirstString(item.name, item.tool);
-  const tool = normalizeRawDynamicToolName(rawTool);
-  const namespace = normalizeRawDynamicToolNamespace(rawNamespace, rawTool);
-  if (!id || namespace !== "codex_monitor" || tool !== "generate_image") {
-    return null;
-  }
-  return {
-    id,
-    namespace,
-    tool,
-    arguments: normalizeRawDynamicToolArguments(item.arguments),
-  };
-}
-
-function normalizeRawDynamicToolOutputContentItem(value: Record<string, unknown>) {
-  const type = readFirstString(value.type);
-  if (type === "inputText" || type === "input_text") {
-    const text = readFirstString(value.text);
-    return text ? { type: "inputText" as const, text } : null;
-  }
-  if (type === "inputImage" || type === "input_image") {
-    const imageUrl = readFirstString(value.imageUrl, value.image_url);
-    return imageUrl ? { type: "inputImage" as const, imageUrl } : null;
-  }
-  return null;
-}
-
-function normalizeRawDynamicToolOutputContentItems(output: unknown) {
-  if (Array.isArray(output)) {
-    return output
-      .map((entry) => {
-        const record = asRecord(entry);
-        return record ? normalizeRawDynamicToolOutputContentItem(record) : null;
-      })
-      .filter(
-        (
-          entry,
-        ): entry is
-          | { type: "inputText"; text: string }
-          | { type: "inputImage"; imageUrl: string } => Boolean(entry),
-      );
-  }
-  const text = typeof output === "string" ? output.trim() : "";
-  return text ? [{ type: "inputText" as const, text }] : [];
-}
-
-function firstRawDynamicToolOutputText(
-  contentItems: Array<
-    { type: "inputText"; text: string } | { type: "inputImage"; imageUrl: string }
-  >,
-) {
-  for (const item of contentItems) {
-    if (item.type === "inputText" && item.text.trim()) {
-      return item.text;
-    }
-  }
-  return "";
-}
-
-function buildRawDynamicToolOutputItem(
-  value: unknown,
-  call: RawDynamicToolCall | undefined,
-) {
-  const item = asRecord(value);
-  if (!item || !call || readFirstString(item.type) !== "function_call_output") {
-    return null;
-  }
-  const contentItems = normalizeRawDynamicToolOutputContentItems(item.output);
-  const metadata = parseJsonRecord(firstRawDynamicToolOutputText(contentItems)) ?? {};
-  const success = !readFirstString(metadata.error, metadata.message);
-  return {
-    type: "dynamicToolCall",
-    id: call.id,
-    namespace: call.namespace,
-    tool: call.tool,
-    status: success ? "completed" : "failed",
-    arguments: call.arguments,
-    contentItems,
-    success,
-  };
-}
-
 function buildRawDynamicToolCallKey(
   workspaceId: string,
   threadId: string,
@@ -442,32 +306,6 @@ function rememberRawDynamicToolCall(
     }
     calls.delete(oldestKey);
   }
-}
-
-function hasRawAssistantMessageText(item: Record<string, unknown>) {
-  if (readFirstString(item.type) !== "message" || readFirstString(item.role) !== "assistant") {
-    return false;
-  }
-  const content = Array.isArray(item.content) ? item.content : [];
-  return content.some((entry) => {
-    const record = asRecord(entry);
-    if (!record) {
-      return false;
-    }
-    const type = readFirstString(record.type);
-    if (type !== "output_text" && type !== "text") {
-      return false;
-    }
-    return readFirstString(record.text).length > 0;
-  });
-}
-
-function isRawDisplayResponseItem(value: unknown): value is Record<string, unknown> {
-  const item = asRecord(value);
-  if (!item) {
-    return false;
-  }
-  return isRawImageGenerationItem(item) || hasRawAssistantMessageText(item);
 }
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
@@ -551,38 +389,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
             questions,
           },
         });
-        return;
-      }
-
-      if (method === "item/tool/call" && hasRequestId) {
-        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
-        const turnId = String(params.turnId ?? params.turn_id ?? "").trim();
-        const callId = String(params.callId ?? params.call_id ?? "").trim();
-        const namespaceRaw = params.namespace;
-        const namespace =
-          typeof namespaceRaw === "string" && namespaceRaw.trim().length > 0
-            ? namespaceRaw.trim()
-            : null;
-        const tool = String(params.tool ?? "").trim();
-        const argsRaw = params.arguments;
-        const args =
-          argsRaw && typeof argsRaw === "object" && !Array.isArray(argsRaw)
-            ? (argsRaw as Record<string, unknown>)
-            : {};
-        if (threadId && turnId && callId && tool) {
-          currentHandlers.onDynamicToolCall?.({
-            workspace_id,
-            request_id: requestId as string | number,
-            params: {
-              thread_id: threadId,
-              turn_id: turnId,
-              call_id: callId,
-              namespace,
-              tool,
-              arguments: args,
-            },
-          });
-        }
         return;
       }
 
@@ -852,7 +658,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "rawResponseItem/completed") {
         const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
         const turnId = String(params.turnId ?? params.turn_id ?? "").trim() || null;
-        const item = params.item;
+        const item = unwrapRawResponseItem(params.item) ?? params.item;
         if (threadId) {
           const rawCall = parseRawDynamicToolCall(item);
           if (rawCall) {
@@ -861,6 +667,26 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
               buildRawDynamicToolCallKey(workspace_id, threadId, turnId, rawCall.id),
               rawCall,
             );
+            const startedItem = {
+              type: "dynamicToolCall",
+              id: rawCall.id,
+              namespace: rawCall.namespace,
+              tool: rawCall.tool,
+              status: "in_progress",
+              arguments: rawCall.arguments,
+              contentItems: [],
+              success: undefined,
+            };
+            if (turnId) {
+              currentHandlers.onItemCompleted?.(
+                workspace_id,
+                threadId,
+                startedItem,
+                turnId,
+              );
+            } else {
+              currentHandlers.onItemCompleted?.(workspace_id, threadId, startedItem);
+            }
             return;
           }
 
@@ -872,6 +698,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
           const dynamicToolOutput = buildRawDynamicToolOutputItem(
             item,
             rawCallKey ? rawDynamicToolCallsRef.current.get(rawCallKey) : undefined,
+            { threadId },
           );
           if (dynamicToolOutput) {
             rawDynamicToolCallsRef.current.delete(rawCallKey);

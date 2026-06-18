@@ -403,52 +403,6 @@ describe("useAppServerEvents", () => {
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
-  it("routes raw image generation response items as completed items with turn id", async () => {
-    const handlers: Handlers = {
-      onItemCompleted: vi.fn(),
-    };
-    const { root } = await mount(handlers);
-
-    act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "rawResponseItem/completed",
-          params: {
-            threadId: "thread-1",
-            turnId: "turn-1",
-            item: {
-              type: "image_generation_call",
-              id: "ig-1",
-              status: "generating",
-              size: "1024x1536",
-              revised_prompt: "A generated image",
-              result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
-            },
-          },
-        },
-      });
-    });
-
-    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
-      "ws-1",
-      "thread-1",
-      {
-        type: "image_generation_call",
-        id: "ig-1",
-        status: "generating",
-        size: "1024x1536",
-        revised_prompt: "A generated image",
-        result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
-      },
-      "turn-1",
-    );
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
   it("routes raw assistant response messages as completed items with turn id", async () => {
     const handlers: Handlers = {
       onItemCompleted: vi.fn(),
@@ -473,6 +427,41 @@ describe("useAppServerEvents", () => {
             turnId: "turn-1",
             item,
           },
+        },
+      });
+    });
+
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      item,
+      "turn-1",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes raw image generation response items as completed items with turn id", async () => {
+    const handlers: Handlers = {
+      onItemCompleted: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    const item = {
+      type: "image_generation_call",
+      id: "image-native-1",
+      status: "completed",
+      result: "data:image/png;base64,AAA",
+    };
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "rawResponseItem/completed",
+          params: { threadId: "thread-1", turnId: "turn-1", item },
         },
       });
     });
@@ -518,13 +507,30 @@ describe("useAppServerEvents", () => {
       });
     });
 
-    expect(handlers.onItemCompleted).not.toHaveBeenCalled();
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      {
+        type: "dynamicToolCall",
+        id: "call-1",
+        namespace: "codex_monitor",
+        tool: "generate_image",
+        status: "in_progress",
+        arguments: {
+          prompt: "A small blue rocket icon",
+          size: "1024x1024",
+        },
+        contentItems: [],
+        success: undefined,
+      },
+      "turn-1",
+    );
 
     const metadata = {
-      assetId: "asset-1",
-      model: "adg-image",
+      status: "generated",
+      model: "gpt-image-2",
       size: "1024x1024",
-      savedPath: "/tmp/generated-images/asset-1.png",
+      saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_1.png",
     };
 
     act(() => {
@@ -548,7 +554,8 @@ describe("useAppServerEvents", () => {
       });
     });
 
-    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
+    expect(handlers.onItemCompleted).toHaveBeenNthCalledWith(
+      2,
       "ws-1",
       "thread-1",
       {
@@ -564,6 +571,62 @@ describe("useAppServerEvents", () => {
         contentItems: [
           { type: "inputText", text: JSON.stringify(metadata) },
           { type: "inputImage", imageUrl: "data:image/png;base64,AAA" },
+        ],
+        success: true,
+      },
+      "turn-1",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes raw image tool outputs even when the function call event was not cached", async () => {
+    const handlers: Handlers = {
+      onItemCompleted: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+    const metadata = {
+      status: "generated",
+      saved_path: "/tmp/codex-home/generated_images/thread-1/019_call_uncached.png",
+      model: "gpt-image-2",
+    };
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "rawResponseItem/completed",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            item: {
+              type: "function_call_output",
+              call_id: "call-uncached",
+              output: [
+                { type: "input_text", text: JSON.stringify(metadata) },
+                { type: "input_image", image_url: "data:image/png;base64,UNCACHED" },
+              ],
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemCompleted).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      {
+        type: "dynamicToolCall",
+        id: "call-uncached",
+        namespace: null,
+        tool: "generate_image",
+        status: "completed",
+        arguments: {},
+        contentItems: [
+          { type: "inputText", text: JSON.stringify(metadata) },
+          { type: "inputImage", imageUrl: "data:image/png;base64,UNCACHED" },
         ],
         success: true,
       },
@@ -660,7 +723,7 @@ describe("useAppServerEvents", () => {
             turn: {
               id: "turn-1",
               status: "failed",
-              error: { message: "native image generation returned no image" },
+              error: { message: "generate_image returned no image" },
             },
           },
         },
@@ -672,7 +735,7 @@ describe("useAppServerEvents", () => {
       "thread-1",
       "turn-1",
       {
-        message: "native image generation returned no image",
+        message: "generate_image returned no image",
         willRetry: false,
       },
     );
@@ -874,53 +937,4 @@ describe("useAppServerEvents", () => {
     });
   });
 
-  it("routes dynamic tool calls to a dedicated handler", async () => {
-    const handlers = {
-      onDynamicToolCall: vi.fn(),
-    } as Handlers & {
-      onDynamicToolCall: ReturnType<typeof vi.fn>;
-    };
-    const { root } = await mount(handlers);
-
-    act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "item/tool/call",
-          id: 77,
-          params: {
-            threadId: "thread-1",
-            turnId: "turn-1",
-            callId: "call-1",
-            namespace: "codex_monitor",
-            tool: "generate_image",
-            arguments: {
-              prompt: "A small blue rocket icon",
-              size: "1024x1024",
-            },
-          },
-        },
-      });
-    });
-
-    expect(handlers.onDynamicToolCall).toHaveBeenCalledWith({
-      workspace_id: "ws-1",
-      request_id: 77,
-      params: {
-        thread_id: "thread-1",
-        turn_id: "turn-1",
-        call_id: "call-1",
-        namespace: "codex_monitor",
-        tool: "generate_image",
-        arguments: {
-          prompt: "A small blue rocket icon",
-          size: "1024x1024",
-        },
-      },
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
 });
