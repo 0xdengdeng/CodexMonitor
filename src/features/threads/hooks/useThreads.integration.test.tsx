@@ -163,6 +163,7 @@ describe("useThreads UX integration", () => {
         mimeType: "image/png",
         createdAtMs: 2000,
         status: "completed",
+        anchorMessageText: null,
       },
     ]);
 
@@ -1056,6 +1057,7 @@ describe("useThreads UX integration", () => {
         mimeType: "image/png",
         createdAtMs: 2000,
         status: "completed",
+        anchorMessageText: null,
       },
     ]);
 
@@ -1135,6 +1137,7 @@ describe("useThreads UX integration", () => {
         mimeType: "image/png",
         createdAtMs: 2000,
         status: "completed",
+        anchorMessageText: null,
       },
     ]);
 
@@ -1203,6 +1206,7 @@ describe("useThreads UX integration", () => {
         mimeType: "image/png",
         createdAtMs: 2000,
         status: "completed",
+        anchorMessageText: null,
       },
     ]);
     vi.mocked(resumeThread).mockResolvedValue({
@@ -1308,6 +1312,7 @@ describe("useThreads UX integration", () => {
         mimeType: "image/png",
         createdAtMs: 2000,
         status: "completed",
+        anchorMessageText: null,
       },
     ]);
     vi.mocked(resumeThread).mockResolvedValue({

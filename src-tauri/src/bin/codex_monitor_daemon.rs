@@ -804,17 +804,12 @@ impl DaemonState {
         files_core::file_write_core(&self.workspaces, scope, kind, workspace_id, content).await
     }
 
-    async fn start_thread(
-        &self,
-        workspace_id: String,
-        native_image_generation: bool,
-    ) -> Result<Value, String> {
+    async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
         codex_core::start_thread_core(
             &self.sessions,
             &self.workspaces,
             &self.app_settings,
             workspace_id,
-            native_image_generation,
         )
         .await
     }

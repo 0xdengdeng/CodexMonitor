@@ -238,7 +238,6 @@ fn settings_with_connected_account(
             .filter(|model| !model.trim().is_empty())
             .or_else(|| Some(DEFAULT_MANAGED_RUNTIME_MODEL.to_string())),
         image_model: settings.managed_runtime.image_model,
-        native_image_generation: settings.managed_runtime.native_image_generation,
     };
     settings.last_composer_model_id = None;
     settings

@@ -89,6 +89,41 @@ function getItemCreatedAt(item: ConversationItem) {
     : null;
 }
 
+// Insert a generated image right after the assistant message it followed in the
+// rollout. Resume strips the function output, so this anchor text (supplied by
+// the backend from the rollout) is the only way to keep replayed images in
+// place instead of dumping them at the bottom. Multiple images sharing one
+// anchor keep their order by skipping past images already inserted there.
+function insertAfterAnchorMessage(
+  list: ConversationItem[],
+  item: ConversationItem,
+  anchorText: string,
+): ConversationItem[] | null {
+  const anchor = anchorText.trim();
+  if (!anchor) {
+    return null;
+  }
+  let messageIndex = -1;
+  for (let index = list.length - 1; index >= 0; index -= 1) {
+    const entry = list[index];
+    if (entry.kind === "message" && entry.text.trim() === anchor) {
+      messageIndex = index;
+      break;
+    }
+  }
+  if (messageIndex < 0) {
+    return null;
+  }
+  let insertIndex = messageIndex + 1;
+  while (
+    insertIndex < list.length &&
+    list[insertIndex].kind === "imageGeneration"
+  ) {
+    insertIndex += 1;
+  }
+  return [...list.slice(0, insertIndex), item, ...list.slice(insertIndex)];
+}
+
 function insertByCreatedAt(list: ConversationItem[], item: ConversationItem) {
   const itemCreatedAt = getItemCreatedAt(item);
   if (itemCreatedAt === null) {
@@ -281,6 +316,24 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
             )
           : undefined;
       if (!conversationAnchor) {
+        if (action.anchorMessageText) {
+          const anchored = insertAfterAnchorMessage(
+            list,
+            item,
+            action.anchorMessageText,
+          );
+          if (anchored) {
+            return {
+              ...state,
+              itemsByThread: {
+                ...state.itemsByThread,
+                [action.threadId]: prepareThreadItems(anchored, {
+                  maxItemsPerThread: state.maxItemsPerThread,
+                }),
+              },
+            };
+          }
+        }
         const textAnchorIndex = findGeneratedImageTextAnchorIndex(list, item);
         if (textAnchorIndex >= 0) {
           return {

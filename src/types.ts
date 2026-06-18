@@ -166,44 +166,22 @@ export type ConversationItem =
       createdAt?: number;
     };
 
-export type DynamicToolCallRequest = {
-  workspace_id: string;
-  request_id: string | number;
-  params: {
-    thread_id: string;
-    turn_id: string;
-    call_id: string;
-    namespace: string | null;
-    tool: string;
-    arguments: Record<string, unknown>;
-  };
-};
-
-export type DynamicToolCallOutputContentItem =
-  | { type: "inputText"; text: string }
-  | { type: "inputImage"; imageUrl: string };
-
-export type DynamicToolCallResponse = {
-  contentItems: DynamicToolCallOutputContentItem[];
-  success: boolean;
-};
-
 export type GeneratedImageAsset = {
   id: string;
   workspaceId: string | null;
   threadId: string | null;
-  source: "adg" | string;
   model: string;
   prompt: string;
   revisedPrompt: string | null;
   size: string;
   localPath: string;
-  modelVisibleImageUrl: string | null;
   mimeType: string;
   createdAtMs: number;
-  requestId: string | null;
-  referenceImageIds?: string[];
   status: "completed" | string;
+  // Assistant message preceding this image in the rollout. On history replay
+  // resume drops the function output, so this is the only signal for where the
+  // image belongs — the reducer inserts it right after this message.
+  anchorMessageText: string | null;
 };
 
 export type ThreadSummary = {
@@ -275,7 +253,6 @@ export type ManagedRuntimeConfig = {
   baseUrl: string | null;
   model: string | null;
   imageModel: string | null;
-  nativeImageGeneration: boolean;
 };
 export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
 export type EnterpriseAiConfig = {

@@ -638,6 +638,7 @@ export function useThreads({
             type: "hydrateGeneratedImageItem",
             threadId,
             item,
+            anchorMessageText: asset.anchorMessageText,
           });
         }
         return { assetCount: assets.length, missingAnchorIds };
@@ -771,13 +772,11 @@ export function useThreads({
   const recoverMissingGeneratedImageAnchors = useCallback(
     async (workspaceId: string, threadId: string) => {
       const hydration = await hydrateGeneratedImageAssets(workspaceId, threadId);
-      const localItems = itemsByThreadRef.current[threadId] ?? [];
       const isThreadProcessing =
         threadStatusByIdRef.current[threadId]?.isProcessing === true;
       const recoveryDecision = buildGeneratedImageRecoveryDecision({
         assetCount: hydration.assetCount,
         missingAnchorIds: hydration.missingAnchorIds,
-        localItems,
         isThreadProcessing,
       });
       if (!recoveryDecision.shouldResume) {

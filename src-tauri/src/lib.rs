@@ -202,7 +202,6 @@ pub fn run() {
             enterprise_ai::enterprise_ai_validate,
             enterprise_ai::enterprise_ai_logout,
             enterprise_ai::enterprise_ai_usage,
-            image_generation::generate_image,
             image_generation::list_generated_images,
             files::file_read,
             files::file_write,

@@ -12,10 +12,9 @@ pub(crate) const DEFAULT_MANAGED_RUNTIME_MODEL: &str = "gpt-5.5";
 
 const MANAGED_RUNTIME_PROVIDER_NAME: &str = "agentDesk Managed Runtime";
 const MANAGED_RUNTIME_STREAM_IDLE_TIMEOUT_MS: i64 = 300_000;
-// Codex feature keys that pick the image path. They are mutually exclusive: the
-// native built-in `image_generation` tool vs the converged `generate_image`
-// function tool (gateway-fulfilled via /v1/images). Driven by
-// `native_image_generation` so the model is offered exactly one.
+// Codex feature keys that pick the image path. CodexMonitor ships a single
+// product path: the converged `generate_image` function tool, fulfilled by the
+// managed gateway. Native image_generation stays off.
 const FEATURE_IMAGE_GENERATION: &str = "image_generation";
 const FEATURE_GENERATE_IMAGE_TOOL: &str = "generate_image_tool";
 const MANAGED_RUNTIME_USER_AGENT: &str = concat!(
@@ -42,7 +41,6 @@ pub(crate) fn normalize_managed_runtime_config(
         base_url: normalized_optional(config.base_url.as_deref()),
         model: normalized_optional(config.model.as_deref()),
         image_model: normalized_optional(config.image_model.as_deref()),
-        native_image_generation: config.native_image_generation,
     }
 }
 
@@ -138,8 +136,8 @@ pub(crate) fn apply_managed_runtime_config_to_document(
     providers[MANAGED_RUNTIME_PROVIDER_ID] = Item::Table(provider);
 
     let features = config_toml_core::ensure_table(document, "features")?;
-    features[FEATURE_IMAGE_GENERATION] = value(config.native_image_generation);
-    features[FEATURE_GENERATE_IMAGE_TOOL] = value(!config.native_image_generation);
+    features[FEATURE_IMAGE_GENERATION] = value(false);
+    features[FEATURE_GENERATE_IMAGE_TOOL] = value(true);
 
     Ok(())
 }
@@ -191,8 +189,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("gpt-5.4".to_string()),
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -220,25 +217,22 @@ mod tests {
         fs::create_dir_all(&codex_home).expect("create temp codex home");
         let config_path = codex_home.join("config.toml");
 
-        // native (built-in image_generation) on -> converged tool off.
+        // Historical/native settings must not change the packaged product path:
+        // CodexMonitor always exposes the Gateway generate_image tool.
         let native = ManagedRuntimeConfig {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("gpt-5.5".to_string()),
             image_model: None,
-            native_image_generation: true,
         };
         sync_managed_runtime_config(&codex_home, &native).expect("sync native");
         let contents = fs::read_to_string(&config_path).expect("read config.toml");
         assert!(contents.contains("[features]"));
-        assert!(contents.contains("image_generation = true"));
-        assert!(contents.contains("generate_image_tool = false"));
+        assert!(contents.contains("image_generation = false"));
+        assert!(contents.contains("generate_image_tool = true"));
 
-        // native off -> converged generate_image on, built-in off.
-        let converged = ManagedRuntimeConfig {
-            native_image_generation: false,
-            ..native.clone()
-        };
+        // native off keeps the same invariant.
+        let converged = ManagedRuntimeConfig { ..native.clone() };
         sync_managed_runtime_config(&codex_home, &converged).expect("sync converged");
         let contents = fs::read_to_string(&config_path).expect("read config.toml");
         assert!(contents.contains("image_generation = false"));
@@ -265,8 +259,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("qihang-ultra-5.5".to_string()),
-            image_model: Some("adg-image-pro".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2-pro".to_string()),
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -274,7 +267,7 @@ mod tests {
         let contents =
             fs::read_to_string(codex_home.join("config.toml")).expect("read config.toml");
         assert!(contents.contains("[model_providers.agentdesk_managed.http_headers]"));
-        assert!(contents.contains("X-ADG-Image-Model = \"adg-image-pro\""));
+        assert!(contents.contains("X-ADG-Image-Model = \"gpt-image-2-pro\""));
     }
 
     #[test]
@@ -288,7 +281,6 @@ mod tests {
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("qihang-ultra-5.5".to_string()),
             image_model: None,
-            native_image_generation: true,
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -314,7 +306,6 @@ mod tests {
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("qihang-ultra-5.5".to_string()),
             image_model: None,
-            native_image_generation: true,
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -340,8 +331,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: None,
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
 
         sync_managed_runtime_config(&codex_home, &settings).expect("sync runtime config");
@@ -362,8 +352,7 @@ mod tests {
             enabled: true,
             base_url: Some("https://runtime.example.com/v1".to_string()),
             model: Some("gpt-5.4".to_string()),
-            image_model: Some("adg-image".to_string()),
-            native_image_generation: true,
+            image_model: Some("gpt-image-2".to_string()),
         };
         assert_eq!(
             build_managed_runtime_env(&enabled, Some("sk-secret".to_string())),

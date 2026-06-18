@@ -12,8 +12,7 @@ use crate::backend::app_server::{
 };
 use crate::shared::process_core::tokio_command;
 use crate::shared::runtime_config_core::{
-    effective_managed_runtime_model, managed_runtime_config_is_complete,
-    MANAGED_RUNTIME_PROVIDER_ID,
+    effective_managed_runtime_model, DEFAULT_MANAGED_RUNTIME_MODEL, MANAGED_RUNTIME_PROVIDER_ID,
 };
 use crate::types::{AppSettings, ManagedRuntimeConfig, WorkspaceEntry};
 
@@ -569,12 +568,9 @@ fn build_background_thread_start_params(
         "cwd": workspace_path,
         "approvalPolicy": "never"
     });
-    if managed_runtime_config_is_complete(managed_runtime) {
-        params["modelProvider"] = json!(MANAGED_RUNTIME_PROVIDER_ID);
-        if let Some(model) = effective_managed_runtime_model(managed_runtime) {
-            params["model"] = json!(model);
-        }
-    }
+    params["modelProvider"] = json!(MANAGED_RUNTIME_PROVIDER_ID);
+    params["model"] = json!(effective_managed_runtime_model(managed_runtime)
+        .unwrap_or_else(|| DEFAULT_MANAGED_RUNTIME_MODEL.to_string()));
     params
 }
 
@@ -699,8 +695,22 @@ mod tests {
                 base_url: Some("https://adg.example.com/v1".to_string()),
                 model: None,
                 image_model: None,
-                native_image_generation: true,
             },
+        );
+
+        assert_eq!(params.get("cwd"), Some(&json!("/tmp/workspace")));
+        assert_eq!(
+            params.get("modelProvider"),
+            Some(&json!("agentdesk_managed"))
+        );
+        assert_eq!(params.get("model"), Some(&json!("gpt-5.5")));
+    }
+
+    #[test]
+    fn background_thread_start_params_force_managed_runtime_provider_when_config_is_incomplete() {
+        let params = build_background_thread_start_params(
+            "/tmp/workspace".to_string(),
+            &ManagedRuntimeConfig::default(),
         );
 
         assert_eq!(params.get("cwd"), Some(&json!("/tmp/workspace")));

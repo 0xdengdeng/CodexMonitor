@@ -44,7 +44,7 @@ describe("useAppSettings", () => {
           enabled: true,
           baseUrl: " https://runtime.example/v1 ",
           model: "  ",
-          imageModel: " adg-image-pro ",
+          imageModel: " gpt-image-2-pro ",
         },
         enterpriseAi: {
           tenantDomain: " acme ",
@@ -78,8 +78,7 @@ describe("useAppSettings", () => {
       enabled: true,
       baseUrl: "https://runtime.example/v1",
       model: null,
-      imageModel: "adg-image-pro",
-      nativeImageGeneration: true,
+      imageModel: "gpt-image-2-pro",
     });
     expect(result.current.settings.enterpriseAi).toEqual({
       tenantDomain: "acme",
@@ -155,14 +154,13 @@ describe("useAppSettings", () => {
     expect(result.current.settings.uiScale).toBe(2.4);
   });
 
-  it("reconciles the saved image model with the ADG image catalog after loading settings", async () => {
+  it("reconciles the saved image model with the runtime image catalog after loading settings", async () => {
     getAppSettingsMock.mockResolvedValue({
       managedRuntime: {
         enabled: true,
         baseUrl: "https://adg-uat.zhaozhunai.com/v1",
         model: "qihang-ultra-5.5",
-        imageModel: "adg-image",
-        nativeImageGeneration: true,
+        imageModel: "legacy-image-model",
       },
     } as AppSettings);
     getRuntimeImageModelListMock.mockResolvedValue({
@@ -187,14 +185,13 @@ describe("useAppSettings", () => {
     expect(result.current.settings.managedRuntime.imageModel).toBe("gpt-image-2");
   });
 
-  it("keeps the saved image model when it is present in the ADG image catalog", async () => {
+  it("keeps the saved image model when it is present in the runtime image catalog", async () => {
     getAppSettingsMock.mockResolvedValue({
       managedRuntime: {
         enabled: true,
         baseUrl: "https://adg-uat.zhaozhunai.com/v1",
         model: "qihang-ultra-5.5",
         imageModel: "gpt-image-2",
-        nativeImageGeneration: true,
       },
     } as AppSettings);
     getRuntimeImageModelListMock.mockResolvedValue({

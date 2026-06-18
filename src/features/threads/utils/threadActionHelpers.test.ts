@@ -6,7 +6,7 @@ import {
 } from "./threadActionHelpers";
 
 describe("threadActionHelpers", () => {
-  it("forces a canonical resume for cached generated images without replacing local fallback", () => {
+  it("does not resume when generated images are already present and anchored", () => {
     const localItems: ConversationItem[] = [
       {
         id: "assistant-summary",
@@ -29,17 +29,17 @@ describe("threadActionHelpers", () => {
       },
     ];
 
+    expect(localItems.some((item) => item.kind === "imageGeneration")).toBe(true);
     expect(
       buildGeneratedImageRecoveryDecision({
         assetCount: 1,
         missingAnchorIds: [],
-        localItems,
         isThreadProcessing: false,
       }),
     ).toEqual({
-      shouldResume: true,
+      shouldResume: false,
       replaceLocal: false,
-      reason: "cached-image-order",
+      reason: "none",
     });
   });
 
@@ -48,14 +48,6 @@ describe("threadActionHelpers", () => {
       buildGeneratedImageRecoveryDecision({
         assetCount: 1,
         missingAnchorIds: ["call-image-1"],
-        localItems: [
-          {
-            id: "assistant-only",
-            kind: "message",
-            role: "assistant",
-            text: "生成好了。",
-          },
-        ],
         isThreadProcessing: false,
       }),
     ).toEqual({

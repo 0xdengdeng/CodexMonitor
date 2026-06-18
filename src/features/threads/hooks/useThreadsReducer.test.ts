@@ -203,6 +203,51 @@ describe("threadReducer", () => {
     });
   });
 
+  it("inserts replayed images after their anchor message instead of at the bottom", () => {
+    // Resume returns only the assistant messages (function outputs stripped), so
+    // each runtime image is hydrated with the anchor message text the backend
+    // read from the rollout. Images must land after their own message.
+    const baseList: ConversationItem[] = [
+      { id: "user-1", kind: "message", role: "user", text: "draw two" },
+      { id: "a-1", kind: "message", role: "assistant", text: "first one" },
+      { id: "a-2", kind: "message", role: "assistant", text: "second one" },
+      { id: "a-3", kind: "message", role: "assistant", text: "all done" },
+    ];
+    const imageItem = (id: string): ConversationItem => ({
+      id,
+      kind: "imageGeneration",
+      status: "completed",
+      prompt: "",
+      revisedPrompt: null,
+      model: "",
+      size: "",
+      assetId: null,
+      savedPath: `/tmp/codex-home/generated_images/thread-1/019_${id}.png`,
+      imageSrc: `/tmp/codex-home/generated_images/thread-1/019_${id}.png`,
+      error: null,
+    });
+
+    const afterFirst = threadReducer(
+      { ...initialState, itemsByThread: { "thread-1": baseList } },
+      {
+        type: "hydrateGeneratedImageItem",
+        threadId: "thread-1",
+        item: imageItem("call_aaa"),
+        anchorMessageText: "first one",
+      },
+    );
+    const afterSecond = threadReducer(afterFirst, {
+      type: "hydrateGeneratedImageItem",
+      threadId: "thread-1",
+      item: imageItem("call_bbb"),
+      anchorMessageText: "second one",
+    });
+
+    expect(
+      afterSecond.itemsByThread["thread-1"]?.map((item) => item.id),
+    ).toEqual(["user-1", "a-1", "call_aaa", "a-2", "call_bbb", "a-3"]);
+  });
+
   it("hydrates scoped generated image files even when text messages do not mention their paths", () => {
     const localPath =
       "/tmp/codex-home/generated_images/thread-1/019ed8d8_call_live-image.png";

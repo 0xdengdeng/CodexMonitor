@@ -49,7 +49,7 @@ export type ResumeHydrationPlan = {
 };
 
 export type GeneratedImageRecoveryDecision = {
-  reason: "none" | "missing-image-anchor" | "cached-image-order";
+  reason: "none" | "missing-image-anchor";
   replaceLocal: boolean;
   shouldResume: boolean;
 };
@@ -126,27 +126,19 @@ export function getThreadListNextCursor(result: Record<string, unknown>) {
 export function buildGeneratedImageRecoveryDecision({
   assetCount,
   isThreadProcessing,
-  localItems,
   missingAnchorIds,
 }: {
   assetCount: number;
   isThreadProcessing: boolean;
-  localItems: ConversationItem[];
   missingAnchorIds: string[];
 }): GeneratedImageRecoveryDecision {
   if (isThreadProcessing || assetCount === 0) {
     return { shouldResume: false, replaceLocal: false, reason: "none" };
   }
-  const hasLocalGeneratedImages = localItems.some(
-    (item) => item.kind === "imageGeneration",
-  );
-  if (hasLocalGeneratedImages) {
-    return {
-      shouldResume: true,
-      replaceLocal: false,
-      reason: "cached-image-order",
-    };
-  }
+  // Images already in the conversation are positioned by anchor hydration
+  // (insertAfterAnchorMessage), so we no longer resume just to re-order cached
+  // images. Resuming here would drop the images (resume strips function outputs)
+  // and re-add them on every thread re-entry — the visible reload/flash.
   if (missingAnchorIds.length > 0) {
     return {
       shouldResume: true,

@@ -111,6 +111,7 @@ export type ThreadAction =
       type: "hydrateGeneratedImageItem";
       threadId: string;
       item: ConversationItem;
+      anchorMessageText?: string | null;
     }
   | { type: "setThreadItems"; threadId: string; items: ConversationItem[] }
   | {

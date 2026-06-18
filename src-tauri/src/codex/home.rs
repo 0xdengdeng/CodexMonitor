@@ -5,6 +5,10 @@ use std::path::{Path, PathBuf};
 use crate::types::WorkspaceEntry;
 
 const MANAGED_CODEX_HOME_DIR: &str = "codex-home";
+#[cfg(not(test))]
+const LEGACY_CODEX_HOME_DIR: &str = ".codex";
+const LEGACY_IMPORT_MARKER: &str = ".agentdesk_legacy_codex_home_imported";
+const LEGACY_IMPORT_DIRS: &[&str] = &["sessions", "archived_sessions", "generated_images"];
 
 pub(crate) fn managed_codex_home_for_data_dir(data_dir: &Path) -> PathBuf {
     data_dir.join(MANAGED_CODEX_HOME_DIR)
@@ -19,7 +23,145 @@ pub(crate) fn configure_managed_codex_home(data_dir: &Path) -> Result<PathBuf, S
         )
     })?;
     env::set_var("CODEX_HOME", &codex_home);
+    #[cfg(not(test))]
+    if let Err(err) = import_legacy_codex_home_once(&codex_home) {
+        eprintln!("failed to import legacy Codex history: {err}");
+    }
     Ok(codex_home)
+}
+
+#[cfg(not(test))]
+fn import_legacy_codex_home_once(managed_codex_home: &Path) -> Result<(), String> {
+    let legacy_codex_home = match resolve_legacy_codex_home() {
+        Some(path) => path,
+        None => return Ok(()),
+    };
+    import_legacy_codex_home_from(&legacy_codex_home, managed_codex_home)
+}
+
+fn import_legacy_codex_home_from(
+    legacy_codex_home: &Path,
+    managed_codex_home: &Path,
+) -> Result<(), String> {
+    if paths_equivalent(legacy_codex_home, managed_codex_home) {
+        return Ok(());
+    }
+    if !legacy_codex_home.is_dir() {
+        return Ok(());
+    }
+
+    fs::create_dir_all(managed_codex_home).map_err(|err| {
+        format!(
+            "Failed to create managed Codex home at {}: {err}",
+            managed_codex_home.display()
+        )
+    })?;
+
+    let marker = managed_codex_home.join(LEGACY_IMPORT_MARKER);
+    if marker.exists() {
+        return Ok(());
+    }
+
+    for dirname in LEGACY_IMPORT_DIRS {
+        copy_missing_tree(
+            &legacy_codex_home.join(dirname),
+            &managed_codex_home.join(dirname),
+        )?;
+    }
+
+    fs::write(&marker, "legacy Codex history imported by AgentDesk\n").map_err(|err| {
+        format!(
+            "Failed to write legacy import marker at {}: {err}",
+            marker.display()
+        )
+    })?;
+    Ok(())
+}
+
+#[cfg(not(test))]
+fn resolve_legacy_codex_home() -> Option<PathBuf> {
+    Some(resolve_home_dir()?.join(LEGACY_CODEX_HOME_DIR))
+}
+
+fn copy_missing_tree(source: &Path, destination: &Path) -> Result<(), String> {
+    if !source.exists() {
+        return Ok(());
+    }
+    if !source.is_dir() {
+        return Ok(());
+    }
+    copy_missing_tree_inner(source, destination, source)
+}
+
+fn copy_missing_tree_inner(source: &Path, destination: &Path, root: &Path) -> Result<(), String> {
+    fs::create_dir_all(destination).map_err(|err| {
+        format!(
+            "Failed to create legacy import destination {}: {err}",
+            destination.display()
+        )
+    })?;
+
+    let entries = fs::read_dir(source).map_err(|err| {
+        format!(
+            "Failed to read legacy Codex history directory {}: {err}",
+            source.display()
+        )
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|err| {
+            format!(
+                "Failed to read legacy Codex history entry under {}: {err}",
+                source.display()
+            )
+        })?;
+        let path = entry.path();
+        let file_type = entry.file_type().map_err(|err| {
+            format!(
+                "Failed to inspect legacy Codex history entry {}: {err}",
+                path.display()
+            )
+        })?;
+
+        let relative = path.strip_prefix(root).map_err(|err| {
+            format!(
+                "Failed to resolve legacy Codex history path {} relative to {}: {err}",
+                path.display(),
+                root.display()
+            )
+        })?;
+        let target = destination.join(relative);
+
+        if file_type.is_dir() {
+            copy_missing_tree_inner(&path, destination, root)?;
+        } else if file_type.is_file() && !target.exists() {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(|err| {
+                    format!(
+                        "Failed to create legacy import destination {}: {err}",
+                        parent.display()
+                    )
+                })?;
+            }
+            fs::copy(&path, &target).map_err(|err| {
+                format!(
+                    "Failed to copy legacy Codex history {} to {}: {err}",
+                    path.display(),
+                    target.display()
+                )
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn paths_equivalent(left: &Path, right: &Path) -> bool {
+    if left == right {
+        return true;
+    }
+    match (fs::canonicalize(left), fs::canonicalize(right)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
 }
 
 pub(crate) fn resolve_workspace_codex_home(
@@ -310,5 +452,88 @@ mod tests {
             Some(value) => std::env::set_var("APPDATA", value),
             None => std::env::remove_var("APPDATA"),
         }
+    }
+
+    #[test]
+    fn legacy_codex_home_import_copies_history_assets_without_overwriting() {
+        let root =
+            std::env::temp_dir().join(format!("agentdesk-legacy-import-{}", uuid::Uuid::new_v4()));
+        let legacy = root.join("legacy");
+        let managed = root.join("managed");
+
+        let legacy_session = legacy
+            .join("sessions")
+            .join("2026")
+            .join("06")
+            .join("18")
+            .join("rollout-legacy.jsonl");
+        let managed_session = managed
+            .join("sessions")
+            .join("2026")
+            .join("06")
+            .join("18")
+            .join("rollout-legacy.jsonl");
+        let legacy_archive = legacy
+            .join("archived_sessions")
+            .join("rollout-archived.jsonl");
+        let legacy_image = legacy
+            .join("generated_images")
+            .join("thread-1")
+            .join("image.png");
+
+        fs::create_dir_all(legacy_session.parent().expect("legacy session parent"))
+            .expect("create legacy sessions");
+        fs::create_dir_all(managed_session.parent().expect("managed session parent"))
+            .expect("create managed sessions");
+        fs::create_dir_all(legacy_archive.parent().expect("legacy archive parent"))
+            .expect("create legacy archives");
+        fs::create_dir_all(legacy_image.parent().expect("legacy image parent"))
+            .expect("create legacy images");
+
+        fs::write(&legacy_session, "legacy-session").expect("write legacy session");
+        fs::write(&managed_session, "existing-session").expect("write managed session");
+        fs::write(&legacy_archive, "legacy-archive").expect("write legacy archive");
+        fs::write(&legacy_image, "legacy-image").expect("write legacy image");
+
+        import_legacy_codex_home_from(&legacy, &managed).expect("import legacy home");
+
+        assert_eq!(
+            fs::read_to_string(&managed_session).expect("read managed session"),
+            "existing-session"
+        );
+        assert_eq!(
+            fs::read_to_string(
+                managed
+                    .join("archived_sessions")
+                    .join("rollout-archived.jsonl")
+            )
+            .expect("read managed archive"),
+            "legacy-archive"
+        );
+        assert_eq!(
+            fs::read_to_string(
+                managed
+                    .join("generated_images")
+                    .join("thread-1")
+                    .join("image.png")
+            )
+            .expect("read managed image"),
+            "legacy-image"
+        );
+        assert!(managed.join(LEGACY_IMPORT_MARKER).exists());
+
+        fs::write(&legacy_archive, "changed-after-marker").expect("rewrite legacy archive");
+        import_legacy_codex_home_from(&legacy, &managed).expect("second import");
+        assert_eq!(
+            fs::read_to_string(
+                managed
+                    .join("archived_sessions")
+                    .join("rollout-archived.jsonl")
+            )
+            .expect("read managed archive again"),
+            "legacy-archive"
+        );
+
+        let _ = fs::remove_dir_all(root);
     }
 }

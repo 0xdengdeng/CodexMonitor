@@ -28,9 +28,7 @@ import {
   readAgentMd,
   stageGitAll,
   respondToServerRequest,
-  respondToDynamicToolCallRequest,
   respondToUserInputRequest,
-  generateImage,
   listGeneratedImages,
   sendUserMessage,
   steerTurn,
@@ -1191,52 +1189,6 @@ describe("tauri invoke wrappers", () => {
       result: {
         answers,
       },
-    });
-  });
-
-  it("wraps dynamic tool call responses", async () => {
-    const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({});
-
-    await respondToDynamicToolCallRequest("ws-9", 404, {
-      contentItems: [
-        { type: "inputText", text: "Generated image" },
-        { type: "inputImage", imageUrl: "/tmp/generated-images/asset-1.png" },
-      ],
-      success: true,
-    });
-
-    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
-      workspaceId: "ws-9",
-      requestId: 404,
-      result: {
-        contentItems: [
-          { type: "inputText", text: "Generated image" },
-          { type: "inputImage", imageUrl: "/tmp/generated-images/asset-1.png" },
-        ],
-        success: true,
-      },
-    });
-  });
-
-  it("invokes image generation", async () => {
-    const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({ id: "asset-1" });
-
-    await generateImage({
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-      prompt: "A small blue rocket icon",
-      size: "1024x1024",
-      referenceImageIds: ["asset-source"],
-    });
-
-    expect(invokeMock).toHaveBeenCalledWith("generate_image", {
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-      prompt: "A small blue rocket icon",
-      size: "1024x1024",
-      referenceImageIds: ["asset-source"],
     });
   });
 
