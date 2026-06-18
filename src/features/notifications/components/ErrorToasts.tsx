@@ -24,17 +24,24 @@ function ErrorToastRow({
   onDismiss: (id: string) => void;
 }) {
   const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   const handleCopy = async () => {
     try {
       await copyDiagnostics(`${toast.title}: ${toast.message}`);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      setStatus("copied");
     } catch {
-      // Clipboard blocked — the message is still on screen for the user to copy.
+      setStatus("failed");
     }
+    window.setTimeout(() => setStatus("idle"), 1500);
   };
+
+  const copyLabel =
+    status === "copied"
+      ? t("error.copied")
+      : status === "failed"
+        ? t("error.copyFailed")
+        : t("error.copyDiagnostics");
 
   return (
     <ToastCard className="error-toast" role="alert">
@@ -46,7 +53,7 @@ function ErrorToastRow({
           onClick={handleCopy}
           title={t("error.copyDiagnostics")}
         >
-          {copied ? t("error.copied") : t("error.copyDiagnostics")}
+          {copyLabel}
         </button>
         <button
           type="button"

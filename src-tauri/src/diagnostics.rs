@@ -29,6 +29,18 @@ pub(crate) fn read_daemon_log_tail(app: AppHandle, max_bytes: usize) -> Result<S
     read_file_tail(&log_path, max_bytes)
 }
 
+/// Write text to the OS clipboard from the Rust side. The webview's
+/// `navigator.clipboard` only works inside a live user gesture, which is lost
+/// after the async log reads that build the diagnostics blob — so the copy must
+/// go through here instead.
+#[tauri::command]
+pub(crate) fn write_clipboard(text: String) -> Result<(), String> {
+    let mut clipboard = arboard::Clipboard::new().map_err(|err| format!("clipboard: {err}"))?;
+    clipboard
+        .set_text(text)
+        .map_err(|err| format!("clipboard set_text: {err}"))
+}
+
 /// Return at most `max_bytes` (hard-capped) from the end of `path`, trimmed to a
 /// clean line boundary when the file is cut mid-stream.
 fn read_file_tail(path: &Path, max_bytes: usize) -> Result<String, String> {

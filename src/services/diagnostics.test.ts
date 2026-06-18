@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@services/tauri", () => ({
   readAppLogTail: vi.fn(),
   readDaemonLogTail: vi.fn(),
+  writeClipboard: vi.fn(),
 }));
 
 import { readAppLogTail, readDaemonLogTail } from "@services/tauri";

@@ -1280,3 +1280,12 @@ export async function readAppLogTail(maxBytes = 20000): Promise<string> {
 export async function readDaemonLogTail(maxBytes = 20000): Promise<string> {
   return await invoke<string>("read_daemon_log_tail", { maxBytes });
 }
+
+/**
+ * Write text to the OS clipboard via the backend. Use this instead of
+ * navigator.clipboard when the copy follows async work (the webview clipboard
+ * requires a live user gesture, which awaits expire).
+ */
+export async function writeClipboard(text: string): Promise<void> {
+  await invoke("write_clipboard", { text });
+}

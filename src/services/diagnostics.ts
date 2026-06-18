@@ -1,4 +1,4 @@
-import { readAppLogTail, readDaemonLogTail } from "@services/tauri";
+import { readAppLogTail, readDaemonLogTail, writeClipboard } from "@services/tauri";
 
 /**
  * Gather a human-pasteable diagnostics blob: app/platform/time, the error (if
@@ -51,6 +51,9 @@ export async function collectDiagnostics(error?: unknown): Promise<string> {
  */
 export async function copyDiagnostics(error?: unknown): Promise<string> {
   const text = await collectDiagnostics(error);
-  await navigator.clipboard.writeText(text);
+  // Backend clipboard, not navigator.clipboard: collecting the logs above is
+  // async, so the webview's user-gesture clipboard permission has already
+  // expired by the time we get here.
+  await writeClipboard(text);
   return text;
 }
