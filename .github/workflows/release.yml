@@ -522,7 +522,10 @@ jobs:
           # been flaky on the runner.
           npm run doctor:win
           npm run sync:material-icons
-          npm run sync:codex-runtime:release
+          # No sync:codex-runtime here: the prebuilt sidecar is already placed by
+          # "Download Codex sidecar". sync:codex-runtime:release refuses a prebuilt
+          # binary (assertReleaseRuntimeUsesSourceBuild) and would fail the build —
+          # same bypass as the macOS step.
           npm run tauri -- build --config src-tauri/tauri.windows.conf.json --bundles nsis --config src-tauri/tauri.windows.signing.conf.json
 
       - name: Verify Windows installer Authenticode signature
