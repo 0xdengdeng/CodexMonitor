@@ -1118,4 +1118,64 @@ describe("threadReducer", () => {
     expect(trimmed.itemsByThread["thread-1"]?.[0]?.id).toBe("msg-2");
   });
 
+  it("keeps a running background process across a resume that rebuilds items", () => {
+    const registered = threadReducer(initialState, {
+      type: "observeBackgroundProcess",
+      threadId: "thread-1",
+      item: {
+        type: "commandExecution",
+        id: "cmd-1",
+        command: "bash -lc 'node server.js'",
+        cwd: "/repo/app",
+        status: "inProgress",
+        source: "unifiedExecStartup",
+        processId: "42",
+      },
+    });
+    expect(registered.backgroundProcessesByThread["thread-1"]).toHaveLength(1);
+
+    // Resume replaces the thread's items from the rollout (which never persists
+    // the exec item) — the background-process registry must survive it.
+    const resumed = threadReducer(registered, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items: [
+        { id: "msg-1", kind: "message", role: "assistant", text: "done" },
+      ],
+    });
+    expect(resumed.itemsByThread["thread-1"]).toHaveLength(1);
+    expect(resumed.backgroundProcessesByThread["thread-1"]).toHaveLength(1);
+    expect(resumed.backgroundProcessesByThread["thread-1"]?.[0]?.command).toBe(
+      "node server.js",
+    );
+  });
+
+  it("drops background processes when the thread is removed", () => {
+    const registered = threadReducer(
+      {
+        ...initialState,
+        threadsByWorkspace: { "ws-1": [{ id: "thread-1", name: "t", updatedAt: 1 }] },
+      },
+      {
+        type: "observeBackgroundProcess",
+        threadId: "thread-1",
+        item: {
+          type: "commandExecution",
+          id: "cmd-1",
+          command: "node server.js",
+          cwd: "/repo",
+          status: "inProgress",
+          source: "unifiedExecStartup",
+          processId: "42",
+        },
+      },
+    );
+    const removed = threadReducer(registered, {
+      type: "removeThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+    expect(removed.backgroundProcessesByThread["thread-1"]).toBeUndefined();
+  });
+
 });

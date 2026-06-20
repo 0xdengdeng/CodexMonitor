@@ -131,6 +131,8 @@ export function reduceThreadLifecycle(
       const { [action.threadId]: ____, ...restDiffs } = state.turnDiffByThread;
       const { [action.threadId]: _____, ...restPlans } = state.planByThread;
       const { [action.threadId]: ______, ...restParents } = state.threadParentById;
+      const { [action.threadId]: _______, ...restBackgroundProcesses } =
+        state.backgroundProcessesByThread;
       return {
         ...state,
         threadsByWorkspace: {
@@ -143,6 +145,7 @@ export function reduceThreadLifecycle(
         turnDiffByThread: restDiffs,
         planByThread: restPlans,
         threadParentById: restParents,
+        backgroundProcessesByThread: restBackgroundProcesses,
         activeThreadIdByWorkspace: {
           ...state.activeThreadIdByWorkspace,
           [action.workspaceId]: nextActive,

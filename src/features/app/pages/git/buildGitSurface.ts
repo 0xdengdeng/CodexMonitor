@@ -5,6 +5,7 @@ export function buildGitSurface({
   appSettings,
   activeWorkspace,
   activeItems,
+  agentBackgroundTasks,
   gitState,
   composerWorkspaceState,
   activePlan,
@@ -17,19 +18,9 @@ export function buildGitSurface({
   startUncommittedReview,
   handleSelectOpenAppId,
   prompts,
-  terminalTabs,
-  activeTerminalId,
-  onSelectTerminal,
-  terminalOpen,
-  openTerminalWithFocus,
   isPhone,
   t,
 }: MainAppLayoutSurfacesContext): LayoutNodesOptions["git"] {
-  const backgroundTasks = terminalTabs.map((tab) => ({
-    id: tab.id,
-    title: tab.title,
-    status: tab.id === activeTerminalId && terminalOpen ? "active" as const : "running" as const,
-  }));
   const generatedImages = activeItems.filter((item) => item.kind === "imageGeneration");
 
   return {
@@ -37,12 +28,8 @@ export function buildGitSurface({
     planPanelProps: {
       plan: activePlan,
       isProcessing: composerWorkspaceState.isProcessing,
-      backgroundTasks,
+      backgroundTasks: agentBackgroundTasks,
       generatedImages,
-      onOpenBackgroundTask: (taskId) => {
-        onSelectTerminal(taskId);
-        openTerminalWithFocus();
-      },
     },
     fileTreeProps: activeWorkspace
       ? {

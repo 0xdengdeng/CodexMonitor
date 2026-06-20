@@ -64,6 +64,11 @@ export function useThreadItemEvents({
       if (shouldMarkProcessing) {
         markProcessing(threadId, true);
       }
+      // Track agent unified-exec background processes off the raw item (both the
+      // started and completed events route through here). This registry is kept
+      // outside the per-turn item list so a still-running process survives the
+      // resume that rebuilds items from the rollout. See threadBackgroundProcessesSlice.
+      dispatch({ type: "observeBackgroundProcess", threadId, item });
       applyCollabThreadLinks(workspaceId, threadId, item);
       const itemType = String(item?.type ?? "");
       if (itemType === "enteredReviewMode") {

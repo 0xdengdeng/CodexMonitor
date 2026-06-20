@@ -15,6 +15,10 @@ import { reduceThreadLifecycle } from "./threadReducer/threadLifecycleSlice";
 import { reduceThreadConfig } from "./threadReducer/threadConfigSlice";
 import { reduceThreadQueue } from "./threadReducer/threadQueueSlice";
 import { reduceThreadSnapshots } from "./threadReducer/threadSnapshotSlice";
+import {
+  reduceThreadBackgroundProcesses,
+  type AgentBackgroundProcess,
+} from "./threadReducer/threadBackgroundProcessesSlice";
 
 type ThreadActivityStatus = {
   isProcessing: boolean;
@@ -46,6 +50,7 @@ export type ThreadState = {
   accountByWorkspace: Record<string, AccountSnapshot | null>;
   planByThread: Record<string, TurnPlan | null>;
   lastAgentMessageByThread: Record<string, { text: string; timestamp: number }>;
+  backgroundProcessesByThread: Record<string, AgentBackgroundProcess[]>;
 };
 
 export type ThreadAction =
@@ -183,6 +188,11 @@ export type ThreadAction =
       threadId: string;
       text: string;
       timestamp: number;
+    }
+  | {
+      type: "observeBackgroundProcess";
+      threadId: string;
+      item: Record<string, unknown>;
     };
 
 const emptyItems: Record<string, ConversationItem[]> = {};
@@ -209,6 +219,7 @@ export const initialState: ThreadState = {
   accountByWorkspace: {},
   planByThread: {},
   lastAgentMessageByThread: {},
+  backgroundProcessesByThread: {},
 };
 
 type ThreadSliceReducer = (state: ThreadState, action: ThreadAction) => ThreadState;
@@ -219,6 +230,7 @@ const threadSliceReducers: ThreadSliceReducer[] = [
   reduceThreadItems,
   reduceThreadQueue,
   reduceThreadSnapshots,
+  reduceThreadBackgroundProcesses,
 ];
 
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {

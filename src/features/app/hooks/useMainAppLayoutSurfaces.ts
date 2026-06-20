@@ -58,6 +58,9 @@ type UseMainAppLayoutSurfacesArgs = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   activeItems: LayoutNodesOptions["primary"]["messagesProps"]["items"];
+  agentBackgroundTasks: NonNullable<
+    LayoutNodesOptions["secondary"]["planPanelProps"]["backgroundTasks"]
+  >;
   userInputRequests: SidebarProps["userInputRequests"];
   approvals: LayoutNodesOptions["primary"]["approvalToastsProps"]["approvals"];
   activeRateLimits: SidebarProps["accountRateLimits"];
@@ -262,6 +265,7 @@ export function useMainAppLayoutSurfaces({
   activeWorkspaceId,
   activeThreadId,
   activeItems,
+  agentBackgroundTasks,
   userInputRequests,
   approvals,
   activeRateLimits,
@@ -426,6 +430,7 @@ export function useMainAppLayoutSurfaces({
     activeWorkspaceId,
     activeThreadId,
     activeItems,
+    agentBackgroundTasks,
     userInputRequests,
     approvals,
     activeRateLimits,

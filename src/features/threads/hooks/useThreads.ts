@@ -18,6 +18,7 @@ import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
 import { useThreadLinking } from "./useThreadLinking";
 import { useThreadEventHandlers } from "./useThreadEventHandlers";
+import { selectAgentBackgroundTasks } from "./threadReducer/threadBackgroundProcessesSlice";
 import { useThreadActions } from "./useThreadActions";
 import { useThreadMessaging } from "./useThreadMessaging";
 import { useThreadApprovals } from "./useThreadApprovals";
@@ -191,6 +192,14 @@ export function useThreads({
     itemsByThread: state.itemsByThread,
     threadsByWorkspace: state.threadsByWorkspace,
   });
+
+  const agentBackgroundTasks = useMemo(
+    () =>
+      selectAgentBackgroundTasks(
+        (activeThreadId && state.backgroundProcessesByThread[activeThreadId]) || [],
+      ),
+    [activeThreadId, state.backgroundProcessesByThread],
+  );
 
   const getCurrentRateLimits = useCallback(
     (workspaceId: string) => rateLimitsByWorkspaceRef.current[workspaceId] ?? null,
@@ -1082,6 +1091,7 @@ export function useThreads({
     setActiveThreadId,
     hasLocalThreadSnapshot,
     activeItems,
+    agentBackgroundTasks,
     approvals: state.approvals,
     userInputRequests: state.userInputRequests,
     threadsByWorkspace: state.threadsByWorkspace,
