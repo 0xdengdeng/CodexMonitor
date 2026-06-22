@@ -17,6 +17,7 @@ import { useSettingsGitSection } from "./useSettingsGitSection";
 import { useSettingsAgentsSection } from "./useSettingsAgentsSection";
 import { useSettingsProjectsSection } from "./useSettingsProjectsSection";
 import { useSettingsServerSection } from "./useSettingsServerSection";
+import { useSettingsDeploySection } from "./useSettingsDeploySection";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
 import { COMPOSER_PRESET_CONFIGS } from "@settings/components/settingsViewConstants";
 import { useI18n } from "@/features/i18n/i18n";
@@ -195,6 +196,8 @@ export function useSettingsViewOrchestration({
 
   const agentsSectionProps = useSettingsAgentsSection({ projects });
 
+  const deploySectionProps = useSettingsDeploySection(appSettings.backendMode);
+
   return {
     aboutSectionProps: {
       appSettings,
@@ -243,6 +246,7 @@ export function useSettingsViewOrchestration({
     agentsSectionProps,
     codexSectionProps,
     featuresSectionProps,
+    deploySectionProps,
   };
 }
 

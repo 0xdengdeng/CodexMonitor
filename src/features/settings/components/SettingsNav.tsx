@@ -2,6 +2,7 @@ import Bot from "lucide-react/dist/esm/icons/bot";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
 import Info from "lucide-react/dist/esm/icons/info";
+import Rocket from "lucide-react/dist/esm/icons/rocket";
 import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
 import { PanelNavItem, PanelNavList } from "@/features/design-system/components/panel/PanelPrimitives";
 import { useI18n } from "@/features/i18n/i18n";
@@ -66,6 +67,15 @@ export function SettingsNav({
           onClick={() => onSelectSection("advanced")}
         >
           {t("settings.nav.advanced")}
+        </PanelNavItem>
+        <PanelNavItem
+          className="settings-nav"
+          icon={<Rocket aria-hidden />}
+          active={activeSection === "deploy"}
+          showDisclosure={showDisclosure}
+          onClick={() => onSelectSection("deploy")}
+        >
+          {t("settings.nav.deploy")}
         </PanelNavItem>
       </PanelNavList>
     </aside>
