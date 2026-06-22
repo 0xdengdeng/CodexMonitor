@@ -8,6 +8,7 @@ import type {
 } from "react";
 import type { AutocompleteItem } from "../hooks/useComposerAutocomplete";
 import ImagePlus from "lucide-react/dist/esm/icons/image-plus";
+import FilePlus from "lucide-react/dist/esm/icons/file-plus";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
@@ -32,6 +33,11 @@ type ComposerInputProps = {
   onAddAttachment?: () => void;
   onAttachImages?: (paths: string[]) => void;
   onRemoveAttachment?: (path: string) => void;
+  fileAttachments?: string[];
+  onAddFile?: () => void;
+  onAttachFiles?: (paths: string[]) => void;
+  onRemoveFile?: (path: string) => void;
+  canAttachFiles?: boolean;
   onTextChange: (next: string, selectionStart: number | null) => void;
   onTextPaste?: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onSelectionChange: (selectionStart: number | null) => void;
@@ -80,6 +86,11 @@ export function ComposerInput({
   onAddAttachment,
   onAttachImages,
   onRemoveAttachment,
+  fileAttachments = [],
+  onAddFile,
+  onAttachFiles,
+  onRemoveFile,
+  canAttachFiles = true,
   onTextChange,
   onTextPaste,
   onSelectionChange,
@@ -133,6 +144,7 @@ export function ComposerInput({
   } = useComposerImageDrop({
     disabled,
     onAttachImages,
+    onAttachFiles: canAttachFiles ? onAttachFiles : undefined,
   });
   const handleActionClick = useCallback(() => {
     if (canStop) {
@@ -196,6 +208,12 @@ export function ComposerInput({
           disabled={disabled}
           onRemoveAttachment={onRemoveAttachment}
         />
+        <ComposerAttachments
+          attachments={fileAttachments}
+          disabled={disabled}
+          onRemoveAttachment={onRemoveFile}
+          kind="file"
+        />
         <div className="composer-input-row">
           <button
             type="button"
@@ -208,6 +226,18 @@ export function ComposerInput({
           >
             <ImagePlus size={14} aria-hidden />
           </button>
+          {onAddFile && (
+            <button
+              type="button"
+              className="composer-attach"
+              onClick={onAddFile}
+              disabled={disabled || !canAttachFiles}
+              aria-label={canAttachFiles ? t("composer.addFile") : t("composer.addFileRemoteUnsupported")}
+              title={canAttachFiles ? t("composer.addFile") : t("composer.addFileRemoteUnsupported")}
+            >
+              <FilePlus size={14} aria-hidden />
+            </button>
+          )}
           <ComposerMobileActionsMenu
             disabled={disabled}
             handleMobileAttachClick={handleMobileAttachClick}

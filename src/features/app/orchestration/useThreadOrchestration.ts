@@ -87,6 +87,7 @@ type SendOrQueueHandler = (
   images: string[],
   appMentions?: AppMention[],
   submitIntent?: ComposerSendIntent,
+  files?: string[],
 ) => Promise<void>;
 
 type UseThreadUiOrchestrationParams = {
@@ -109,6 +110,7 @@ type UseThreadUiOrchestrationParams = {
   removeThread: (workspaceId: string, threadId: string) => void;
   clearDraftForThread: (threadId: string) => void;
   removeImagesForThread: (threadId: string) => void;
+  removeFilesForThread: (threadId: string) => void;
 };
 
 export function useThreadCodexBootstrapOrchestration({
@@ -410,6 +412,7 @@ export function useThreadUiOrchestration({
   removeThread,
   clearDraftForThread,
   removeImagesForThread,
+  removeFilesForThread,
 }: UseThreadUiOrchestrationParams) {
   const rememberPendingNewThreadSeed = useCallback(() => {
     pendingNewThreadSeedRef.current = createPendingThreadSeed({
@@ -436,12 +439,13 @@ export function useThreadUiOrchestration({
       images: string[],
       appMentions?: AppMention[],
       submitIntent?: ComposerSendIntent,
+      files?: string[],
     ) => {
       rememberPendingNewThreadSeed();
       return runWithDraftStart(() =>
         appMentions && appMentions.length > 0
-          ? handleComposerSend(text, images, appMentions, submitIntent)
-          : handleComposerSend(text, images, undefined, submitIntent),
+          ? handleComposerSend(text, images, appMentions, submitIntent, files)
+          : handleComposerSend(text, images, undefined, submitIntent, files),
       );
     },
     [handleComposerSend, rememberPendingNewThreadSeed, runWithDraftStart],
@@ -500,11 +504,13 @@ export function useThreadUiOrchestration({
     removeThread(activeWorkspaceId, activeThreadId);
     clearDraftForThread(activeThreadId);
     removeImagesForThread(activeThreadId);
+    removeFilesForThread(activeThreadId);
   }, [
     activeThreadId,
     activeWorkspaceId,
     clearDraftForThread,
     removeImagesForThread,
+    removeFilesForThread,
     removeThread,
   ]);
 

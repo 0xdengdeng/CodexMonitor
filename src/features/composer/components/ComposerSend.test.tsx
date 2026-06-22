@@ -115,7 +115,7 @@ describe("Composer send triggers", () => {
     fireEvent.keyDown(textarea, { key: "Enter" });
 
     expect(onSend).toHaveBeenCalledTimes(1);
-    expect(onSend).toHaveBeenCalledWith("hello world", [], undefined, "default");
+    expect(onSend).toHaveBeenCalledWith("hello world", [], undefined, "default", []);
   });
 
   it("sends once on send-button click", () => {
@@ -127,7 +127,7 @@ describe("Composer send triggers", () => {
     fireEvent.click(screen.getByLabelText("Send"));
 
     expect(onSend).toHaveBeenCalledTimes(1);
-    expect(onSend).toHaveBeenCalledWith("from button", [], undefined, "default");
+    expect(onSend).toHaveBeenCalledWith("from button", [], undefined, "default", []);
   });
 
   it("does not send or clear the draft when the before-send guard blocks", () => {
@@ -194,6 +194,7 @@ describe("Composer send triggers", () => {
       [],
       undefined,
       "default",
+      [],
     );
     expect(blurSpy).toHaveBeenCalledTimes(1);
   });
@@ -225,6 +226,7 @@ describe("Composer send triggers", () => {
       [],
       [{ name: "Calendar App", path: "app://connector_calendar" }],
       "default",
+      [],
     );
   });
 
@@ -244,7 +246,7 @@ describe("Composer send triggers", () => {
     fireEvent.keyDown(textarea, { key: "Enter" });
 
     expect(onSend).toHaveBeenCalledTimes(1);
-    expect(onSend).toHaveBeenCalledWith("queue this", [], undefined, "queue");
+    expect(onSend).toHaveBeenCalledWith("queue this", [], undefined, "queue", []);
   });
 
   it("uses opposite follow-up behavior on Shift+Ctrl+Enter while processing", () => {
@@ -263,7 +265,7 @@ describe("Composer send triggers", () => {
     fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true, ctrlKey: true });
 
     expect(onSend).toHaveBeenCalledTimes(1);
-    expect(onSend).toHaveBeenCalledWith("steer this", [], undefined, "steer");
+    expect(onSend).toHaveBeenCalledWith("steer this", [], undefined, "steer", []);
   });
 
   it("falls back to queue when steer is selected but unavailable", () => {
@@ -287,7 +289,7 @@ describe("Composer send triggers", () => {
       ),
     ).toBeTruthy();
     expect(onSend).toHaveBeenCalledTimes(1);
-    expect(onSend).toHaveBeenCalledWith("queue fallback", [], undefined, "queue");
+    expect(onSend).toHaveBeenCalledWith("queue fallback", [], undefined, "queue", []);
   });
 
   it("treats Shift+Ctrl+Enter like normal send when not processing", () => {
@@ -311,6 +313,7 @@ describe("Composer send triggers", () => {
       [],
       undefined,
       "default",
+      [],
     );
   });
 

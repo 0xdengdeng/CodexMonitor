@@ -36,6 +36,7 @@ const makeOptions = (
   startFast: vi.fn().mockResolvedValue(undefined),
   startStatus: vi.fn().mockResolvedValue(undefined),
   clearActiveImages: vi.fn(),
+  clearActiveFiles: vi.fn(),
   ...overrides,
 });
 
@@ -528,6 +529,45 @@ describe("useQueuedSend", () => {
       "img-1",
       "img-2",
     ]);
+  });
+
+  it("forwards attached files on immediate send", async () => {
+    const options = makeOptions();
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.handleSend("With file", [], undefined, "default", [
+        "/tmp/a.ts",
+      ]);
+    });
+
+    expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
+    expect(options.sendUserMessage).toHaveBeenCalledWith("With file", [], undefined, {
+      sendIntent: "default",
+      files: ["/tmp/a.ts"],
+    });
+  });
+
+  it("preserves attached files for queued messages", async () => {
+    const options = makeOptions();
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.queueMessage("Files", [], [], ["/tmp/a.ts", "/tmp/b.md"]);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
+    expect(options.sendUserMessage).toHaveBeenCalledWith("Files", [], undefined, {
+      files: ["/tmp/a.ts", "/tmp/b.md"],
+    });
   });
 
   it("does not flush queued messages while response is required", async () => {

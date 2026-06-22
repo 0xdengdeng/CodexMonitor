@@ -688,6 +688,7 @@ export type QueuedMessage = {
   text: string;
   createdAt: number;
   images?: string[];
+  files?: string[];
   appMentions?: AppMention[];
 };
 

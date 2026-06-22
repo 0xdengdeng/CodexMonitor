@@ -52,6 +52,7 @@ type ComposerProps = {
     images: string[],
     appMentions?: AppMention[],
     submitIntent?: ComposerSendIntent,
+    files?: string[],
   ) => void;
   onBeforeSend?: () => boolean;
   onStop: () => void;
@@ -95,6 +96,14 @@ type ComposerProps = {
   onPickImages?: () => void;
   onAttachImages?: (paths: string[]) => void;
   onRemoveImage?: (path: string) => void;
+  attachedFiles?: string[];
+  onPickFiles?: () => void;
+  onAttachFiles?: (paths: string[]) => void;
+  onRemoveFile?: (path: string) => void;
+  // Local-only feature: file attachments are passed to the agent as paths it
+  // reads on its own machine. In remote mode the picked path is unreachable, so
+  // the UI disables file attach when this is false.
+  canAttachFiles?: boolean;
   prefillDraft?: QueuedMessage | null;
   onPrefillHandled?: (id: string) => void;
   insertText?: QueuedMessage | null;
@@ -203,6 +212,11 @@ export const Composer = memo(function Composer({
   onPickImages,
   onAttachImages,
   onRemoveImage,
+  attachedFiles = [],
+  onPickFiles,
+  onAttachFiles,
+  onRemoveFile,
+  canAttachFiles = true,
   prefillDraft = null,
   onPrefillHandled,
   insertText = null,
@@ -241,7 +255,10 @@ export const Composer = memo(function Composer({
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
   const editorSettings = editorSettingsProp ?? DEFAULT_EDITOR_SETTINGS;
-  const canSend = text.trim().length > 0 || attachedImages.length > 0;
+  const canSend =
+    text.trim().length > 0 ||
+    attachedImages.length > 0 ||
+    attachedFiles.length > 0;
   const isMac = isMacPlatform();
   const followUpShortcutLabel = isMac ? "Shift+Cmd+Enter" : "Shift+Ctrl+Enter";
   const effectiveFollowUpBehavior: FollowUpMessageBehavior =
@@ -365,7 +382,7 @@ export const Composer = memo(function Composer({
   } = usePromptHistory({
     historyKey,
     text,
-    hasAttachments: attachedImages.length > 0,
+    hasAttachments: attachedImages.length > 0 || attachedFiles.length > 0,
     disabled,
     isAutocompleteOpen: suggestionsOpen,
     textareaRef,
@@ -386,7 +403,7 @@ export const Composer = memo(function Composer({
       return;
     }
     const trimmed = text.trim();
-    if (!trimmed && attachedImages.length === 0) {
+    if (!trimmed && attachedImages.length === 0 && attachedFiles.length === 0) {
       return;
     }
     if (onBeforeSend && !onBeforeSend()) {
@@ -397,9 +414,9 @@ export const Composer = memo(function Composer({
     }
     const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
     if (resolvedMentions.length > 0) {
-      onSend(trimmed, attachedImages, resolvedMentions, submitIntent);
+      onSend(trimmed, attachedImages, resolvedMentions, submitIntent, attachedFiles);
     } else {
-      onSend(trimmed, attachedImages, undefined, submitIntent);
+      onSend(trimmed, attachedImages, undefined, submitIntent, attachedFiles);
     }
     resetHistoryNavigation();
     setComposerText("");
@@ -407,6 +424,7 @@ export const Composer = memo(function Composer({
   }, [
     appMentionBindings,
     attachedImages,
+    attachedFiles,
     disabled,
     onBeforeSend,
     onSend,
@@ -647,6 +665,11 @@ export const Composer = memo(function Composer({
         onAddAttachment={onPickImages}
         onAttachImages={onAttachImages}
         onRemoveAttachment={onRemoveImage}
+        fileAttachments={attachedFiles}
+        onAddFile={onPickFiles}
+        onAttachFiles={onAttachFiles}
+        onRemoveFile={onRemoveFile}
+        canAttachFiles={canAttachFiles}
         onTextChange={handleTextChangeWithHistory}
         onSelectionChange={handleSelectionChange}
         onTextPaste={handleTextPaste}

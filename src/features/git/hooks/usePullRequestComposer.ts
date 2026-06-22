@@ -54,6 +54,7 @@ type UsePullRequestComposerOptions = {
     images: string[],
     appMentions?: AppMention[],
     submitIntent?: ComposerSendIntent,
+    files?: string[],
   ) => Promise<void>;
 };
 
@@ -137,6 +138,7 @@ export function usePullRequestComposer({
       images: string[] = [],
       appMentions: AppMention[] = [],
       submitIntent?: ComposerSendIntent,
+      files: string[] = [],
     ) => {
       if (pullRequestReviewLaunching) {
         return;
@@ -157,9 +159,9 @@ export function usePullRequestComposer({
       }
       if (KNOWN_SLASH_COMMAND_REGEX.test(trimmed)) {
         if (appMentions.length > 0) {
-          await handleSend(trimmed, images, appMentions, submitIntent);
+          await handleSend(trimmed, images, appMentions, submitIntent, files);
         } else {
-          await handleSend(trimmed, images, undefined, submitIntent);
+          await handleSend(trimmed, images, undefined, submitIntent, files);
         }
         return;
       }

@@ -165,6 +165,7 @@ describe("usePullRequestComposer", () => {
       [],
       undefined,
       undefined,
+      [],
     );
     expect(options.runPullRequestReview).not.toHaveBeenCalled();
   });

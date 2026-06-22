@@ -337,6 +337,7 @@ describe("useThreadUiOrchestration", () => {
       removeThread: vi.fn(),
       clearDraftForThread: vi.fn(),
       removeImagesForThread: vi.fn(),
+      removeFilesForThread: vi.fn(),
     };
 
     const { result } = renderHook(() => useThreadUiOrchestration(params));

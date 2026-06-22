@@ -72,11 +72,15 @@ function normalizeDragPosition(
 type UseComposerImageDropArgs = {
   disabled: boolean;
   onAttachImages?: (paths: string[]) => void;
+  // Non-image dropped paths are routed here so the agent can read them on
+  // demand. Only available for native (Tauri) drops that expose real paths.
+  onAttachFiles?: (paths: string[]) => void;
 };
 
 export function useComposerImageDrop({
   disabled,
   onAttachImages,
+  onAttachFiles,
 }: UseComposerImageDropArgs) {
   const [isDragOver, setIsDragOver] = useState(false);
   const dropTargetRef = useRef<HTMLDivElement | null>(null);
@@ -114,12 +118,16 @@ export function useComposerImageDrop({
         if (!isInside) {
           return;
         }
-        const imagePaths = (event.payload.paths ?? [])
+        const droppedPaths = (event.payload.paths ?? [])
           .map((path) => path.trim())
-          .filter(Boolean)
-          .filter(isImagePath);
+          .filter(Boolean);
+        const imagePaths = droppedPaths.filter(isImagePath);
+        const filePaths = droppedPaths.filter((path) => !isImagePath(path));
         if (imagePaths.length > 0) {
           onAttachImages?.(imagePaths);
+        }
+        if (filePaths.length > 0) {
+          onAttachFiles?.(filePaths);
         }
       }
     });
@@ -128,7 +136,7 @@ export function useComposerImageDrop({
         unlisten();
       }
     };
-  }, [disabled, onAttachImages]);
+  }, [disabled, onAttachImages, onAttachFiles]);
 
   const handleDragOver = (event: React.DragEvent<HTMLElement>) => {
     if (disabled) {
@@ -169,8 +177,16 @@ export function useComposerImageDrop({
       .map((file) => (file as File & { path?: string }).path ?? "")
       .filter(Boolean);
     const imagePaths = filePaths.filter(isImagePath);
+    const nonImageFilePaths = filePaths.filter((path) => !isImagePath(path));
+    if (nonImageFilePaths.length > 0) {
+      onAttachFiles?.(nonImageFilePaths);
+    }
     if (imagePaths.length > 0) {
       onAttachImages?.(imagePaths);
+    }
+    // Native drops expose real paths; once handled, don't fall through to the
+    // browser data-URL image path (which only applies to path-less drops).
+    if (filePaths.length > 0) {
       return;
     }
     const fileImages = [...files, ...itemFiles].filter((file) =>

@@ -162,7 +162,8 @@ export function useThreadMessaging({
       options?: SendMessageOptions,
     ): Promise<SendMessageResult> => {
       const messageText = text.trim();
-      if (!messageText && images.length === 0) {
+      const files = options?.files ?? [];
+      if (!messageText && images.length === 0 && files.length === 0) {
         return { status: "blocked" };
       }
       let finalText = messageText;
@@ -209,6 +210,7 @@ export function useThreadMessaging({
           workspace_id: workspace.id,
           thread_id: threadId,
           has_images: images.length > 0 ? "true" : "false",
+          has_files: files.length > 0 ? "true" : "false",
           text_length: String(finalText.length),
           model: resolvedModel ?? "unknown",
           effort: resolvedEffort ?? "unknown",
@@ -239,6 +241,7 @@ export function useThreadMessaging({
           turnId: activeTurnId,
           text: finalText,
           images,
+          files,
           model: resolvedModel,
           effort: resolvedEffort,
           serviceTier: resolvedServiceTier,
@@ -258,22 +261,15 @@ export function useThreadMessaging({
           await ensureWorkspaceRuntimeCodexArgs(workspace.id, threadId);
         }
         const response: Record<string, unknown> = shouldSteer
-          ? (await (appMentions.length > 0
-            ? steerTurnService(
-              workspace.id,
-              threadId,
-              activeTurnId ?? "",
-              finalText,
-              images,
-              appMentions,
-            )
-            : steerTurnService(
-              workspace.id,
-              threadId,
-              activeTurnId ?? "",
-              finalText,
-              images,
-            ))) as Record<string, unknown>
+          ? (await steerTurnService(
+            workspace.id,
+            threadId,
+            activeTurnId ?? "",
+            finalText,
+            images,
+            appMentions.length > 0 ? appMentions : undefined,
+            files,
+          )) as Record<string, unknown>
           : (await sendUserMessageService(
             workspace.id,
             threadId,
@@ -286,6 +282,7 @@ export function useThreadMessaging({
               accessMode: resolvedAccessMode,
               images,
               appMentions,
+              files,
             }),
           )) as Record<string, unknown>;
 
@@ -404,13 +401,14 @@ export function useThreadMessaging({
       text: string,
       images: string[] = [],
       appMentions: AppMention[] = [],
-      options?: { sendIntent?: ComposerSendIntent },
+      options?: { sendIntent?: ComposerSendIntent; files?: string[] },
     ): Promise<SendMessageResult> => {
       if (!activeWorkspace) {
         return { status: "blocked" };
       }
       const messageText = text.trim();
-      if (!messageText && images.length === 0) {
+      const files = options?.files ?? [];
+      if (!messageText && images.length === 0 && files.length === 0) {
         return { status: "blocked" };
       }
       const promptExpansion = expandCustomPromptText(
@@ -441,6 +439,7 @@ export function useThreadMessaging({
       return sendMessageToThread(activeWorkspace, threadId, finalText, images, {
         skipPromptExpansion: true,
         appMentions,
+        files,
         sendIntent: options?.sendIntent,
       });
     },

@@ -16,6 +16,7 @@ import type {
 } from "../../../types";
 import { ComposerInput } from "../../composer/components/ComposerInput";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
+import { useComposerFiles } from "../../composer/hooks/useComposerFiles";
 import { useComposerAutocompleteState } from "../../composer/hooks/useComposerAutocompleteState";
 import { usePromptHistory } from "../../composer/hooks/usePromptHistory";
 import type {
@@ -43,7 +44,8 @@ type WorkspaceHomeProps = {
   recentThreadsUpdatedAt: number | null;
   prompt: string;
   onPromptChange: (value: string) => void;
-  onStartRun: (images?: string[]) => Promise<boolean>;
+  onStartRun: (images?: string[], files?: string[]) => Promise<boolean>;
+  canAttachFiles?: boolean;
   runMode: WorkspaceRunMode;
   onRunModeChange: (mode: WorkspaceRunMode) => void;
   models: ModelOption[];
@@ -95,6 +97,7 @@ export function WorkspaceHome({
   prompt,
   onPromptChange,
   onStartRun,
+  canAttachFiles = true,
   runMode,
   onRunModeChange,
   models,
@@ -153,6 +156,17 @@ export function WorkspaceHome({
   });
 
   const {
+    activeFiles,
+    attachFiles,
+    pickFiles,
+    removeFile,
+    clearActiveFiles,
+  } = useComposerFiles({
+    activeThreadId: null,
+    activeWorkspaceId: workspace.id,
+  });
+
+  const {
     isAutocompleteOpen,
     autocompleteMatches,
     autocompleteAnchorIndex,
@@ -197,7 +211,7 @@ export function WorkspaceHome({
   } = usePromptHistory({
     historyKey: workspace.id,
     text: prompt,
-    hasAttachments: activeImages.length > 0,
+    hasAttachments: activeImages.length > 0 || activeFiles.length > 0,
     disabled: isSubmitting,
     isAutocompleteOpen,
     textareaRef,
@@ -215,18 +229,19 @@ export function WorkspaceHome({
   }, [workspace.id]);
 
   const handleRunSubmit = async () => {
-    if (!prompt.trim() && activeImages.length === 0) {
+    if (!prompt.trim() && activeImages.length === 0 && activeFiles.length === 0) {
       return;
     }
 
     const trimmed = prompt.trim();
-    const didStart = await onStartRun(activeImages);
+    const didStart = await onStartRun(activeImages, activeFiles);
     if (didStart) {
       if (trimmed) {
         recordHistory(trimmed);
       }
       resetHistoryNavigation();
       clearActiveImages();
+      clearActiveFiles();
     }
   };
 
@@ -304,7 +319,11 @@ export function WorkspaceHome({
             disabled={isSubmitting}
             sendLabel={t("workspace.home.send")}
             canStop={false}
-            canSend={prompt.trim().length > 0 || activeImages.length > 0}
+            canSend={
+              prompt.trim().length > 0 ||
+              activeImages.length > 0 ||
+              activeFiles.length > 0
+            }
             isProcessing={isSubmitting}
             onStop={() => {}}
             onSend={() => {
@@ -316,6 +335,13 @@ export function WorkspaceHome({
             }}
             onAttachImages={attachImages}
             onRemoveAttachment={removeImage}
+            fileAttachments={activeFiles}
+            onAddFile={() => {
+              void pickFiles();
+            }}
+            onAttachFiles={attachFiles}
+            onRemoveFile={removeFile}
+            canAttachFiles={canAttachFiles}
             onTextChange={handleTextChangeWithHistory}
             onSelectionChange={handleSelectionChange}
             onKeyDown={handleComposerKeyDown}

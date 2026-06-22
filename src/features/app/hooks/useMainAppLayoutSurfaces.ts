@@ -34,6 +34,7 @@ type UseMainAppLayoutSurfacesArgs = {
     | "composerFollowUpHintEnabled"
     | "splitChatDiffView"
     | "gitDiffIgnoreWhitespaceChanges"
+    | "backendMode"
   >;
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: Array<{ id: string | null; name: string; workspaces: WorkspaceInfo[] }>;
@@ -127,6 +128,7 @@ type UseMainAppLayoutSurfacesArgs = {
   pullRequestComposer: {
     composerSendLabel: string | null | undefined;
     handleSelectPullRequest: NonNullable<GitDiffPanelProps["onSelectPullRequest"]>;
+    isPullRequestComposer: boolean;
   };
   openAppIconById: MainHeaderProps["openAppIconById"];
   openInitGitRepoPrompt: GitDiffPanelProps["onInitGitRepo"];
