@@ -1,3 +1,4 @@
+import { DeployPanel } from "../../../deploy/components/DeployPanel";
 import { FileTreePanel } from "../../../files/components/FileTreePanel";
 import { GitDiffPanel } from "../../../git/components/GitDiffPanel";
 import { GitDiffViewer } from "../../../git/components/GitDiffViewer";
@@ -52,6 +53,18 @@ function buildGitDiffPanelNode(options: GitLayoutNodesOptions) {
   }
   if (options.filePanelMode === "prompts") {
     return <PromptPanel {...options.promptPanelProps} />;
+  }
+  if (options.filePanelMode === "deploy") {
+    return (
+      <PanelShell
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.gitDiffPanelProps.onFilePanelModeChange}
+        className="deploy-inspector-panel"
+        headerClassName="git-panel-header"
+      >
+        <DeployPanel {...options.deployPanelProps} />
+      </PanelShell>
+    );
   }
   return (
     <GitDiffPanel

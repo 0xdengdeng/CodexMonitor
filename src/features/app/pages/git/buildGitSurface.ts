@@ -31,6 +31,11 @@ export function buildGitSurface({
       backgroundTasks: agentBackgroundTasks,
       generatedImages,
     },
+    deployPanelProps: {
+      workspaceId: activeWorkspace?.id ?? null,
+      deployState: activeWorkspace?.settings.deploy ?? null,
+      backendMode: appSettings.backendMode,
+    },
     fileTreeProps: activeWorkspace
       ? {
           workspaceId: activeWorkspace.id,

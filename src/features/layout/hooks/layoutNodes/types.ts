@@ -6,6 +6,7 @@ import { TabBar } from "../../../app/components/TabBar";
 import { TabletNav } from "../../../app/components/TabletNav";
 import { Composer } from "../../../composer/components/Composer";
 import { DebugPanel } from "../../../debug/components/DebugPanel";
+import { DeployPanel } from "../../../deploy/components/DeployPanel";
 import { FileTreePanel } from "../../../files/components/FileTreePanel";
 import { GitDiffPanel } from "../../../git/components/GitDiffPanel";
 import { GitDiffViewer } from "../../../git/components/GitDiffViewer";
@@ -57,6 +58,7 @@ export type LayoutPrimarySurface = {
 export type LayoutGitSurface = {
   filePanelMode: ComponentProps<typeof GitDiffPanel>["filePanelMode"];
   planPanelProps: ComponentProps<typeof PlanPanel>;
+  deployPanelProps: ComponentProps<typeof DeployPanel>;
   fileTreeProps: ComponentProps<typeof FileTreePanel> | null;
   promptPanelProps: ComponentProps<typeof PromptPanel>;
   gitDiffPanelProps: ComponentProps<typeof GitDiffPanel>;
