@@ -635,15 +635,51 @@ pub(crate) async fn set_thread_name_core(
         .await
 }
 
+// Build a single `<attached_files>` text fragment referencing user-attached
+// local files by path. The agent reads them on demand with its own tools —
+// every sandbox policy (readOnly/workspaceWrite/dangerFullAccess) grants
+// filesystem-wide read — so we pass paths instead of inlining content. This
+// matches Codex's native `@`-mention behavior, lets the agent read selectively,
+// and avoids context bloat for large files. Paths are emitted verbatim (no XML
+// escaping) so the agent can use them as-is; filenames with XML metacharacters
+// are vanishingly rare and not worth corrupting every usable path to guard.
+fn build_attached_files_block(files: Vec<String>) -> Option<String> {
+    let mut entries: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for raw in files {
+        let path = normalize_file_path(&raw);
+        if path.is_empty() {
+            continue;
+        }
+        if !seen.insert(path.clone()) {
+            continue;
+        }
+        entries.push(format!("  <path>{path}</path>"));
+    }
+    if entries.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "<attached_files>\n{}\n</attached_files>",
+        entries.join("\n")
+    ))
+}
+
 fn build_turn_input_items(
     text: String,
     images: Option<Vec<String>>,
     app_mentions: Option<Vec<Value>>,
+    files: Option<Vec<String>>,
 ) -> Result<Vec<Value>, String> {
     let trimmed_text = text.trim();
     let mut input: Vec<Value> = Vec::new();
     if !trimmed_text.is_empty() {
         input.push(json!({ "type": "text", "text": trimmed_text }));
+    }
+    if let Some(files) = files {
+        if let Some(block) = build_attached_files_block(files) {
+            input.push(json!({ "type": "text", "text": block }));
+        }
     }
     if let Some(paths) = images {
         for path in paths {
@@ -741,6 +777,7 @@ pub(crate) async fn send_user_message_core(
     access_mode: Option<String>,
     images: Option<Vec<String>>,
     app_mentions: Option<Vec<Value>>,
+    files: Option<Vec<String>>,
     collaboration_mode: Option<Value>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
@@ -775,7 +812,7 @@ pub(crate) async fn send_user_message_core(
         "on-request"
     };
 
-    let input = build_turn_input_items(text, images, app_mentions)?;
+    let input = build_turn_input_items(text, images, app_mentions, files)?;
 
     let mut params = Map::new();
     params.insert("threadId".to_string(), json!(thread_id.clone()));
@@ -820,12 +857,13 @@ pub(crate) async fn turn_steer_core(
     text: String,
     images: Option<Vec<String>>,
     app_mentions: Option<Vec<Value>>,
+    files: Option<Vec<String>>,
 ) -> Result<Value, String> {
     if turn_id.trim().is_empty() {
         return Err("missing active turn id".to_string());
     }
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let input = build_turn_input_items(text, images, app_mentions)?;
+    let input = build_turn_input_items(text, images, app_mentions, files)?;
     let params = json!({
         "threadId": thread_id,
         "expectedTurnId": turn_id,
@@ -1331,6 +1369,91 @@ mod tests {
     #[test]
     fn normalize_trims_whitespace() {
         assert_eq!(normalize_file_path("  /tmp/image.png  "), "/tmp/image.png");
+    }
+
+    #[test]
+    fn attached_files_block_emits_one_path_entry_per_file() {
+        let block = build_attached_files_block(vec![
+            "/tmp/a.ts".to_string(),
+            "/tmp/notes/b.md".to_string(),
+        ])
+        .expect("block should be produced");
+        assert_eq!(
+            block,
+            "<attached_files>\n  <path>/tmp/a.ts</path>\n  <path>/tmp/notes/b.md</path>\n</attached_files>"
+        );
+    }
+
+    #[test]
+    fn attached_files_block_dedupes_and_skips_blank_paths() {
+        let block = build_attached_files_block(vec![
+            "/tmp/a.ts".to_string(),
+            "   ".to_string(),
+            "/tmp/a.ts".to_string(),
+            String::new(),
+        ])
+        .expect("block should be produced");
+        assert_eq!(
+            block,
+            "<attached_files>\n  <path>/tmp/a.ts</path>\n</attached_files>"
+        );
+    }
+
+    #[test]
+    fn attached_files_block_normalizes_file_uri_paths() {
+        let block = build_attached_files_block(vec![
+            "file:///tmp/report%20final.md".to_string(),
+        ])
+        .expect("block should be produced");
+        assert_eq!(
+            block,
+            "<attached_files>\n  <path>/tmp/report final.md</path>\n</attached_files>"
+        );
+    }
+
+    #[test]
+    fn attached_files_block_returns_none_when_no_valid_paths() {
+        assert!(build_attached_files_block(vec!["  ".to_string(), String::new()]).is_none());
+        assert!(build_attached_files_block(Vec::new()).is_none());
+    }
+
+    #[test]
+    fn build_turn_input_appends_attached_files_after_prompt_text() {
+        let input = build_turn_input_items(
+            "look at this".to_string(),
+            None,
+            None,
+            Some(vec!["/tmp/a.ts".to_string()]),
+        )
+        .expect("input should build");
+        assert_eq!(input.len(), 2);
+        assert_eq!(input[0], json!({ "type": "text", "text": "look at this" }));
+        assert_eq!(
+            input[1],
+            json!({
+                "type": "text",
+                "text": "<attached_files>\n  <path>/tmp/a.ts</path>\n</attached_files>"
+            })
+        );
+    }
+
+    #[test]
+    fn build_turn_input_allows_files_only_message() {
+        let input = build_turn_input_items(
+            String::new(),
+            None,
+            None,
+            Some(vec!["/tmp/a.ts".to_string()]),
+        )
+        .expect("files-only message should be valid");
+        assert_eq!(input.len(), 1);
+        assert_eq!(
+            input[0],
+            json!({
+                "type": "text",
+                "text": "<attached_files>\n  <path>/tmp/a.ts</path>\n</attached_files>"
+            })
+        );
     }
 
     #[test]

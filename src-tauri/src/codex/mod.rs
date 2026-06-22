@@ -447,6 +447,7 @@ pub(crate) async fn send_user_message(
     access_mode: Option<String>,
     images: Option<Vec<String>>,
     app_mentions: Option<Vec<Value>>,
+    files: Option<Vec<String>>,
     collaboration_mode: Option<Value>,
     state: State<'_, AppState>,
     app: AppHandle,
@@ -468,6 +469,10 @@ pub(crate) async fn send_user_message(
         payload.insert("accessMode".to_string(), json!(access_mode));
         payload.insert("images".to_string(), json!(images));
         payload.insert("appMentions".to_string(), json!(app_mentions));
+        // Attached files are paths the daemon reads on its own filesystem (no
+        // content fetch), so they pass through verbatim — unlike images, which
+        // are normalized for remote re-read.
+        payload.insert("files".to_string(), json!(files));
         if let Some(mode) = collaboration_mode {
             if !mode.is_null() {
                 payload.insert("collaborationMode".to_string(), mode);
@@ -495,6 +500,7 @@ pub(crate) async fn send_user_message(
         access_mode,
         images,
         app_mentions,
+        files,
         collaboration_mode,
     )
     .await
@@ -508,6 +514,7 @@ pub(crate) async fn turn_steer(
     text: String,
     images: Option<Vec<String>>,
     app_mentions: Option<Vec<Value>>,
+    files: Option<Vec<String>>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
@@ -529,6 +536,7 @@ pub(crate) async fn turn_steer(
                 "text": text,
                 "images": images,
                 "appMentions": app_mentions,
+                "files": files,
             }),
         )
         .await;
@@ -542,6 +550,7 @@ pub(crate) async fn turn_steer(
         text,
         images,
         app_mentions,
+        files,
     )
     .await
 }

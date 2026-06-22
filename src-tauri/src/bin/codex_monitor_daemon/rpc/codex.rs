@@ -209,6 +209,7 @@ pub(super) async fn try_handle(
             let images = parse_optional_string_array(params, "images");
             let app_mentions = parse_optional_value(params, "appMentions")
                 .and_then(|value| value.as_array().cloned());
+            let files = parse_optional_string_array(params, "files");
             let collaboration_mode = parse_optional_value(params, "collaborationMode");
             Some(
                 state
@@ -222,6 +223,7 @@ pub(super) async fn try_handle(
                         access_mode,
                         images,
                         app_mentions,
+                        files,
                         collaboration_mode,
                     )
                     .await,
@@ -262,9 +264,18 @@ pub(super) async fn try_handle(
             let images = parse_optional_string_array(params, "images");
             let app_mentions = parse_optional_value(params, "appMentions")
                 .and_then(|value| value.as_array().cloned());
+            let files = parse_optional_string_array(params, "files");
             Some(
                 state
-                    .turn_steer(workspace_id, thread_id, turn_id, text, images, app_mentions)
+                    .turn_steer(
+                        workspace_id,
+                        thread_id,
+                        turn_id,
+                        text,
+                        images,
+                        app_mentions,
+                        files,
+                    )
                     .await,
             )
         }
