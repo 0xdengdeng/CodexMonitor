@@ -9,6 +9,7 @@ use tauri::WindowEvent;
 mod backend;
 mod codex;
 mod daemon_binary;
+mod deploy;
 mod diagnostics;
 mod dictation;
 mod enterprise_ai;
@@ -228,6 +229,12 @@ pub fn run() {
             files::file_write,
             files::read_image_as_data_url,
             files::write_text_file,
+            deploy::deploy_app,
+            deploy::deploy_status,
+            deploy::deploy_build_log,
+            deploy::deploy_token_status,
+            deploy::deploy_set_token,
+            deploy::deploy_clear_token,
             codex::get_config_model,
             menu::menu_set_accelerators,
             tray::set_tray_recent_threads,

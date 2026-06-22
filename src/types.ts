@@ -8,6 +8,50 @@ export type WorkspaceSettings = {
   launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
   worktreesFolder?: string | null;
+  deploy?: WorkspaceDeployState | null;
+};
+
+// ADG deploy plugin (docs/deploy-plugin-design.md). Mirrors Rust types in src-tauri/src/types.rs.
+export type DeployStatus =
+  | "idle"
+  | "uploading"
+  | "pending"
+  | "building"
+  | "running"
+  | "failed"
+  | "stopped"
+  | "suspended";
+
+// Per-workspace binding to one ADG app (1:1). appName is frozen (DNS-sanitized) at first deploy.
+export type WorkspaceDeployState = {
+  appId: string;
+  appName: string;
+  sourcePlatform?: string | null;
+  subdomain?: string | null;
+  lastStatus?: DeployStatus | null;
+  lastDeployAt?: number | null;
+};
+
+export type DeployMetadata = {
+  name: string;
+  sourcePlatform?: string | null;
+};
+
+// Plugin-facing projection of an ADG app. `status` is the resolved display state
+// (suspended > stopped > deployStatus); `deployStatus` is the raw latest_deploy.status.
+export type DeployApp = {
+  appId: string;
+  name: string;
+  templateId?: string | null;
+  sourcePlatform?: string | null;
+  subdomain?: string | null;
+  url?: string | null;
+  status: DeployStatus;
+  desiredState?: string | null;
+  deployStatus: DeployStatus;
+  errorMessage?: string | null;
+  deploymentId?: string | null;
+  buildLogRef?: string | null;
 };
 
 export type LaunchScriptIconId =

@@ -3,6 +3,10 @@ pub(crate) mod agents_config_core;
 pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;
 pub(crate) mod config_toml_core;
+// Used by the app (src/deploy) but not the headless daemon binary (deploy is app-only today;
+// daemon parity is v2) — allow keeps the daemon build warning-free.
+#[allow(dead_code)]
+pub(crate) mod deploy_core;
 pub(crate) mod files_core;
 pub(crate) mod git_core;
 pub(crate) mod git_rpc;
