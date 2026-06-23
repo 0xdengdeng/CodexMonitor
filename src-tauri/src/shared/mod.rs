@@ -1,5 +1,9 @@
 pub(crate) mod account;
 pub(crate) mod agents_config_core;
+// Wired into the settings→codex-home sync + app adapter in T4 (browser capability); allow keeps
+// the build warning-free until then. See docs/browser-capability-design.md.
+#[allow(dead_code)]
+pub(crate) mod browser_mcp_core;
 pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;
 pub(crate) mod config_toml_core;
