@@ -59,7 +59,7 @@ abandoning the gateway/API-key model for ChatGPT login (privacy + dependency reg
 | Packaging | **Built-in capability.** AgentDesk bundles the runtime + owns registration; user never registers an MCP server. Presented as a first-class "Browser" capability, not an editable MCP-server row |
 | Default state | **Off by default; one-click first-class toggle to enable** (decision b, 2026-06-23). `ManagedBrowserConfig.enabled` defaults `false` (mirrors `ManagedRuntimeConfig`). Avoids the agent being able to drive the user's real Chrome out-of-box; the user enables consciously |
 | Backend | Playwright MCP (`@playwright/mcp`), accessibility-tree driven (not screenshots) — an implementation detail, hidden from the user |
-| Browser + auth | **v1: fresh isolated Chromium** (`--isolated`) — no extension, no access to the user's logged-in sessions. `--extension` attach-to-real-Chrome is a v2 opt-in (changed 2026-06-23: dogfood showed `--extension` hangs until the user installs the Playwright Chrome extension) |
+| Browser + auth | **v1: drives the user's installed Chrome in a fresh isolated profile** (`--browser chrome --isolated`) — 0 browser download (app stays light), no access to the user's logged-in sessions. Fallback: download-on-demand Chromium if no Chrome present (T5). `--extension` attach-to-real-Chrome-profile is a v2 opt-in (changed 2026-06-23 after dogfood: `--extension` hangs without the Playwright extension; bundling a full Chromium would add ~240MB) |
 | v1 action scope | navigate + interaction (navigate / snapshot / extract / screenshot + click / type / fill) |
 | Approval | Inherit Codex's existing session approval/access mode (no bespoke gate). Full-access session → no prompt; on-request → prompt |
 | Deployment | App-only; suppressed under `is_remote_mode` (mirrors deploy / file-attachment). The gate is load-bearing: a local browser cannot be driven from the headless/iOS daemon |
@@ -217,5 +217,7 @@ run with the user's explicit go-ahead (ideally inside the running app), not sile
   (decision b) keeps it dormant until opted in. **The risk returns only if a v2 `--extension`
   attach-to-real-Chrome opt-in is added** — at that point reconsider forcing on-request via
   `default_tools_approval_mode` (`mcp_tool_call.rs:986`). `security-reviewer` in T6.
-- Bundle size: Node + Playwright MCP + a Chromium (the isolated browser). T5 vendors all three; a
-  future `--extension`/real-Chrome opt-in (v2) could reuse the user's Chrome and skip the bundled Chromium.
+- Bundle size (a real constraint — a full Chromium is ~240MB, vs a ~20MB Tauri app): **do NOT bundle a
+  browser.** v1 drives the user's **installed Chrome** (`--browser chrome`), so we ship only the Node
+  runtime + the few-MB `@playwright/mcp` JS. T5 decides Node provisioning (detect system Node + fail-fast,
+  vs bundle a ~50MB Node) and a download-on-demand Chromium fallback for machines without Chrome.

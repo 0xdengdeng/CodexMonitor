@@ -41,10 +41,12 @@ pub(crate) const BROWSER_V1_ENABLED_TOOLS: &[&str] = &[
     "browser_close",
 ];
 
-/// v1 launches a fresh, ISOLATED Chromium — no extension to install, no persistent profile, and no
-/// access to the user's real logged-in sessions (so even a full-access agent can't reach the user's
-/// banking/email tabs). Attach-to-real-Chrome (`--extension`) is a deferred v2 opt-in (decision c).
-const BROWSER_LAUNCH_ARG: &str = "--isolated";
+/// v1 launch args: drive the user's INSTALLED Chrome (`--browser chrome`) in a fresh `--isolated`
+/// profile — no Chromium download (the app stays ~light), and no access to the user's real
+/// logged-in sessions (so even a full-access agent can't reach the user's banking/email tabs). If no
+/// Chrome is present, Playwright MCP errors clearly (T5 adds a doctor check + a download-on-demand
+/// Chromium fallback). Attaching to the user's real Chrome profile (`--extension`) is a v2 opt-in.
+const BROWSER_LAUNCH_ARGS: &[&str] = &["--isolated", "--browser", "chrome"];
 
 /// Load → apply → persist the managed browser block in the global config.toml.
 pub(crate) fn sync_browser_mcp_config(
@@ -80,7 +82,9 @@ pub(crate) fn apply_browser_mcp_to_document(
     for arg in base_args {
         args.push(arg.as_str());
     }
-    args.push(BROWSER_LAUNCH_ARG);
+    for arg in BROWSER_LAUNCH_ARGS {
+        args.push(*arg);
+    }
 
     let mut enabled_tools = Array::new();
     for tool in BROWSER_V1_ENABLED_TOOLS {
@@ -134,6 +138,8 @@ mod tests {
         assert!(rendered.contains("[mcp_servers.playwright]"));
         assert!(rendered.contains("command = \"npx\""));
         assert!(rendered.contains("--isolated"));
+        assert!(rendered.contains("--browser"));
+        assert!(rendered.contains("chrome"));
         assert!(rendered.contains("@playwright/mcp@latest"));
         assert!(rendered.contains("browser_navigate"));
         // excluded tools must not leak into the allow-list
@@ -148,8 +154,8 @@ mod tests {
         let args = parsed["mcp_servers"]["playwright"]["args"]
             .as_array()
             .expect("args array");
-        // base (-y, @playwright/mcp@latest) + --isolated
-        assert_eq!(args.len(), 3);
+        // base (-y, @playwright/mcp@latest) + --isolated --browser chrome
+        assert_eq!(args.len(), 5);
     }
 
     #[test]
