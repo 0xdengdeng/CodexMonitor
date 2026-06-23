@@ -226,4 +226,37 @@ describe("useMcpServers", () => {
       ]);
     });
   });
+
+  it("hides the AgentDesk-managed browser MCP (playwright) from the user list", async () => {
+    vi.mocked(readCodexConfig).mockResolvedValueOnce({
+      result: {
+        config: {
+          mcp_servers: {
+            github: { enabled: true },
+            playwright: { command: "npx", enabled: true },
+          },
+        },
+        origins: {},
+      },
+    });
+    vi.mocked(listMcpServerStatus).mockResolvedValueOnce({
+      result: {
+        data: [
+          { name: "github", tools: {}, resources: [], resourceTemplates: [] },
+          {
+            name: "playwright",
+            tools: { browser_navigate: {} },
+            resources: [],
+            resourceTemplates: [],
+          },
+        ],
+      },
+    });
+
+    const { result } = renderHook(() => useMcpServers({ activeWorkspace: workspace }));
+
+    await waitFor(() => {
+      expect(result.current.mcpServers.map((server) => server.name)).toEqual(["github"]);
+    });
+  });
 });

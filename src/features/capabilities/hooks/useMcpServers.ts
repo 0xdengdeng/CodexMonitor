@@ -95,6 +95,12 @@ function normalizeMcpServers(
       if (!name) {
         return null;
       }
+      // Hide the AgentDesk-managed built-in browser MCP. Its server key is "playwright"
+      // (Rust: browser_mcp_core::MANAGED_BROWSER_MCP_SERVER_NAME). It is surfaced as the
+      // first-class "Browser" capability toggle in Settings, never as a user-editable server.
+      if (name === "playwright") {
+        return null;
+      }
       const configEntry = configEntryForServer(config, name);
       const origin = originForServer(origins, name);
       const originName = objectRecord(origin.name);
