@@ -1,7 +1,8 @@
 pub(crate) mod account;
 pub(crate) mod agents_config_core;
-// Wired into the settings→codex-home sync + app adapter in T4 (browser capability); allow keeps
-// the build warning-free until then. See docs/browser-capability-design.md.
+// Used by the app (src/settings adapter) but not the headless daemon binary (browser is app-only;
+// the daemon can't run a browser) — allow keeps the daemon build warning-free. See
+// docs/browser-capability-design.md.
 #[allow(dead_code)]
 pub(crate) mod browser_mcp_core;
 pub(crate) mod codex_aux_core;

@@ -652,6 +652,8 @@ impl DaemonState {
             self.restart_connected_workspace_sessions(client_version)
                 .await?;
         }
+        // Built-in browser capability is APP-ONLY (docs/browser-capability-design.md): the headless
+        // daemon can't run a browser, so it intentionally does NOT register the Playwright MCP block.
         Ok(updated)
     }
 

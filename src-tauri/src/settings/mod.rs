@@ -16,6 +16,12 @@ use crate::window;
 const DEVELOPER_MODE_ENV_VARS: [&str; 2] =
     ["AGENTDESK_DEVELOPER_MODE", "CODEXMONITOR_DEVELOPER_MODE"];
 
+// Built-in browser capability (docs/browser-capability-design.md): APP-ONLY. The headless daemon
+// can't run a browser, so the managed `[mcp_servers.playwright]` block is written here in the app
+// adapter — never in the shared config sync or the daemon RPC. v1 launches Playwright MCP via npx.
+const BROWSER_MCP_DEV_COMMAND: &str = "npx";
+const BROWSER_MCP_DEV_BASE_ARGS: [&str; 2] = ["-y", "@playwright/mcp@latest"];
+
 #[tauri::command]
 pub(crate) async fn get_app_settings(
     state: State<'_, AppState>,
@@ -40,6 +46,15 @@ pub(crate) async fn update_app_settings(
         *state.remote_backend.lock().await = None;
     }
     if managed_runtime_config_changed(&previous, &updated) {
+        managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
+    }
+    // App-only built-in browser (docs/browser-capability-design.md): only the local desktop can run
+    // a browser. Skip in remote mode (the toggle is greyed there); on a local toggle, write/remove
+    // the managed Playwright MCP block and restart sessions so the sidecar re-reads config.toml.
+    if !matches!(updated.backend_mode, BackendMode::Remote)
+        && previous.managed_browser.enabled != updated.managed_browser.enabled
+    {
+        sync_browser_mcp_from_settings(&updated)?;
         managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
     }
     ensure_remote_runtime_for_settings(&updated, state).await;
@@ -168,6 +183,27 @@ fn should_reset_remote_backend(previous: &AppSettings, updated: &AppSettings) ->
         || previous.remote_backend_provider != updated.remote_backend_provider
         || previous.remote_backend_host != updated.remote_backend_host
         || previous.remote_backend_token != updated.remote_backend_token
+}
+
+/// App-only: write/remove the managed `[mcp_servers.playwright]` block in the local codex-home.
+/// `browser_mcp_core` owns the block shape + v1 allow-list + `--extension`; the adapter owns the
+/// command (npx for v1; bundled path in T5).
+fn sync_browser_mcp_from_settings(settings: &AppSettings) -> Result<(), String> {
+    let Some(codex_home) = crate::codex::home::resolve_default_codex_home() else {
+        return Ok(());
+    };
+    let base_args: Vec<String> = BROWSER_MCP_DEV_BASE_ARGS
+        .iter()
+        .map(|arg| (*arg).to_string())
+        .collect();
+    // TODO(2026-06-23 xiaodeng): T5 — replace npx with a bundled absolute node + @playwright/mcp
+    // path (mirror codex/runtime.rs resolve) so it works offline without nvm/npx on PATH.
+    crate::shared::browser_mcp_core::sync_browser_mcp_config(
+        &codex_home,
+        &settings.managed_browser,
+        BROWSER_MCP_DEV_COMMAND,
+        &base_args,
+    )
 }
 
 async fn ensure_remote_runtime_for_settings(settings: &AppSettings, state: State<'_, AppState>) {
