@@ -5,6 +5,8 @@ import type {
   AppSettings,
   CodexUpdateResult,
   CodexDoctorResult,
+  DeployApp,
+  DeployMetadata,
   EnterpriseAiLoginResult,
   EnterpriseAiUsageSnapshot,
   GeneratedImageAsset,
@@ -205,6 +207,34 @@ async function fileWrite(
 
 export async function readImageAsDataUrl(path: string): Promise<string> {
   return invoke<string>("read_image_as_data_url", { path });
+}
+
+// ADG deploy plugin (docs/deploy-plugin-design.md). App-only: these reject in remote mode.
+export async function deployApp(
+  workspaceId: string,
+  metadata: DeployMetadata,
+): Promise<DeployApp> {
+  return invoke<DeployApp>("deploy_app", { workspaceId, metadata });
+}
+
+export async function deployStatus(workspaceId: string): Promise<DeployApp> {
+  return invoke<DeployApp>("deploy_status", { workspaceId });
+}
+
+export async function deployBuildLog(workspaceId: string): Promise<string> {
+  return invoke<string>("deploy_build_log", { workspaceId });
+}
+
+export async function deployTokenStatus(): Promise<boolean> {
+  return invoke<boolean>("deploy_token_status");
+}
+
+export async function deploySetToken(token: string): Promise<void> {
+  await invoke("deploy_set_token", { token });
+}
+
+export async function deployClearToken(): Promise<void> {
+  await invoke("deploy_clear_token");
 }
 
 export async function readGlobalAgentsMd(): Promise<GlobalAgentsResponse> {

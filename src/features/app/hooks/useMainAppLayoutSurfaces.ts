@@ -34,6 +34,7 @@ type UseMainAppLayoutSurfacesArgs = {
     | "composerFollowUpHintEnabled"
     | "splitChatDiffView"
     | "gitDiffIgnoreWhitespaceChanges"
+    | "backendMode"
   >;
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: Array<{ id: string | null; name: string; workspaces: WorkspaceInfo[] }>;

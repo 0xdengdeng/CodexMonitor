@@ -1800,6 +1800,7 @@ export default function MainApp() {
       splitChatDiffView: appSettings.splitChatDiffView,
       gitDiffIgnoreWhitespaceChanges:
         appSettings.gitDiffIgnoreWhitespaceChanges,
+      backendMode: appSettings.backendMode,
     },
     workspaces,
     groupedWorkspaces,

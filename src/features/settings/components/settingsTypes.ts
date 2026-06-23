@@ -6,6 +6,7 @@ export const SETTINGS_SECTION_IDS = [
   "version",
   "about",
   "advanced",
+  "deploy",
 ] as const;
 
 export const SETTINGS_ROUTE_SECTION_IDS = [

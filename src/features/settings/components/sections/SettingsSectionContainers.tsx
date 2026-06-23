@@ -3,6 +3,7 @@ import { SettingsProjectsSection } from "./SettingsProjectsSection";
 import { SettingsAboutSection } from "./SettingsAboutSection";
 import { SettingsGitSection } from "./SettingsGitSection";
 import { SettingsServerSection } from "./SettingsServerSection";
+import { SettingsDeploySection } from "./SettingsDeploySection";
 import type { CodexSection } from "@settings/components/settingsTypes";
 import type { SettingsViewOrchestration } from "@settings/hooks/useSettingsViewOrchestration";
 
@@ -29,6 +30,9 @@ export function SettingsSectionContainers({
   }
   if (activeSection === "advanced") {
     return <SettingsServerSection {...orchestration.serverSectionProps} />;
+  }
+  if (activeSection === "deploy") {
+    return <SettingsDeploySection {...orchestration.deploySectionProps} />;
   }
   return null;
 }

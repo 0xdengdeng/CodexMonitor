@@ -331,6 +331,78 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) worktree_setup_script: Option<String>,
     #[serde(default, rename = "worktreesFolder")]
     pub(crate) worktrees_folder: Option<String>,
+    // ADG deploy plugin: per-workspace binding to one deployed app (docs/deploy-plugin-design.md).
+    #[serde(default)]
+    pub(crate) deploy: Option<WorkspaceDeployState>,
+}
+
+/// Per-workspace ADG deploy binding, persisted in workspaces.json. A workspace maps 1:1 to
+/// one ADG app; `app_name` is the DNS-sanitized name frozen at first deploy (rename is v2).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceDeployState {
+    pub(crate) app_id: String,
+    pub(crate) app_name: String,
+    #[serde(default)]
+    pub(crate) source_platform: Option<String>,
+    #[serde(default)]
+    pub(crate) subdomain: Option<String>,
+    #[serde(default)]
+    pub(crate) last_status: Option<DeployStatus>,
+    #[serde(default)]
+    pub(crate) last_deploy_at: Option<i64>,
+}
+
+/// Deploy lifecycle status. Mirrors ADG `latest_deploy.status` plus client-only `idle`/`uploading`.
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum DeployStatus {
+    #[default]
+    Idle,
+    Uploading,
+    Pending,
+    Building,
+    Running,
+    Failed,
+    Stopped,
+    Suspended,
+}
+
+/// User-supplied metadata for a create/redeploy (the JSON `metadata` multipart part subset we use).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DeployMetadata {
+    pub(crate) name: String,
+    #[serde(default)]
+    pub(crate) source_platform: Option<String>,
+}
+
+/// Plugin-facing view of an ADG app, projected from AppDTO/AppDetailDTO + latest_deploy.
+/// `status` is the resolved display state (suspended > stopped > deploy_status); `deploy_status`
+/// is the raw latest_deploy.status. `deployment_id` (latest_deploy.id) is the build-log query key.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DeployApp {
+    pub(crate) app_id: String,
+    pub(crate) name: String,
+    #[serde(default)]
+    pub(crate) template_id: Option<String>,
+    #[serde(default)]
+    pub(crate) source_platform: Option<String>,
+    #[serde(default)]
+    pub(crate) subdomain: Option<String>,
+    #[serde(default)]
+    pub(crate) url: Option<String>,
+    pub(crate) status: DeployStatus,
+    #[serde(default)]
+    pub(crate) desired_state: Option<String>,
+    pub(crate) deploy_status: DeployStatus,
+    #[serde(default)]
+    pub(crate) error_message: Option<String>,
+    #[serde(default)]
+    pub(crate) deployment_id: Option<String>,
+    #[serde(default)]
+    pub(crate) build_log_ref: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
