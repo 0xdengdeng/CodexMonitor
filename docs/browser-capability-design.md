@@ -57,6 +57,7 @@ abandoning the gateway/API-key model for ChatGPT login (privacy + dependency reg
 | Axis | Decision |
 | --- | --- |
 | Packaging | **Built-in capability.** AgentDesk bundles the runtime + owns registration; user never registers an MCP server. Presented as a first-class "Browser" capability, not an editable MCP-server row |
+| Default state | **Off by default; one-click first-class toggle to enable** (decision b, 2026-06-23). `ManagedBrowserConfig.enabled` defaults `false` (mirrors `ManagedRuntimeConfig`). Avoids the agent being able to drive the user's real Chrome out-of-box; the user enables consciously |
 | Backend | Playwright MCP (`@playwright/mcp`), accessibility-tree driven (not screenshots) — an implementation detail, hidden from the user |
 | Browser + auth | `--extension`: attach to the user's existing logged-in Chrome (reuse SSO/cookies, user-visible) |
 | v1 action scope | navigate + interaction (navigate / snapshot / extract / screenshot + click / type / fill) |
@@ -213,7 +214,9 @@ run with the user's explicit go-ahead (ideally inside the running app), not sile
   (`AskForApproval::Never`) lets the model navigate/click in ANY authenticated tab (banking, email,
   internal tools) with **zero prompts**. The security review recommended forcing on-request for the
   browser server; the user weighed this and **chose pure session-inherit (decision #4 stands)** for
-  minimal friction, consciously accepting the full-access exposure. The mitigation remains available
+  minimal friction, consciously accepting the full-access exposure. **Structural mitigation (decision b):
+  the capability is off by default and requires a conscious one-click enable — so the exposure exists
+  only after the user opts in, not out-of-box.** The per-tool mitigation remains available
   without a bespoke gate if this is revisited: `default_tools_approval_mode = "on-request"` on the
   managed `[mcp_servers.playwright]` block (`McpServerConfig.default_tools_approval_mode`, consumed
   `mcp_tool_call.rs:986`). `security-reviewer` re-flags this in T6 as informational, not a blocker.
