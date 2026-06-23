@@ -1,8 +1,8 @@
 # Browser Capability Design (AI uses a browser)
 
 > Status: **define-first draft, pending subagent review + T1 spike gate.** Not implemented.
-> Goal: let the Codex agent drive a real browser (navigate + interact) from within AgentDesk,
-> reusing the user's logged-in Chrome session, without forking codex-rs.
+> Goal: let the Codex agent drive a browser (navigate + interact) from within AgentDesk — v1 a fresh
+> isolated Chromium; attaching to the user's real logged-in Chrome is a v2 opt-in. No codex-rs fork.
 
 ## 0. TL;DR decision
 
@@ -59,7 +59,7 @@ abandoning the gateway/API-key model for ChatGPT login (privacy + dependency reg
 | Packaging | **Built-in capability.** AgentDesk bundles the runtime + owns registration; user never registers an MCP server. Presented as a first-class "Browser" capability, not an editable MCP-server row |
 | Default state | **Off by default; one-click first-class toggle to enable** (decision b, 2026-06-23). `ManagedBrowserConfig.enabled` defaults `false` (mirrors `ManagedRuntimeConfig`). Avoids the agent being able to drive the user's real Chrome out-of-box; the user enables consciously |
 | Backend | Playwright MCP (`@playwright/mcp`), accessibility-tree driven (not screenshots) — an implementation detail, hidden from the user |
-| Browser + auth | `--extension`: attach to the user's existing logged-in Chrome (reuse SSO/cookies, user-visible) |
+| Browser + auth | **v1: fresh isolated Chromium** (`--isolated`) — no extension, no access to the user's logged-in sessions. `--extension` attach-to-real-Chrome is a v2 opt-in (changed 2026-06-23: dogfood showed `--extension` hangs until the user installs the Playwright Chrome extension) |
 | v1 action scope | navigate + interaction (navigate / snapshot / extract / screenshot + click / type / fill) |
 | Approval | Inherit Codex's existing session approval/access mode (no bespoke gate). Full-access session → no prompt; on-request → prompt |
 | Deployment | App-only; suppressed under `is_remote_mode` (mirrors deploy / file-attachment). The gate is load-bearing: a local browser cannot be driven from the headless/iOS daemon |
@@ -93,10 +93,10 @@ The exact stdio block AgentDesk writes into managed `config.toml` (shape capture
 ```toml
 [mcp_servers.playwright]
 command = "<bundled node>"          # T5 vendors node + @playwright/mcp; spike uses "npx"
-args = ["<playwright-mcp entry>", "--extension"]   # + v1 tool-scope flag (see 4.3)
+args = ["<playwright-mcp entry>", "--isolated"]   # + v1 tool-scope flag (see 4.3)
 # optional: startup_timeout_sec, tool_timeout_sec
 [mcp_servers.playwright.env]
-# none required for --extension (no secret). If a backend token is ever needed it goes through
+# none required for --isolated (no secret). If a backend token is ever needed it goes through
 # runtime_secret_core + spawn env, NEVER plaintext in config.toml (upstream rejects bearer_token).
 ```
 
@@ -207,18 +207,15 @@ run with the user's explicit go-ahead (ideally inside the running app), not sile
 
 - No silent degrade: if host Chrome / the bundled runtime is missing, the capability surfaces a
   clear error (doctor + first-use), never a quiet no-op.
-- Security: a browser tool is open-world + side-effecting + can touch logged-in sessions. Remote/daemon
-  is hard-gated off so a remote operator can never drive the user's authenticated browser. `security-reviewer` in T6.
-- **Accepted security risk (user, 2026-06-23) — full-access sessions have no browser checkpoint.**
-  With `--extension` attaching to the user's *real logged-in Chrome*, a full-access session
-  (`AskForApproval::Never`) lets the model navigate/click in ANY authenticated tab (banking, email,
-  internal tools) with **zero prompts**. The security review recommended forcing on-request for the
-  browser server; the user weighed this and **chose pure session-inherit (decision #4 stands)** for
-  minimal friction, consciously accepting the full-access exposure. **Structural mitigation (decision b):
-  the capability is off by default and requires a conscious one-click enable — so the exposure exists
-  only after the user opts in, not out-of-box.** The per-tool mitigation remains available
-  without a bespoke gate if this is revisited: `default_tools_approval_mode = "on-request"` on the
-  managed `[mcp_servers.playwright]` block (`McpServerConfig.default_tools_approval_mode`, consumed
-  `mcp_tool_call.rs:986`). `security-reviewer` re-flags this in T6 as informational, not a blocker.
-- Bundle size: Node + Playwright MCP + (host) Chrome. `--extension` reuses the user's Chrome, so we
-  ship the MCP server + its Node runtime, not a second Chromium.
+- Security: a browser tool is open-world + side-effecting. Remote/daemon is hard-gated off so a
+  remote operator can never drive a browser on the user's host. `security-reviewer` in T6.
+- **v1 isolated browser designs out the "agent drives your real logged-in tabs" risk.** v1 launches a
+  fresh `--isolated` Chromium — no extension, no access to the user's real Chrome profile/sessions
+  (changed 2026-06-23 after the dogfood showed `--extension` hangs without the extension installed).
+  So even a full-access (`AskForApproval::Never`) session acts only in a clean browser with no
+  banking/email/cookies — pure session-inherit (decision #4) is safe here, and off-by-default
+  (decision b) keeps it dormant until opted in. **The risk returns only if a v2 `--extension`
+  attach-to-real-Chrome opt-in is added** — at that point reconsider forcing on-request via
+  `default_tools_approval_mode` (`mcp_tool_call.rs:986`). `security-reviewer` in T6.
+- Bundle size: Node + Playwright MCP + a Chromium (the isolated browser). T5 vendors all three; a
+  future `--extension`/real-Chrome opt-in (v2) could reuse the user's Chrome and skip the bundled Chromium.

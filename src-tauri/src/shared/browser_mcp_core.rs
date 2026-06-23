@@ -4,7 +4,7 @@
 //! Single source of truth for the browser-MCP registration. AgentDesk owns this entry — it is a
 //! managed block (mirrors `runtime_config_core`'s apply/remove discipline) and must never clobber a
 //! user-authored `[mcp_servers.*]` entry. The command/path (npx vs bundled) is resolved by the
-//! adapter; this module owns the product policy (`--extension`, the v1 tool allow-list).
+//! adapter; this module owns the product policy (`--isolated` launch, the v1 tool allow-list).
 
 use std::path::Path;
 
@@ -41,8 +41,10 @@ pub(crate) const BROWSER_V1_ENABLED_TOOLS: &[&str] = &[
     "browser_close",
 ];
 
-/// Playwright MCP arg that attaches to the user's existing logged-in Chrome (decision #2).
-const BROWSER_ATTACH_ARG: &str = "--extension";
+/// v1 launches a fresh, ISOLATED Chromium — no extension to install, no persistent profile, and no
+/// access to the user's real logged-in sessions (so even a full-access agent can't reach the user's
+/// banking/email tabs). Attach-to-real-Chrome (`--extension`) is a deferred v2 opt-in (decision c).
+const BROWSER_LAUNCH_ARG: &str = "--isolated";
 
 /// Load → apply → persist the managed browser block in the global config.toml.
 pub(crate) fn sync_browser_mcp_config(
@@ -78,7 +80,7 @@ pub(crate) fn apply_browser_mcp_to_document(
     for arg in base_args {
         args.push(arg.as_str());
     }
-    args.push(BROWSER_ATTACH_ARG);
+    args.push(BROWSER_LAUNCH_ARG);
 
     let mut enabled_tools = Array::new();
     for tool in BROWSER_V1_ENABLED_TOOLS {
@@ -125,13 +127,13 @@ mod tests {
     }
 
     #[test]
-    fn writes_managed_block_with_attach_arg_and_v1_allowlist() {
+    fn writes_managed_block_with_isolated_launch_and_v1_allowlist() {
         let mut doc = config_toml_core::parse_document("").expect("parse");
         apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base()).expect("apply");
         let rendered = doc.to_string();
         assert!(rendered.contains("[mcp_servers.playwright]"));
         assert!(rendered.contains("command = \"npx\""));
-        assert!(rendered.contains("--extension"));
+        assert!(rendered.contains("--isolated"));
         assert!(rendered.contains("@playwright/mcp@latest"));
         assert!(rendered.contains("browser_navigate"));
         // excluded tools must not leak into the allow-list
@@ -146,7 +148,7 @@ mod tests {
         let args = parsed["mcp_servers"]["playwright"]["args"]
             .as_array()
             .expect("args array");
-        // base (-y, @playwright/mcp@latest) + --extension
+        // base (-y, @playwright/mcp@latest) + --isolated
         assert_eq!(args.len(), 3);
     }
 
