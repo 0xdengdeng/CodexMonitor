@@ -12,6 +12,12 @@ as a stdio MCP server, registered into the managed `codex-home/config.toml` via 
 through the existing `mcpToolCall` / `view_image` UI paths; actions inherit Codex's existing
 guardian approval policy.
 
+**This is a built-in capability, not a user-registered MCP server.** Playwright MCP is an
+*implementation detail*: AgentDesk bundles its runtime and owns the `[mcp_servers.playwright]`
+registration (managed block, same discipline as the managed runtime provider). The user never
+hand-registers an MCP server and never types `npx @playwright/mcp`. It is surfaced as a first-class
+"Browser" capability, **not** an editable row in the user MCP-servers list.
+
 ## 1. Why not "native Codex browser" (investigated, rejected with evidence)
 
 We were asked to reference native Codex. We did, against pinned source `318fe25` (= AgentDesk's
@@ -50,7 +56,8 @@ abandoning the gateway/API-key model for ChatGPT login (privacy + dependency reg
 
 | Axis | Decision |
 | --- | --- |
-| Backend | Playwright MCP (`@playwright/mcp`), accessibility-tree driven (not screenshots) |
+| Packaging | **Built-in capability.** AgentDesk bundles the runtime + owns registration; user never registers an MCP server. Presented as a first-class "Browser" capability, not an editable MCP-server row |
+| Backend | Playwright MCP (`@playwright/mcp`), accessibility-tree driven (not screenshots) — an implementation detail, hidden from the user |
 | Browser + auth | `--extension`: attach to the user's existing logged-in Chrome (reuse SSO/cookies, user-visible) |
 | v1 action scope | navigate + interaction (navigate / snapshot / extract / screenshot + click / type / fill) |
 | Approval | Inherit Codex's existing session approval/access mode (no bespoke gate). Full-access session → no prompt; on-request → prompt |
@@ -152,8 +159,11 @@ shared writer, and the Settings toggle greys out under remote. Exact precedent: 
 - Tool calls + screenshots already render via existing `mcpToolCall` (`messageRenderUtils.ts:446`)
   and `view_image` grid — **no new event/renderer for v1** (confirm in T1; a bespoke "browser card"
   is optional v2 polish).
-- Settings: an enable toggle in the existing capabilities/MCP area
-  (`src/features/capabilities/hooks/useMcpServers.ts` + the settings section), greyed under remote.
+- Settings: a **dedicated first-class "Browser" capability toggle** (its own control), NOT a row in
+  the user MCP-servers list. The managed `[mcp_servers.playwright]` entry must be **filtered out of**
+  the user-facing MCP list (`src/features/capabilities/hooks/useMcpServers.ts`) so it never appears as
+  a user-editable/removable server — same as the managed runtime provider is not user-editable. Greyed
+  under remote.
 
 ## 7. Phasing
 
@@ -161,10 +171,16 @@ shared writer, and the Settings toggle greys out under remote. Exact precedent: 
 - **T2 — Define-first commit:** §4 contracts (types + TOML writer signature + tests), no behavior. User review.
 - **T3 — Shared core:** `apply_browser_mcp_to_document` + removal + suppression predicate; cargo tests.
 - **T4 — Adapters:** `lib.rs` → `tauri.ts` → daemon parity comment.
-- **T5 — Bundling:** vendor Node + `@playwright/mcp` into the sidecar bundle; `doctor` check for a host
-  Chrome (fail-fast if absent — no silent degrade); offline-safe (no first-run `npx` download).
-- **T6 — Settings UX + review:** enable toggle + approval scope copy; `pr-reviewer` (code) +
-  `security-reviewer` (new capability surface) before declaring done.
+- **T5 — Bundling (required, not optional — it's built-in):** vendor Node + `@playwright/mcp` + the
+  browser into the app bundle; the managed writer's `command` points at the **bundled absolute path**,
+  never `npx`. `doctor` check for the runtime (fail-fast if absent — no silent degrade); offline-safe
+  (no first-run download). A built-in tool must ship its runtime.
+- **T6 — First-class capability UX + review:** a dedicated "Browser" capability toggle (NOT an
+  MCP-server row); filter the managed `[mcp_servers.playwright]` out of the user MCP list; approval
+  scope copy. `pr-reviewer` (code) + `security-reviewer` (new capability surface) before declaring done.
+- **End-to-end validation = dogfood the built-in toggle** (flip Browser on → ask the agent to
+  navigate), NOT manual MCP registration. The §8 developer spikes inject the block directly (= what
+  the managed writer does) only to de-risk the seam before T2.
 
 ## 8. Must-spike unknowns (run against the pinned runtime BEFORE T2)
 
