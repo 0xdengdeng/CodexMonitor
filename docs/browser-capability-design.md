@@ -109,7 +109,19 @@ Wired into the existing managed-config sync (`sync_managed_runtime_config_from_s
 
 ### 4.3 v1 tool allowlist (pins scope + approval copy)
 
-Explicit v1 tools = navigate / snapshot / extract / screenshot / click / type / fill.
+Playwright MCP exposes **23 tools** by default (enumerated via direct MCP handshake against
+`@playwright/mcp` v0.0.76). v1 allow-list = **18** (navigate + interaction):
+
+- navigate / tabs: `browser_navigate`, `browser_navigate_back`, `browser_tabs`
+- read: `browser_snapshot`, `browser_take_screenshot`, `browser_console_messages`
+- interact: `browser_click`, `browser_type`, `browser_fill_form`, `browser_select_option`,
+  `browser_hover`, `browser_press_key`, `browser_drag`, `browser_drop`
+- control: `browser_wait_for`, `browser_resize`, `browser_handle_dialog`, `browser_close`
+
+**Excluded from v1** (re-evaluate in v2): `browser_evaluate`, `browser_run_code_unsafe`
+(arbitrary JS exec — high blast radius), `browser_file_upload`, `browser_network_request`,
+`browser_network_requests` (can leak auth headers/tokens from the user's logged-in tabs).
+
 Both enforcement mechanisms are **confirmed available** in the pinned runtime — pick one, no spike
 needed to discover support:
 - codex per-server `[mcp_servers.playwright].enabled_tools` allow-list — parsed at
