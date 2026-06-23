@@ -298,6 +298,10 @@ export type ManagedRuntimeConfig = {
   model: string | null;
   imageModel: string | null;
 };
+/** Built-in browser capability (bundled Playwright MCP, AgentDesk-managed). Off by default. */
+export type ManagedBrowserConfig = {
+  enabled: boolean;
+};
 export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
 export type EnterpriseAiConfig = {
   tenantDomain: string | null;
@@ -364,6 +368,7 @@ export type AppSettings = {
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
   managedRuntime: ManagedRuntimeConfig;
+  managedBrowser: ManagedBrowserConfig;
   enterpriseAi: EnterpriseAiConfig;
   keepDaemonRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;

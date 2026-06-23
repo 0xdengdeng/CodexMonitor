@@ -470,6 +470,23 @@ impl Default for ManagedRuntimeConfig {
     }
 }
 
+/// Built-in browser capability (bundled Playwright MCP). AgentDesk owns the
+/// `[mcp_servers.playwright]` registration; the user never registers an MCP
+/// server — they flip this one toggle. See docs/browser-capability-design.md.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct ManagedBrowserConfig {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+}
+
+impl Default for ManagedBrowserConfig {
+    fn default() -> Self {
+        // Off by default (design decision b, 2026-06-23): a tool that can drive the
+        // user's real logged-in Chrome must be a conscious opt-in, never on out-of-box.
+        Self { enabled: false }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum EnterpriseAiStatus {
@@ -811,6 +828,8 @@ pub(crate) struct AppSettings {
     pub(crate) selected_open_app_id: String,
     #[serde(default, rename = "managedRuntime")]
     pub(crate) managed_runtime: ManagedRuntimeConfig,
+    #[serde(default, rename = "managedBrowser")]
+    pub(crate) managed_browser: ManagedBrowserConfig,
     #[serde(default, rename = "enterpriseAi")]
     pub(crate) enterprise_ai: EnterpriseAiConfig,
 }
@@ -1374,6 +1393,7 @@ impl Default for AppSettings {
             open_app_targets: default_open_app_targets(),
             selected_open_app_id: default_selected_open_app_id(),
             managed_runtime: ManagedRuntimeConfig::default(),
+            managed_browser: ManagedBrowserConfig::default(),
             enterprise_ai: EnterpriseAiConfig::default(),
         }
     }
@@ -1382,8 +1402,8 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, RemoteBackendProvider, WorkspaceEntry, WorkspaceGroup,
-        WorkspaceKind, WorkspaceSettings,
+        AppSettings, BackendMode, ManagedBrowserConfig, RemoteBackendProvider, WorkspaceEntry,
+        WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
     };
 
     #[test]
@@ -1543,6 +1563,24 @@ mod tests {
         assert_eq!(settings.selected_open_app_id, expected_open_id);
         assert_eq!(settings.open_app_targets.len(), 6);
         assert_eq!(settings.open_app_targets[0].id, "vscode");
+        assert!(
+            !settings.managed_browser.enabled,
+            "browser capability must be off by default (design decision b)"
+        );
+    }
+
+    #[test]
+    fn managed_browser_config_default_off_and_serde_rename() {
+        assert!(!ManagedBrowserConfig::default().enabled);
+        // missing key → default off
+        let s: AppSettings = serde_json::from_str("{}").expect("deserialize");
+        assert!(!s.managed_browser.enabled);
+        // camelCase wire contract "managedBrowser"
+        let s: AppSettings =
+            serde_json::from_str(r#"{"managedBrowser":{"enabled":true}}"#).expect("deserialize");
+        assert!(s.managed_browser.enabled);
+        let json = serde_json::to_string(&s).expect("serialize");
+        assert!(json.contains("\"managedBrowser\""));
     }
 
     #[test]
