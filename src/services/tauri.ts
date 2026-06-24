@@ -90,6 +90,16 @@ export async function pickImageFiles(): Promise<string[]> {
   return Array.isArray(selection) ? selection : [selection];
 }
 
+// Local file attachments are passed to the agent as paths (it reads them on
+// demand with its own tools), so the picker accepts any file type — no filter.
+export async function pickFiles(): Promise<string[]> {
+  const selection = await open({ multiple: true });
+  if (!selection) {
+    return [];
+  }
+  return Array.isArray(selection) ? selection : [selection];
+}
+
 export async function exportMarkdownFile(
   content: string,
   defaultFileName = "plan.md",
@@ -494,6 +504,7 @@ export async function sendUserMessage(
     serviceTier?: "fast" | "flex" | null | undefined;
     accessMode?: "read-only" | "current" | "full-access";
     images?: string[];
+    files?: string[];
     collaborationMode?: Record<string, unknown> | null;
     appMentions?: AppMention[];
   },
@@ -517,6 +528,11 @@ export async function sendUserMessage(
   if (options?.appMentions && options.appMentions.length > 0) {
     payload.appMentions = options.appMentions;
   }
+  // Attached files are local paths passed verbatim (the agent reads them); no
+  // data-URL normalization like images.
+  if (options?.files && options.files.length > 0) {
+    payload.files = options.files;
+  }
   return invoke("send_user_message", payload);
 }
 
@@ -535,6 +551,7 @@ export async function steerTurn(
   text: string,
   images?: string[],
   appMentions?: AppMention[],
+  files?: string[],
 ) {
   const normalizedImages = await normalizeImagesForRpc(images);
   const payload: Record<string, unknown> = {
@@ -546,6 +563,9 @@ export async function steerTurn(
   };
   if (appMentions && appMentions.length > 0) {
     payload.appMentions = appMentions;
+  }
+  if (files && files.length > 0) {
+    payload.files = files;
   }
   return invoke("turn_steer", payload);
 }

@@ -145,6 +145,13 @@ export function buildCodexSurface({
   showDebugButton,
   handleDebugClick,
 }: MainAppLayoutSurfacesContext): LayoutNodesOptions["primary"] {
+  // File attachments are local-path only: unsupported in remote mode (the path
+  // is unreachable to the daemon) and in the PR-review composer (its send path
+  // launches a review and does not carry file paths). Gate them off in both so
+  // attachments can never be silently dropped at send.
+  const fileAttachmentsEnabled =
+    appSettings.backendMode !== "remote" &&
+    !pullRequestComposer.isPullRequestComposer;
   return {
     sidebarProps: {
       workspaces,
@@ -263,6 +270,17 @@ export function buildCodexSurface({
           onPickImages: composerWorkspaceState.pickImages,
           onAttachImages: composerWorkspaceState.attachImages,
           onRemoveImage: composerWorkspaceState.removeImage,
+          attachedFiles: fileAttachmentsEnabled
+            ? composerWorkspaceState.activeFiles
+            : [],
+          onPickFiles: fileAttachmentsEnabled
+            ? composerWorkspaceState.pickFiles
+            : undefined,
+          onAttachFiles: fileAttachmentsEnabled
+            ? composerWorkspaceState.attachFiles
+            : undefined,
+          onRemoveFile: composerWorkspaceState.removeFile,
+          canAttachFiles: fileAttachmentsEnabled,
           prefillDraft: composerWorkspaceState.prefillDraft,
           onPrefillHandled: (id) => {
             if (composerWorkspaceState.prefillDraft?.id === id) {

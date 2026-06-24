@@ -130,6 +130,7 @@ type UseMainAppLayoutSurfacesArgs = {
   pullRequestComposer: {
     composerSendLabel: string | null | undefined;
     handleSelectPullRequest: NonNullable<GitDiffPanelProps["onSelectPullRequest"]>;
+    isPullRequestComposer: boolean;
   };
   openAppIconById: MainHeaderProps["openAppIconById"];
   openInitGitRepoPrompt: GitDiffPanelProps["onInitGitRepo"];

@@ -971,6 +971,7 @@ impl DaemonState {
         access_mode: Option<String>,
         images: Option<Vec<String>>,
         app_mentions: Option<Vec<Value>>,
+        files: Option<Vec<String>>,
         collaboration_mode: Option<Value>,
     ) -> Result<Value, String> {
         codex_core::send_user_message_core(
@@ -986,6 +987,7 @@ impl DaemonState {
             access_mode,
             images,
             app_mentions,
+            files,
             collaboration_mode,
         )
         .await
@@ -999,6 +1001,7 @@ impl DaemonState {
         text: String,
         images: Option<Vec<String>>,
         app_mentions: Option<Vec<Value>>,
+        files: Option<Vec<String>>,
     ) -> Result<Value, String> {
         codex_core::turn_steer_core(
             &self.sessions,
@@ -1008,6 +1011,7 @@ impl DaemonState {
             text,
             images,
             app_mentions,
+            files,
         )
         .await
     }

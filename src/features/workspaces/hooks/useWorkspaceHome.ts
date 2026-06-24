@@ -69,6 +69,7 @@ type UseWorkspaceHomeOptions = {
       effort?: string | null;
       serviceTier?: ServiceTier | null | undefined;
       collaborationMode?: Record<string, unknown> | null;
+      files?: string[];
     },
   ) => Promise<void | SendMessageResult>;
   onWorktreeCreated?: (worktree: WorkspaceInfo, parent: WorkspaceInfo) => Promise<void> | void;
@@ -392,13 +393,13 @@ export function useWorkspaceHome({
     [],
   );
 
-  const startRun = useCallback(async (images: string[] = []) => {
+  const startRun = useCallback(async (images: string[] = [], files: string[] = []) => {
     if (!activeWorkspaceId || !activeWorkspace) {
       return false;
     }
     const prompt = draft.trim();
-    const hasImages = images.length > 0;
-    if ((!prompt && !hasImages) || isSubmitting) {
+    const hasAttachments = images.length > 0 || files.length > 0;
+    if ((!prompt && !hasAttachments) || isSubmitting) {
       return false;
     }
     if (canStartRun && !canStartRun()) {
@@ -510,6 +511,7 @@ export function useWorkspaceHome({
             effort,
             serviceTier,
             collaborationMode,
+            files,
           });
           const model =
             selectedModelId ? modelLookup.get(selectedModelId) ?? null : null;
@@ -579,6 +581,7 @@ export function useWorkspaceHome({
                   effort,
                   serviceTier,
                   collaborationMode,
+                  files,
                 },
               );
               instances.push({

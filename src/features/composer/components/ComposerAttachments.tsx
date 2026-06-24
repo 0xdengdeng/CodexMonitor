@@ -1,5 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import Image from "lucide-react/dist/esm/icons/image";
+import FileText from "lucide-react/dist/esm/icons/file-text";
 import X from "lucide-react/dist/esm/icons/x";
 import { useI18n } from "@/features/i18n/i18n";
 
@@ -7,6 +8,9 @@ type ComposerAttachmentsProps = {
   attachments: string[];
   disabled: boolean;
   onRemoveAttachment?: (path: string) => void;
+  // "image" renders a thumbnail preview; "file" renders a document icon + name
+  // (file attachments are passed to the agent as paths, not previewable bytes).
+  kind?: "image" | "file";
 };
 
 function fileTitle(
@@ -42,6 +46,7 @@ export function ComposerAttachments({
   attachments,
   disabled,
   onRemoveAttachment,
+  kind = "image",
 }: ComposerAttachmentsProps) {
   const { t } = useI18n();
 
@@ -54,7 +59,7 @@ export function ComposerAttachments({
       {attachments.map((path) => {
         const title = fileTitle(path, t);
         const titleAttr = path.startsWith("data:") ? t("messages.pastedImage") : path;
-        const previewSrc = attachmentPreviewSrc(path);
+        const previewSrc = kind === "image" ? attachmentPreviewSrc(path) : "";
         return (
           <div
             key={path}
@@ -72,7 +77,7 @@ export function ComposerAttachments({
               </span>
             ) : (
               <span className="composer-icon" aria-hidden>
-                <Image size={14} />
+                {kind === "file" ? <FileText size={14} /> : <Image size={14} />}
               </span>
             )}
             <span className="composer-attachment-name">{title}</span>

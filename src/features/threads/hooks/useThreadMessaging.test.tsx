@@ -615,6 +615,8 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
+      undefined,
+      [],
     );
     expect(sendUserMessageService).not.toHaveBeenCalled();
     expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();

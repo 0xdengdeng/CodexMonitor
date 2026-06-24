@@ -22,6 +22,7 @@ export type SendMessageOptions = {
   collaborationMode?: Record<string, unknown> | null;
   accessMode?: AccessMode;
   appMentions?: AppMention[];
+  files?: string[];
   sendIntent?: ComposerSendIntent;
 };
 
@@ -67,6 +68,7 @@ export type TurnStartPayload = {
   collaborationMode?: Record<string, unknown> | null;
   accessMode?: AccessMode;
   images?: string[];
+  files?: string[];
   appMentions?: AppMention[];
 };
 
@@ -185,6 +187,7 @@ export function buildTurnStartPayload({
   accessMode,
   images,
   appMentions,
+  files = [],
 }: {
   model?: string | null;
   effort?: string | null;
@@ -193,6 +196,7 @@ export function buildTurnStartPayload({
   accessMode?: AccessMode;
   images: string[];
   appMentions: AppMention[];
+  files?: string[];
 }): TurnStartPayload {
   const payload: TurnStartPayload = {
     model,
@@ -206,6 +210,9 @@ export function buildTurnStartPayload({
   }
   if (appMentions.length > 0) {
     payload.appMentions = appMentions;
+  }
+  if (files.length > 0) {
+    payload.files = files;
   }
   return payload;
 }

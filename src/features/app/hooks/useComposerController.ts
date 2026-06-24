@@ -8,6 +8,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
+import { useComposerFiles } from "../../composer/hooks/useComposerFiles";
 import { useQueuedSend } from "../../threads/hooks/useQueuedSend";
 
 export function useComposerController({
@@ -53,7 +54,7 @@ export function useComposerController({
     text: string,
     images?: string[],
     appMentions?: AppMention[],
-    options?: { sendIntent?: ComposerSendIntent },
+    options?: { sendIntent?: ComposerSendIntent; files?: string[] },
   ) => Promise<{ status: "sent" | "blocked" | "steer_failed" }>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
@@ -89,6 +90,16 @@ export function useComposerController({
   } = useComposerImages({ activeThreadId, activeWorkspaceId });
 
   const {
+    activeFiles,
+    attachFiles,
+    pickFiles,
+    removeFile,
+    clearActiveFiles,
+    setFilesForThread,
+    removeFilesForThread,
+  } = useComposerFiles({ activeThreadId, activeWorkspaceId });
+
+  const {
     activeQueue,
     handleSend,
     queueMessage,
@@ -116,6 +127,7 @@ export function useComposerController({
     startFast,
     startStatus,
     clearActiveImages,
+    clearActiveFiles,
   });
 
   const activeDraft = useMemo(
@@ -154,9 +166,10 @@ export function useComposerController({
       }
       removeQueuedMessage(activeThreadId, item.id);
       setImagesForThread(activeThreadId, item.images ?? []);
+      setFilesForThread(activeThreadId, item.files ?? []);
       setPrefillDraft(item);
     },
-    [activeThreadId, removeQueuedMessage, setImagesForThread],
+    [activeThreadId, removeQueuedMessage, setImagesForThread, setFilesForThread],
   );
 
   const handleDeleteQueued = useCallback(
@@ -187,6 +200,13 @@ export function useComposerController({
     clearActiveImages,
     setImagesForThread,
     removeImagesForThread,
+    activeFiles,
+    attachFiles,
+    pickFiles,
+    removeFile,
+    clearActiveFiles,
+    setFilesForThread,
+    removeFilesForThread,
     activeQueue,
     handleSend,
     queueMessage,

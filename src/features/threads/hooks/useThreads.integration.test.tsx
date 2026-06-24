@@ -1469,6 +1469,7 @@ describe("useThreads UX integration", () => {
       } as Awaited<ReturnType<typeof sendUserMessageService>>);
     const connectWorkspace = vi.fn().mockResolvedValue(undefined);
     const clearActiveImages = vi.fn();
+    const clearActiveFiles = vi.fn();
 
     const { result } = renderHook(() => {
       const threads = useThreads({
@@ -1499,6 +1500,7 @@ describe("useThreads UX integration", () => {
         startFast: threads.startFast,
         startStatus: threads.startStatus,
         clearActiveImages,
+        clearActiveFiles,
       });
       return { threads, queued };
     });
@@ -1636,6 +1638,8 @@ describe("useThreads UX integration", () => {
       "thread-1",
       "turn-1",
       "Steer after user input",
+      [],
+      undefined,
       [],
     );
     expect(sendUserMessageService).not.toHaveBeenCalled();

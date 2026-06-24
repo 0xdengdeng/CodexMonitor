@@ -1382,6 +1382,7 @@ export default function MainApp() {
     recentThreadsUpdatedAt,
     clearActiveImages,
     removeImagesForThread,
+    removeFilesForThread,
     handleSend,
     setPrefillDraft,
     clearDraftForThread,
@@ -1512,6 +1513,7 @@ export default function MainApp() {
     resetPullRequestSelection,
     composerContextActions,
     composerSendLabel,
+    isPullRequestComposer,
     handleComposerSend,
   } = usePullRequestComposer({
     activeWorkspace,
@@ -1561,6 +1563,7 @@ export default function MainApp() {
     removeThread,
     clearDraftForThread,
     removeImagesForThread,
+    removeFilesForThread,
   });
 
   const handleOpenThreadLinkFromExternal = useCallback(
@@ -1734,6 +1737,7 @@ export default function MainApp() {
           prompt: workspacePrompt,
           onPromptChange: setWorkspacePrompt,
           onStartRun: startWorkspaceRun,
+          canAttachFiles: appSettings.backendMode !== "remote",
           runMode: workspaceRunMode,
           onRunModeChange: setWorkspaceRunMode,
           models,
@@ -1900,6 +1904,7 @@ export default function MainApp() {
     pullRequestComposer: {
       composerSendLabel,
       handleSelectPullRequest,
+      isPullRequestComposer,
     },
     openAppIconById,
     openInitGitRepoPrompt: modalActions.openInitGitRepoPrompt,
