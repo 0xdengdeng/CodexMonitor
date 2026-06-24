@@ -298,6 +298,10 @@ export type ManagedRuntimeConfig = {
   model: string | null;
   imageModel: string | null;
 };
+/** Built-in browser capability (bundled Playwright MCP, AgentDesk-managed). Off by default. */
+export type ManagedBrowserConfig = {
+  enabled: boolean;
+};
 export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
 export type EnterpriseAiConfig = {
   tenantDomain: string | null;
@@ -364,6 +368,7 @@ export type AppSettings = {
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
   managedRuntime: ManagedRuntimeConfig;
+  managedBrowser: ManagedBrowserConfig;
   enterpriseAi: EnterpriseAiConfig;
   keepDaemonRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;
@@ -506,6 +511,31 @@ export type ApprovalRequest = {
   workspace_id: string;
   request_id: number | string;
   method: string;
+  params: Record<string, unknown>;
+};
+
+/** Decision sent back for an MCP `mcpServer/elicitation/request` (codex `McpServerElicitationAction`). */
+export type ElicitationAction = "accept" | "decline" | "cancel";
+
+/**
+ * Params of an `mcpServer/elicitation/request` (camelCase from codex; flattened on `mode`).
+ * All optional — the payload comes from codex and varies by mode; v1 handles `form`. See
+ * docs/mcp-elicitation-design.md §2.1.
+ */
+export type ElicitationParams = {
+  mode?: "form" | "url";
+  serverName?: string;
+  message?: string;
+  requestedSchema?: Record<string, unknown>;
+  url?: string;
+  elicitationId?: string;
+};
+
+export type ElicitationRequest = {
+  workspace_id: string;
+  request_id: number | string;
+  method: string;
+  // Opaque on the wire (mirrors ApprovalRequest); narrow to ElicitationParams at the UI boundary.
   params: Record<string, unknown>;
 };
 

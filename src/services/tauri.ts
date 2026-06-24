@@ -587,6 +587,21 @@ export async function respondToUserInputRequest(
   });
 }
 
+// MCP elicitation (e.g. tool-call approval) reuses the generic respond_to_server_request channel;
+// codex deserializes result.{action,content,_meta} (McpServerElicitationRequestResponse).
+export async function respondToElicitationRequest(
+  workspaceId: string,
+  requestId: number | string,
+  action: "accept" | "decline" | "cancel",
+  content?: Record<string, unknown> | null,
+) {
+  return invoke("respond_to_server_request", {
+    workspaceId,
+    requestId,
+    result: { action, content: content ?? null, _meta: null },
+  });
+}
+
 export async function listGeneratedImages(filters?: {
   workspaceId?: string | null;
   threadId?: string | null;

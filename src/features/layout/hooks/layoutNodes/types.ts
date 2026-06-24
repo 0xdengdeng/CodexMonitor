@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { ApprovalToasts } from "../../../app/components/ApprovalToasts";
+import { ElicitationToasts } from "../../../app/components/ElicitationToasts";
 import { MainHeader } from "../../../app/components/MainHeader";
 import { Sidebar } from "../../../app/components/Sidebar";
 import { TabBar } from "../../../app/components/TabBar";
@@ -43,6 +44,7 @@ export type LayoutPrimarySurface = {
   messagesProps: ComponentProps<typeof Messages>;
   composerProps: ComponentProps<typeof Composer> | null;
   approvalToastsProps: ComponentProps<typeof ApprovalToasts>;
+  elicitationToastsProps: ComponentProps<typeof ElicitationToasts>;
   updateToastProps: ComponentProps<typeof UpdateToast>;
   errorToastsProps: ComponentProps<typeof ErrorToasts>;
   homeProps: ComponentProps<typeof Home>;
@@ -97,6 +99,7 @@ export type LayoutNodesResult = {
   messagesNode: ReactNode;
   composerNode: ReactNode;
   approvalToastsNode: ReactNode;
+  elicitationToastsNode: ReactNode;
   updateToastNode: ReactNode;
   errorToastsNode: ReactNode;
   homeNode: ReactNode;

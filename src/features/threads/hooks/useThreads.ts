@@ -170,8 +170,12 @@ export function useThreads({
   threadParentByIdRef.current = state.threadParentById;
   const rateLimitsByWorkspaceRef = useRef(state.rateLimitsByWorkspace);
   rateLimitsByWorkspaceRef.current = state.rateLimitsByWorkspace;
-  const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =
-    useThreadApprovals({ dispatch, onDebug });
+  const {
+    approvalAllowlistRef,
+    handleApprovalDecision,
+    handleElicitationDecision,
+    handleApprovalRemember,
+  } = useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
   const {
     customNamesRef,
@@ -1093,6 +1097,7 @@ export function useThreads({
     activeItems,
     agentBackgroundTasks,
     approvals: state.approvals,
+    elicitations: state.elicitations,
     userInputRequests: state.userInputRequests,
     threadsByWorkspace: state.threadsByWorkspace,
     threadParentById: state.threadParentById,
@@ -1159,6 +1164,7 @@ export function useThreads({
     updateCustomInstructions,
     confirmCustom,
     handleApprovalDecision,
+    handleElicitationDecision,
     handleApprovalRemember,
     handleUserInputSubmit,
   };

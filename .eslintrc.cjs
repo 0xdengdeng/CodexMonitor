@@ -108,6 +108,7 @@ module.exports = {
     {
       files: [
         'src/features/app/components/ApprovalToasts.tsx',
+        'src/features/app/components/ElicitationToasts.tsx',
         'src/features/notifications/components/ErrorToasts.tsx',
         'src/features/update/components/UpdateToast.tsx',
       ],

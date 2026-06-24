@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type {
   AppServerEvent,
   ApprovalRequest,
+  ElicitationRequest,
   RequestUserInputRequest,
 } from "../../../types";
 import { subscribeAppServerEvents } from "../../../services/events";
@@ -10,6 +11,7 @@ import {
   getAppServerRawMethod,
   getAppServerRequestId,
   isApprovalRequestMethod,
+  isElicitationRequestMethod,
   isSupportedAppServerMethod,
 } from "../../../utils/appServerEvents";
 import type { SupportedAppServerMethod } from "../../../utils/appServerEvents";
@@ -64,6 +66,7 @@ type AppServerEventHandlers = {
     action: string,
   ) => void;
   onApprovalRequest?: (request: ApprovalRequest) => void;
+  onElicitationRequest?: (request: ElicitationRequest) => void;
   onRequestUserInput?: (request: RequestUserInputRequest) => void;
   onAgentMessageDelta?: (event: AgentDelta) => void;
   onAgentMessageCompleted?: (event: AgentCompleted) => void;
@@ -341,6 +344,16 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
 
       if (isApprovalRequestMethod(method) && hasRequestId) {
         currentHandlers.onApprovalRequest?.({
+          workspace_id,
+          request_id: requestId as string | number,
+          method,
+          params,
+        });
+        return;
+      }
+
+      if (isElicitationRequestMethod(method) && hasRequestId) {
+        currentHandlers.onElicitationRequest?.({
           workspace_id,
           request_id: requestId as string | number,
           method,

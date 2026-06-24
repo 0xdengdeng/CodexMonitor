@@ -10,6 +10,7 @@ import type {
 } from "@/types";
 import { getAppServerRawMethod } from "@utils/appServerEvents";
 import { useThreadApprovalEvents } from "./useThreadApprovalEvents";
+import { useThreadElicitationEvents } from "./useThreadElicitationEvents";
 import { useThreadHookEvents } from "./useThreadHookEvents";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 import { useThreadTurnEvents } from "./useThreadTurnEvents";
@@ -89,6 +90,7 @@ export function useThreadEventHandlers({
     approvalAllowlistRef,
   });
   const onRequestUserInput = useThreadUserInputEvents({ dispatch });
+  const onElicitationRequest = useThreadElicitationEvents({ dispatch });
   const {
     onHookStarted: handleHookStarted,
     onHookCompleted: handleHookCompleted,
@@ -217,6 +219,7 @@ export function useThreadEventHandlers({
     () => ({
       onWorkspaceConnected,
       onApprovalRequest,
+      onElicitationRequest,
       onRequestUserInput,
       onHookStarted,
       onHookCompleted,
@@ -250,6 +253,7 @@ export function useThreadEventHandlers({
     [
       onWorkspaceConnected,
       onApprovalRequest,
+      onElicitationRequest,
       onRequestUserInput,
       onHookStarted,
       onHookCompleted,

@@ -106,6 +106,15 @@ export function isApprovalRequestMethod(method: string): boolean {
   return method.endsWith("requestApproval");
 }
 
+/**
+ * MCP elicitation (e.g. tool-call approval) arrives as this exact method — it does NOT end in
+ * `requestApproval`, so it is matched separately and routed above the `isSupportedAppServerMethod`
+ * gate. See docs/mcp-elicitation-design.md.
+ */
+export function isElicitationRequestMethod(method: string): boolean {
+  return method === "mcpServer/elicitation/request";
+}
+
 export function isSkillsUpdateAvailableEvent(event: AppServerEvent): boolean {
   return getAppServerRawMethod(event) === "codex/event/skills_update_available";
 }

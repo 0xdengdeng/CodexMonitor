@@ -8,6 +8,7 @@ import {
   getAppServerRawMethod,
   getAppServerRequestId,
   isApprovalRequestMethod,
+  isElicitationRequestMethod,
   isAppListUpdatedEvent,
   isSkillsUpdateAvailableEvent,
   isSupportedAppServerMethod,
@@ -41,6 +42,12 @@ describe("appServerEvents", () => {
     expect(isApprovalRequestMethod("item/permissions/requestApproval")).toBe(true);
     expect(isApprovalRequestMethod("workspace/requestApproval")).toBe(true);
     expect(isApprovalRequestMethod("workspace/request")).toBe(false);
+  });
+
+  it("matches the canonical MCP elicitation request method only", () => {
+    expect(isElicitationRequestMethod("mcpServer/elicitation/request")).toBe(true);
+    expect(isElicitationRequestMethod("item/permissions/requestApproval")).toBe(false);
+    expect(isElicitationRequestMethod("mcpServer/elicitation/response")).toBe(false);
   });
 
   it("matches canonical skills update event method only", () => {

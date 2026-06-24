@@ -212,6 +212,9 @@ function buildDefaultSettings(): AppSettings {
       model: null,
       imageModel: null,
     },
+    managedBrowser: {
+      enabled: false,
+    },
     enterpriseAi: {
       tenantDomain: null,
       status: "disconnected",

@@ -227,6 +227,29 @@ export function SettingsServerSection({
         </div>
       )}
 
+      <SettingsToggleRow
+        title={t("settings.features.browser.title")}
+        subtitle={
+          appSettings.backendMode === "remote"
+            ? t("settings.features.browser.remoteUnsupported")
+            : t("settings.features.browser.subtitle")
+        }
+      >
+        <SettingsToggleSwitch
+          pressed={appSettings.managedBrowser.enabled}
+          disabled={appSettings.backendMode === "remote"}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              managedBrowser: {
+                ...appSettings.managedBrowser,
+                enabled: !appSettings.managedBrowser.enabled,
+              },
+            })
+          }
+        />
+      </SettingsToggleRow>
+
       <>
         {isMobileSimplified && (
           <>

@@ -60,6 +60,7 @@ describe("useAppServerEvents", () => {
       onReasoningSummaryBoundary: vi.fn(),
       onPlanDelta: vi.fn(),
       onApprovalRequest: vi.fn(),
+      onElicitationRequest: vi.fn(),
       onRequestUserInput: vi.fn(),
       onItemCompleted: vi.fn(),
       onAgentMessageCompleted: vi.fn(),
@@ -268,6 +269,23 @@ describe("useAppServerEvents", () => {
       request_id: 7,
       method: "item/permissions/requestApproval",
       params: { mode: "full", threadId: "thread-2" },
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "mcpServer/elicitation/request",
+          id: 9,
+          params: { message: "Allow browser navigation?", serverName: "browser" },
+        },
+      });
+    });
+    expect(handlers.onElicitationRequest).toHaveBeenCalledWith({
+      workspace_id: "ws-1",
+      request_id: 9,
+      method: "mcpServer/elicitation/request",
+      params: { message: "Allow browser navigation?", serverName: "browser" },
     });
 
     act(() => {

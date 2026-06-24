@@ -18,6 +18,7 @@ type AppLayoutProps = {
   messagesNode: ReactNode;
   composerNode: ReactNode;
   approvalToastsNode: ReactNode;
+  elicitationToastsNode: ReactNode;
   updateToastNode: ReactNode;
   errorToastsNode: ReactNode;
   homeNode: ReactNode;
@@ -54,6 +55,7 @@ export const AppLayout = memo(function AppLayout({
   messagesNode,
   composerNode,
   approvalToastsNode,
+  elicitationToastsNode,
   updateToastNode,
   errorToastsNode,
   homeNode,
@@ -78,6 +80,7 @@ export const AppLayout = memo(function AppLayout({
     return (
       <PhoneLayout
         approvalToastsNode={approvalToastsNode}
+        elicitationToastsNode={elicitationToastsNode}
         updateToastNode={updateToastNode}
         errorToastsNode={errorToastsNode}
         tabBarNode={tabBarNode}
@@ -105,6 +108,7 @@ export const AppLayout = memo(function AppLayout({
       <TabletLayout
         tabletNavNode={tabletNavNode}
         approvalToastsNode={approvalToastsNode}
+        elicitationToastsNode={elicitationToastsNode}
         updateToastNode={updateToastNode}
         errorToastsNode={errorToastsNode}
         homeNode={homeNode}
@@ -129,6 +133,7 @@ export const AppLayout = memo(function AppLayout({
       sidebarNode={sidebarNode}
       updateToastNode={updateToastNode}
       approvalToastsNode={approvalToastsNode}
+      elicitationToastsNode={elicitationToastsNode}
       errorToastsNode={errorToastsNode}
       homeNode={homeNode}
       showHome={showHome}
