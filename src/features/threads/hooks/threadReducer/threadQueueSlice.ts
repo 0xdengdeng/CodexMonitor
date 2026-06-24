@@ -45,6 +45,26 @@ export function reduceThreadQueue(state: ThreadState, action: ThreadAction): Thr
             item.workspace_id !== action.workspaceId,
         ),
       };
+    case "addElicitation": {
+      const exists = state.elicitations.some(
+        (item) =>
+          item.request_id === action.elicitation.request_id &&
+          item.workspace_id === action.elicitation.workspace_id,
+      );
+      if (exists) {
+        return state;
+      }
+      return { ...state, elicitations: [...state.elicitations, action.elicitation] };
+    }
+    case "removeElicitation":
+      return {
+        ...state,
+        elicitations: state.elicitations.filter(
+          (item) =>
+            item.request_id !== action.requestId ||
+            item.workspace_id !== action.workspaceId,
+        ),
+      };
     default:
       return state;
   }

@@ -1,9 +1,10 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch } from "react";
-import type { ApprovalRequest, DebugEntry } from "@/types";
+import type { ApprovalRequest, DebugEntry, ElicitationRequest } from "@/types";
 import { normalizeCommandTokens } from "@utils/approvalRules";
 import {
   rememberApprovalRule,
+  respondToElicitationRequest,
   respondToServerRequest,
 } from "@services/tauri";
 import type { ThreadAction } from "./useThreadsReducer";
@@ -51,6 +52,29 @@ export function useThreadApprovals({ dispatch, onDebug }: UseThreadApprovalsOpti
     [dispatch],
   );
 
+  const handleElicitationDecision = useCallback(
+    async (
+      request: ElicitationRequest,
+      action: "accept" | "decline" | "cancel",
+    ) => {
+      // The approval-style elicitation's requestedSchema is `{ confirmed: boolean, required }`
+      // (verified against codex app-server-protocol v2/mcp.rs + common.rs), so accept must echo
+      // `{ confirmed: true }`; decline/cancel carry no content (response.content is nullable).
+      await respondToElicitationRequest(
+        request.workspace_id,
+        request.request_id,
+        action,
+        action === "accept" ? { confirmed: true } : null,
+      );
+      dispatch({
+        type: "removeElicitation",
+        requestId: request.request_id,
+        workspaceId: request.workspace_id,
+      });
+    },
+    [dispatch],
+  );
+
   const handleApprovalRemember = useCallback(
     async (request: ApprovalRequest, command: string[]) => {
       try {
@@ -84,6 +108,7 @@ export function useThreadApprovals({ dispatch, onDebug }: UseThreadApprovalsOpti
   return {
     approvalAllowlistRef,
     handleApprovalDecision,
+    handleElicitationDecision,
     handleApprovalRemember,
   };
 }

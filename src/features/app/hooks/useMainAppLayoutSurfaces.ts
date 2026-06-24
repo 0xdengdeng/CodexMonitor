@@ -64,6 +64,7 @@ type UseMainAppLayoutSurfacesArgs = {
   >;
   userInputRequests: SidebarProps["userInputRequests"];
   approvals: LayoutNodesOptions["primary"]["approvalToastsProps"]["approvals"];
+  elicitations: LayoutNodesOptions["primary"]["elicitationToastsProps"]["elicitations"];
   activeRateLimits: SidebarProps["accountRateLimits"];
   activeAccount: SidebarProps["accountInfo"];
   homeRateLimits: LayoutNodesOptions["primary"]["homeProps"]["accountRateLimits"];
@@ -73,6 +74,7 @@ type UseMainAppLayoutSurfacesArgs = {
   onSwitchAccount: SidebarProps["onSwitchAccount"];
   onCancelSwitchAccount: SidebarProps["onCancelSwitchAccount"];
   onDecision: LayoutNodesOptions["primary"]["approvalToastsProps"]["onDecision"];
+  onElicitationDecision: LayoutNodesOptions["primary"]["elicitationToastsProps"]["onDecision"];
   onRemember: LayoutNodesOptions["primary"]["approvalToastsProps"]["onRemember"];
   onUserInputSubmit: LayoutNodesOptions["primary"]["messagesProps"]["onUserInputSubmit"];
   onPlanAccept: LayoutNodesOptions["primary"]["messagesProps"]["onPlanAccept"];
@@ -269,6 +271,7 @@ export function useMainAppLayoutSurfaces({
   agentBackgroundTasks,
   userInputRequests,
   approvals,
+  elicitations,
   activeRateLimits,
   activeAccount,
   homeRateLimits,
@@ -278,6 +281,7 @@ export function useMainAppLayoutSurfaces({
   onSwitchAccount,
   onCancelSwitchAccount,
   onDecision,
+  onElicitationDecision,
   onRemember,
   onUserInputSubmit,
   onPlanAccept,
@@ -434,6 +438,7 @@ export function useMainAppLayoutSurfaces({
     agentBackgroundTasks,
     userInputRequests,
     approvals,
+    elicitations,
     activeRateLimits,
     activeAccount,
     homeRateLimits,
@@ -446,6 +451,7 @@ export function useMainAppLayoutSurfaces({
     onBeforeComposerSend,
     onOpenCapabilities,
     onDecision,
+    onElicitationDecision,
     onRemember,
     onUserInputSubmit,
     onPlanAccept,

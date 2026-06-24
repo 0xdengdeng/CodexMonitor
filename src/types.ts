@@ -514,6 +514,31 @@ export type ApprovalRequest = {
   params: Record<string, unknown>;
 };
 
+/** Decision sent back for an MCP `mcpServer/elicitation/request` (codex `McpServerElicitationAction`). */
+export type ElicitationAction = "accept" | "decline" | "cancel";
+
+/**
+ * Params of an `mcpServer/elicitation/request` (camelCase from codex; flattened on `mode`).
+ * All optional — the payload comes from codex and varies by mode; v1 handles `form`. See
+ * docs/mcp-elicitation-design.md §2.1.
+ */
+export type ElicitationParams = {
+  mode?: "form" | "url";
+  serverName?: string;
+  message?: string;
+  requestedSchema?: Record<string, unknown>;
+  url?: string;
+  elicitationId?: string;
+};
+
+export type ElicitationRequest = {
+  workspace_id: string;
+  request_id: number | string;
+  method: string;
+  // Opaque on the wire (mirrors ApprovalRequest); narrow to ElicitationParams at the UI boundary.
+  params: Record<string, unknown>;
+};
+
 export type RequestUserInputOption = {
   label: string;
   description: string;

@@ -29,6 +29,7 @@ export function buildCodexSurface({
   activeItems,
   userInputRequests,
   approvals,
+  elicitations,
   sidebarRateLimits,
   sidebarAccount,
   homeRateLimits,
@@ -38,6 +39,7 @@ export function buildCodexSurface({
   onSwitchAccount,
   onCancelSwitchAccount,
   onDecision,
+  onElicitationDecision,
   onRemember,
   onUserInputSubmit,
   onPlanAccept,
@@ -329,6 +331,11 @@ export function buildCodexSurface({
       workspaces,
       onDecision,
       onRemember,
+    },
+    elicitationToastsProps: {
+      elicitations,
+      workspaces,
+      onDecision: onElicitationDecision,
     },
     updateToastProps: {
       state: appModalsAboutOpen ? { stage: "idle" as const } : updaterState,

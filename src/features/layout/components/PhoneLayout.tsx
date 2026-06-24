@@ -4,6 +4,7 @@ import { ChatPane } from "./ChatPane";
 
 type PhoneLayoutProps = {
   approvalToastsNode: ReactNode;
+  elicitationToastsNode: ReactNode;
   updateToastNode: ReactNode;
   errorToastsNode: ReactNode;
   tabBarNode: ReactNode;
@@ -26,6 +27,7 @@ type PhoneLayoutProps = {
 
 export function PhoneLayout({
   approvalToastsNode,
+  elicitationToastsNode,
   updateToastNode,
   errorToastsNode,
   tabBarNode,
@@ -48,6 +50,7 @@ export function PhoneLayout({
   return (
     <div className="compact-shell">
       {approvalToastsNode}
+      {elicitationToastsNode}
       {updateToastNode}
       {errorToastsNode}
       {activeTab === "home" && <div className="compact-panel">{homeNode}</div>}

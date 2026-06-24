@@ -6,6 +6,7 @@ import { useI18n } from "@/features/i18n/i18n";
 type TabletLayoutProps = {
   tabletNavNode: ReactNode;
   approvalToastsNode: ReactNode;
+  elicitationToastsNode: ReactNode;
   updateToastNode: ReactNode;
   errorToastsNode: ReactNode;
   homeNode: ReactNode;
@@ -26,6 +27,7 @@ type TabletLayoutProps = {
 export function TabletLayout({
   tabletNavNode,
   approvalToastsNode,
+  elicitationToastsNode,
   updateToastNode,
   errorToastsNode,
   homeNode,
@@ -56,6 +58,7 @@ export function TabletLayout({
       />
       <section className="tablet-main">
         {approvalToastsNode}
+        {elicitationToastsNode}
         {updateToastNode}
         {errorToastsNode}
         {showHome && homeNode}
