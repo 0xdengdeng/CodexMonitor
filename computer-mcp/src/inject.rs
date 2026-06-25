@@ -7,13 +7,28 @@
 //! is automatic. Actual move/click/type wrappers land with the orchestration commit; this module
 //! currently validates the dependency + the Accessibility permission non-destructively.
 
-use enigo::{Enigo, Mouse, Settings};
+use enigo::{Coordinate, Enigo, Mouse, Settings};
 
 /// Read the current cursor location (non-destructive — does NOT move anything). Doubles as an
 /// Accessibility-permission probe: on macOS this path exercises the same CGEvent access injection needs.
 pub fn cursor_location() -> Result<(i32, i32), String> {
     let enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Enigo::new: {e}"))?;
     enigo.location().map_err(|e| format!("location: {e}"))
+}
+
+/// Logical size of the main display (for the physical→logical scale: `scale = physical_w / logical_w`).
+pub fn logical_main_display() -> Result<(i32, i32), String> {
+    let enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Enigo::new: {e}"))?;
+    enigo.main_display().map_err(|e| format!("main_display: {e}"))
+}
+
+/// Move the cursor to absolute **logical** coords. DESTRUCTIVE (moves the real cursor) — callers must
+/// gate this behind user consent + the safety gate. Does not click.
+pub fn move_cursor_logical(x: i32, y: i32) -> Result<(), String> {
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Enigo::new: {e}"))?;
+    enigo
+        .move_mouse(x, y, Coordinate::Abs)
+        .map_err(|e| format!("move_mouse: {e}"))
 }
 
 #[cfg(test)]
