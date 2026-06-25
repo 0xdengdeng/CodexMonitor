@@ -196,6 +196,18 @@ fn sync_browser_mcp_from_settings(settings: &AppSettings) -> Result<(), String> 
         .iter()
         .map(|arg| (*arg).to_string())
         .collect();
+    // Channel only matters when enabling (the block is removed on disable; channel is ignored there).
+    let launch_channel = if settings.managed_browser.enabled {
+        match crate::shared::browser_detect::detect_browser_readiness() {
+            crate::shared::browser_detect::BrowserReadiness::SystemChannel(channel) => channel,
+            // TODO(no-Chrome phase B, docs/browser-no-chrome-design.md §3.1/§6): gate the toggle on
+            // readiness + guide the user to install Chrome. Until then fall back to "chrome" (current
+            // behavior: Playwright errors clearly at first use if absent) — no regression.
+            crate::shared::browser_detect::BrowserReadiness::NoBrowser => "chrome",
+        }
+    } else {
+        "chrome" // ignored on the remove path
+    };
     // TODO(2026-06-23 xiaodeng): T5 — replace npx with a bundled absolute node + @playwright/mcp
     // path (mirror codex/runtime.rs resolve) so it works offline without nvm/npx on PATH.
     crate::shared::browser_mcp_core::sync_browser_mcp_config(
@@ -203,6 +215,7 @@ fn sync_browser_mcp_from_settings(settings: &AppSettings) -> Result<(), String> 
         &settings.managed_browser,
         BROWSER_MCP_DEV_COMMAND,
         &base_args,
+        launch_channel,
     )
 }
 

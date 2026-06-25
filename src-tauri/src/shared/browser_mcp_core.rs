@@ -41,21 +41,20 @@ pub(crate) const BROWSER_V1_ENABLED_TOOLS: &[&str] = &[
     "browser_close",
 ];
 
-/// v1 launch args: drive the user's INSTALLED Chrome (`--browser chrome`) in a dedicated PERSISTENT
-/// profile (no `--isolated`) — signed-in state survives across sessions (the user asked not to
-/// re-login every session, 2026-06-25, superseding the 2026-06-23 `--isolated` decision).
-///
-/// The profile dir is set EXPLICITLY via `--user-data-dir` (appended in `apply_*` below), NOT left
-/// to Playwright's default. Two reasons, both load-bearing: (1) some `@playwright/mcp` versions
-/// default a missing `--user-data-dir` to a *temporary* dir → no persistence at all, defeating the
-/// goal; (2) pinning an APP-OWNED dir makes the separation from the user's real Chrome profile
-/// enforced by AgentDesk instead of borrowed from an upstream default (security review 2026-06-25).
-/// Tradeoffs (see docs/browser-capability-design.md §2/§9): single concurrent session (Chrome
-/// singleton-locks the on-disk profile), the agent's profile retains its own logins, and those
-/// logins sit on disk at rest. No Chromium download (app stays ~light); if no Chrome is present,
-/// Playwright MCP errors clearly (T5 adds a doctor check + download-on-demand fallback). Attaching to
-/// the user's real Chrome profile (`--extension`) is a v2 opt-in.
-const BROWSER_LAUNCH_ARGS: &[&str] = &["--browser", "chrome"];
+// Launch policy for the managed Playwright MCP (docs/browser-no-chrome-design.md §3):
+//
+// - **Channel is dynamic** (`launch_channel`, resolved by `browser_detect`: "chrome" | "msedge").
+//   `apply_*` ALWAYS emits `--browser <channel>`. Emitting it is load-bearing — if `--browser` is
+//   omitted, `@playwright/mcp` silently defaults to system Chrome (`validateBrowserConfig`), the
+//   exact failure the no-Chrome work exists to prevent (security review 2026-06-25).
+// - **Profile dir is set EXPLICITLY** via `--user-data-dir` to an APP-OWNED path (no `--isolated`):
+//   (1) some `@playwright/mcp` versions default a missing `--user-data-dir` to a *temporary* dir →
+//   no persistence; (2) pinning an app-owned dir makes the separation from the user's real Chrome
+//   profile enforced by AgentDesk, not borrowed from an upstream default. Tradeoffs in
+//   docs/browser-capability-design.md §2/§9 (single concurrent session, persisted logins at rest).
+//
+// No Chromium download — if neither chrome nor msedge is installed the user is guided to install
+// Chrome (docs/browser-no-chrome-design.md). `--extension` (real Chrome profile) is a v2 opt-in.
 
 /// App-owned persistent profile dir name. Lives as a sibling of `codex-home` (i.e. under the app's
 /// data dir), so it is a different `user-data-dir` than the user's real Chrome AND is removed when
@@ -83,10 +82,11 @@ pub(crate) fn sync_browser_mcp_config(
     config: &ManagedBrowserConfig,
     command: &str,
     base_args: &[String],
+    launch_channel: &str,
 ) -> Result<(), String> {
     let (_, mut document) = config_toml_core::load_global_config_document(codex_home)?;
     let profile_dir = resolve_browser_profile_dir(codex_home);
-    apply_browser_mcp_to_document(&mut document, config, command, base_args, &profile_dir)?;
+    apply_browser_mcp_to_document(&mut document, config, command, base_args, &profile_dir, launch_channel)?;
     config_toml_core::persist_global_config_document(codex_home, &document)
 }
 
@@ -98,6 +98,7 @@ pub(crate) fn apply_browser_mcp_to_document(
     command: &str,
     base_args: &[String],
     profile_dir: &Path,
+    launch_channel: &str,
 ) -> Result<(), String> {
     if !config.enabled {
         remove_browser_mcp_from_document(document);
@@ -107,6 +108,13 @@ pub(crate) fn apply_browser_mcp_to_document(
     let command = command.trim();
     if command.is_empty() {
         return Err("browser MCP command must not be empty".to_string());
+    }
+
+    // Fail-fast: an empty channel must surface, never be written (an empty/absent `--browser` makes
+    // @playwright/mcp silently fall back to system Chrome — the failure no-Chrome detection prevents).
+    let launch_channel = launch_channel.trim();
+    if launch_channel.is_empty() {
+        return Err("browser MCP launch channel must not be empty".to_string());
     }
 
     // Fail-fast: a non-UTF-8 profile path must surface, not be silently dropped (which would fall
@@ -119,9 +127,9 @@ pub(crate) fn apply_browser_mcp_to_document(
     for arg in base_args {
         args.push(arg.as_str());
     }
-    for arg in BROWSER_LAUNCH_ARGS {
-        args.push(*arg);
-    }
+    // Always emit --browser <channel> (see the launch-policy note above — never omit it).
+    args.push("--browser");
+    args.push(launch_channel);
     args.push("--user-data-dir");
     args.push(profile_dir);
 
@@ -183,7 +191,7 @@ mod tests {
     #[test]
     fn writes_managed_block_with_persistent_pinned_profile_and_v1_allowlist() {
         let mut doc = config_toml_core::parse_document("").expect("parse");
-        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile())
+        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile(), "chrome")
             .expect("apply");
         let rendered = doc.to_string();
         assert!(rendered.contains("[mcp_servers.playwright]"));
@@ -216,12 +224,40 @@ mod tests {
     }
 
     #[test]
+    fn launch_channel_is_emitted_after_browser_flag() {
+        let mut doc = config_toml_core::parse_document("").expect("parse");
+        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile(), "msedge")
+            .expect("apply");
+        let parsed = config_toml_core::parse_document(&doc.to_string()).expect("reparse");
+        let args: Vec<String> = parsed["mcp_servers"]["playwright"]["args"]
+            .as_array()
+            .expect("args array")
+            .iter()
+            .map(|v| v.as_str().expect("string arg").to_string())
+            .collect();
+        // --browser is always present, immediately followed by the resolved channel (not "chrome").
+        let i = args
+            .iter()
+            .position(|a| a == "--browser")
+            .expect("--browser must always be emitted");
+        assert_eq!(args[i + 1], "msedge");
+    }
+
+    #[test]
+    fn empty_launch_channel_on_enable_errors() {
+        let mut doc = config_toml_core::parse_document("").expect("parse");
+        let err = apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile(), "  ")
+            .expect_err("must reject empty channel");
+        assert!(err.contains("channel"));
+    }
+
+    #[test]
     fn disabled_removes_ours_and_preserves_user_servers() {
         let mut doc = config_toml_core::parse_document(
             "[mcp_servers.github]\ncommand = \"gh-mcp\"\nargs = [\"serve\"]\n",
         )
         .expect("parse");
-        apply_browser_mcp_to_document(&mut doc, &disabled(), "npx", &base(), &profile()).expect("apply");
+        apply_browser_mcp_to_document(&mut doc, &disabled(), "npx", &base(), &profile(), "chrome").expect("apply");
         let rendered = doc.to_string();
         assert!(rendered.contains("[mcp_servers.github]"));
         assert!(rendered.contains("command = \"gh-mcp\""));
@@ -233,11 +269,11 @@ mod tests {
         let mut doc =
             config_toml_core::parse_document("[mcp_servers.github]\ncommand = \"gh-mcp\"\n")
                 .expect("parse");
-        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile()).expect("enable");
+        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile(), "chrome").expect("enable");
         assert!(doc.to_string().contains("[mcp_servers.playwright]"));
         assert!(doc.to_string().contains("[mcp_servers.github]"));
 
-        apply_browser_mcp_to_document(&mut doc, &disabled(), "npx", &base(), &profile()).expect("disable");
+        apply_browser_mcp_to_document(&mut doc, &disabled(), "npx", &base(), &profile(), "chrome").expect("disable");
         let rendered = doc.to_string();
         assert!(!rendered.contains("playwright"));
         assert!(rendered.contains("[mcp_servers.github]"));
@@ -247,24 +283,24 @@ mod tests {
     #[test]
     fn disable_drops_empty_mcp_servers_table_when_we_were_sole_entry() {
         let mut doc = config_toml_core::parse_document("").expect("parse");
-        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile()).expect("enable");
+        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile(), "chrome").expect("enable");
         assert!(doc.to_string().contains("mcp_servers"));
-        apply_browser_mcp_to_document(&mut doc, &disabled(), "npx", &base(), &profile()).expect("disable");
+        apply_browser_mcp_to_document(&mut doc, &disabled(), "npx", &base(), &profile(), "chrome").expect("disable");
         assert!(!doc.to_string().contains("mcp_servers"));
     }
 
     #[test]
     fn apply_is_idempotent() {
         let mut doc = config_toml_core::parse_document("").expect("parse");
-        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile()).expect("apply 1");
-        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile()).expect("apply 2");
+        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile(), "chrome").expect("apply 1");
+        apply_browser_mcp_to_document(&mut doc, &enabled(), "npx", &base(), &profile(), "chrome").expect("apply 2");
         assert_eq!(doc.to_string().matches("[mcp_servers.playwright]").count(), 1);
     }
 
     #[test]
     fn enabled_with_empty_command_errors() {
         let mut doc = config_toml_core::parse_document("").expect("parse");
-        let err = apply_browser_mcp_to_document(&mut doc, &enabled(), "   ", &base(), &profile())
+        let err = apply_browser_mcp_to_document(&mut doc, &enabled(), "   ", &base(), &profile(), "chrome")
             .expect_err("must reject empty command");
         assert!(err.contains("command"));
     }
