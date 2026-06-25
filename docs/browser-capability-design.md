@@ -253,3 +253,19 @@ run with the user's explicit go-ahead (ideally inside the running app), not sile
   browser.** v1 drives the user's **installed Chrome** (`--browser chrome`), so we ship only the Node
   runtime + the few-MB `@playwright/mcp` JS. T5 decides Node provisioning (detect system Node + fail-fast,
   vs bundle a ~50MB Node) and a download-on-demand Chromium fallback for machines without Chrome.
+
+### 9.1 No-Chrome handling (agreed 2026-06-25, scoped as a follow-up — define-first then implement)
+
+Current behavior with `--browser chrome` and no Chrome installed: `@playwright/mcp` hard-errors at
+first browser-tool use ("chrome executable not found"). Not silent (good), but the failure is late
+(only when the agent acts) and the message is low-level. Agreed plan (own define→implement→review
+cycle, not folded into the 2026-06-25 persistence change):
+
+1. **Probe installed Chromium-family browsers in order** — `chrome` → `msedge` (often present on
+   Windows) → other Chromium channels. Use whichever exists (0 download, app stays light).
+2. **None found → fall back to Playwright's managed Chromium**, but with an **explicit first-use
+   prompt** ("no Chrome found — download Chromium ~150MB?") that triggers `playwright install
+   chromium`. **Never a silent download** (mirrors §9 no-silent-degrade). The persistent
+   `--user-data-dir` works identically with either binary.
+3. **Doctor check at enable-time**, not at first agent use — surface "no usable browser" the moment
+   the toggle is flipped, so the user isn't surprised mid-task.
