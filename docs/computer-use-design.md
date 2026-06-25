@@ -11,12 +11,13 @@
 ## 0. Feasibility — proven vs open
 
 **Proven (this session):**
-- **A reachable model grounds.** `doubao-seed-1-6-vision-250815` returned click coordinates at **~2px**
-  accuracy (6/6 on a synthetic UI) using the **`/1000` normalized** convention — verified Ark-direct.
-  **Caveat (review):** that probe was Ark-direct at native fidelity; the real path
-  (computer-mcp → gateway → Ark) resamples by image-detail level, so the result must be **re-confirmed
-  through the gateway path with `detail:original`** (§12.2) — it proves the model *can* ground, not
-  that the gateway path preserves it.
+- **A reachable model grounds, AND the gateway path preserves it.** Probe results (synthetic UI,
+  `/1000` normalized convention): `doubao-seed-1-6-vision-250815` ~2px Ark-direct;
+  `doubao-seed-1-6-flash-250828` (the **gateway-exposed** `visual_grounding` model) ~2px Ark-direct;
+  and via the **real gateway path** (codex→gateway→Ark) **~5px, 5/5** — i.e. the gateway's image
+  handling adds ~0 grounding degradation (2026-06-25 A/B vs Ark-direct). **The review's image-detail
+  /resampling concern is refuted.** Note: `doubao-seed-1-6-vision-250815` is **NOT gateway-served** —
+  `doubao-seed-1-6-flash-250828` is the gateway equivalent (also `/1000`).
 - **No codex fork needed.** A local stdio MCP server (codex-home `config.toml [mcp_servers.computer]`,
   the same seam the shipped browser feature uses) exposes the tools; native
   `computer-use@openai-bundled` is dead for AgentDesk (remote, ChatGPT-gated).
@@ -73,10 +74,12 @@ CoordConvention = "normalized_1000"   // doubao / UI-TARS family (per-axis 0..10
   conventions) from the gateway** (filter the existing model-catalog fetch by `computer_use`), so the
   model picker and the convention are always whatever the gateway currently serves — adding/removing a
   CUA model is a gateway change, zero client release.
-- v1 seed (in the gateway manifest): `doubao-seed-1-6-vision-250815 → normalized_1000` (verified);
-  `doubao-seed-1-6-flash → normalized_1000` (calibrate). A future Anthropic CUA → `absolute_pixels`.
+- v1 seed (gateway manifest): **`doubao-seed-1-6-flash-250828 → normalized_1000`** (the gateway-served
+  `visual_grounding` model; verified Ark-direct + gateway-path ~5px). `doubao-seed-1-6-vision-250815`
+  also `normalized_1000` (~2px) but is **NOT gateway-served** — use it only if onboarded. A future
+  Anthropic CUA → `absolute_pixels`.
 - **User setting**: pick the grounding model from the gateway-provided CUA list; default
-  `doubao-seed-1-6-vision-250815`.
+  `doubao-seed-1-6-flash-250828`.
 - The computer-mcp is spawned with the selected `{model_id, coordinate_convention}` (both from the
   gateway) and denormalizes accordingly — **the convention is data-driven, never hardcoded `/1000`**
   (resolves the review's "convention is model-specific" finding).
@@ -169,7 +172,12 @@ The computer-mcp calls the configured vision model **through the gateway**. Prer
    `coordinate_convention` per model — and **expose them on the model-catalog/list endpoint** the
    client already fetches, so CodexMonitor's registry (§3) is gateway-sourced.
 3. The `/v1` (chat or responses) path must pass **image input + the grounding tool** through to Ark at
-   **`detail:original`** fidelity.
+   **`detail:original`** fidelity. **Verified 2026-06-25:** `/v1/chat/completions` with image +
+   function-tool reaches doubao and grounds at ~5px (no degradation) — the path already works.
+4. **Tenant enablement must go through the proper admin/grant path, not a raw `tenant_model_grants`
+   insert** — the gateway **caches** the tenant's enabled-model set; a raw DB insert is NOT picked up
+   (returns `model_not_enabled_for_tenant` despite the row). The model picker / enablement must use
+   the cache-invalidating admin path.
 This is a gateway task and a hard prerequisite for end-to-end use; it is the SSOT for which models are
 CUA-capable and how their coordinates are interpreted.
 
@@ -201,10 +209,10 @@ x64) — the **`codex-runtime` sidecar is the template** (a real bundled binary 
 
 ## 12. Must-spike
 
-1. **Gateway-path fidelity** — the configured vision model through the gateway (not Ark-direct), with
-   the native screenshot at `detail:original`; confirm `/1000` grounding survives (re-run the probe via
-   the gateway). The 2px result is Ark-direct only.
-2. **Real-screen robustness** — grounding on a dense, real UI (the 2px was a clean synthetic mockup).
+1. **Gateway-path fidelity — ✅ RESOLVED (2026-06-25).** Ran the probe via the real gateway path on
+   `doubao-seed-1-6-flash-250828`: **~5px, 5/5**, A/B vs Ark-direct showed ~0 degradation. `/1000`
+   survives the gateway. (Used a temporary tenant grant, since removed.)
+2. **Real-screen robustness** — grounding on a dense, real UI (the ~2-5px was a clean synthetic mockup).
 3. **Windows DPI + UIPI** — needs a Windows host: physical→logical conversion correctness, cursor
    positioning, elevated-window limit. (Not yet verified — no Windows host available.)
 4. **enigo process model** — confirm the separate-process MCP server avoids tauri#6421 on macOS.
