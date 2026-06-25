@@ -15,6 +15,10 @@ import {
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
+import { checkBrowserReadiness } from "@/services/tauri";
+import { openUrl } from "@tauri-apps/plugin-opener";
+
+const CHROME_DOWNLOAD_URL = "https://www.google.com/chrome/";
 
 type AddRemoteBackendDraft = {
   name: string;
@@ -119,6 +123,41 @@ export function SettingsServerSection({
   const [addRemoteNameDraft, setAddRemoteNameDraft] = useState("");
   const [addRemoteHostDraft, setAddRemoteHostDraft] = useState("");
   const [addRemoteTokenDraft, setAddRemoteTokenDraft] = useState("");
+  // Browser toggle gates on browser availability (docs/browser-no-chrome-design.md §6): enabling
+  // checks for an installed Chromium-family browser first; if none, we show an install prompt and
+  // do NOT enable. Disabling never needs a check.
+  const [browserChecking, setBrowserChecking] = useState(false);
+  const [browserNeedsInstall, setBrowserNeedsInstall] = useState(false);
+
+  const setBrowserEnabled = (enabled: boolean) =>
+    onUpdateAppSettings({
+      ...appSettings,
+      managedBrowser: { ...appSettings.managedBrowser, enabled },
+    });
+
+  const tryEnableBrowser = async (): Promise<void> => {
+    setBrowserChecking(true);
+    try {
+      const readiness = await checkBrowserReadiness();
+      if (readiness.status === "system") {
+        setBrowserNeedsInstall(false);
+        await setBrowserEnabled(true);
+      } else {
+        setBrowserNeedsInstall(true); // no browser — guide to install, leave the toggle off
+      }
+    } finally {
+      setBrowserChecking(false);
+    }
+  };
+
+  const onToggleBrowser = () => {
+    if (appSettings.managedBrowser.enabled) {
+      setBrowserNeedsInstall(false);
+      void setBrowserEnabled(false);
+    } else {
+      void tryEnableBrowser();
+    }
+  };
   const isMobileSimplified = isMobilePlatform;
   const pendingDeleteRemote = useMemo(
     () =>
@@ -237,18 +276,32 @@ export function SettingsServerSection({
       >
         <SettingsToggleSwitch
           pressed={appSettings.managedBrowser.enabled}
-          disabled={appSettings.backendMode === "remote"}
-          onClick={() =>
-            void onUpdateAppSettings({
-              ...appSettings,
-              managedBrowser: {
-                ...appSettings.managedBrowser,
-                enabled: !appSettings.managedBrowser.enabled,
-              },
-            })
-          }
+          disabled={appSettings.backendMode === "remote" || browserChecking}
+          onClick={onToggleBrowser}
         />
       </SettingsToggleRow>
+      {browserNeedsInstall && appSettings.backendMode !== "remote" ? (
+        <div className="settings-help" role="status">
+          {t("settings.features.browser.noBrowser")}
+          <div className="settings-field-actions" style={{ marginTop: 6 }}>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void openUrl(CHROME_DOWNLOAD_URL)}
+            >
+              {t("settings.features.browser.installChrome")}
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              disabled={browserChecking}
+              onClick={() => void tryEnableBrowser()}
+            >
+              {t("settings.features.browser.recheck")}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <>
         {isMobileSimplified && (
