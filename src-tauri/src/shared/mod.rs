@@ -4,6 +4,8 @@ pub(crate) mod agents_config_core;
 // the daemon can't run a browser) — allow keeps the daemon build warning-free. See
 // docs/browser-capability-design.md.
 #[allow(dead_code)]
+pub(crate) mod browser_detect;
+#[allow(dead_code)]
 pub(crate) mod browser_mcp_core;
 pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;

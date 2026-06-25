@@ -213,6 +213,7 @@ pub fn run() {
             diagnostics::write_clipboard,
             settings::get_app_settings,
             settings::update_app_settings,
+            settings::check_browser_readiness,
             settings::runtime_api_key_status,
             settings::runtime_model_list,
             settings::runtime_image_model_list,
