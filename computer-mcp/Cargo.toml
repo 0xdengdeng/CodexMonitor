@@ -15,3 +15,5 @@ name = "computer-mcp"
 path = "src/main.rs"
 
 [dependencies]
+enigo = "0.6.1"
+xcap = "0.9.6"

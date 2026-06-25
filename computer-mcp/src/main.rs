@@ -11,6 +11,10 @@
 mod coords;
 #[allow(dead_code)]
 mod safety;
+#[allow(dead_code)]
+mod capture;
+#[allow(dead_code)]
+mod inject;
 
 fn main() {
     eprintln!(

@@ -56,6 +56,17 @@ pub fn denormalize(mx: f64, my: f64, conv: CoordConvention, dims: ScreenshotDims
     )
 }
 
+/// Convert physical screenshot pixels → **logical** pixels for the OS inject layer. `enigo` takes
+/// logical coords on BOTH macOS and Windows, while capture (`xcap`) is physical — so this conversion
+/// is needed on macOS too, not only Windows (the v1 design under-stated this). `scale` is the
+/// display's backing-scale factor (macOS Retina ≈ 2.0; Windows per-monitor DPI/96). Evidenced on
+/// real hardware 2026-06-25: a 3024×1964 physical capture vs an enigo cursor in ~1512×982 logical =
+/// scale 2.0. A non-positive `scale` is treated as 1.0 (fail-soft to physical == logical).
+pub fn physical_to_logical(px: u32, py: u32, scale: f64) -> (i32, i32) {
+    let s = if scale > 0.0 { scale } else { 1.0 };
+    ((px as f64 / s).round() as i32, (py as f64 / s).round() as i32)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -64,6 +75,14 @@ mod tests {
         width: 1280,
         height: 800,
     };
+
+    #[test]
+    fn physical_to_logical_applies_backing_scale() {
+        assert_eq!(physical_to_logical(1500, 1000, 2.0), (750, 500)); // Retina 2x
+        assert_eq!(physical_to_logical(1500, 1000, 1.0), (1500, 1000)); // 1x display
+        assert_eq!(physical_to_logical(1500, 1000, 1.5), (1000, 667)); // Windows 150% DPI
+        assert_eq!(physical_to_logical(10, 10, 0.0), (10, 10)); // non-positive → fail-soft to 1.0
+    }
 
     #[test]
     fn parse_round_trips_known_conventions() {
