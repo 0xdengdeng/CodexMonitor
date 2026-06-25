@@ -504,6 +504,51 @@ pub(crate) struct BrowserReadinessReport {
     pub(crate) channel: Option<String>,
 }
 
+/// Built-in computer-use capability (bundled `computer-mcp` sidecar). AgentDesk owns the
+/// `[mcp_servers.computer]` registration; one toggle. See docs/computer-use-design.md.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct ManagedComputerConfig {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+}
+
+impl Default for ManagedComputerConfig {
+    fn default() -> Self {
+        // Off by default: full local desktop control is a conscious, high-blast-radius opt-in.
+        Self { enabled: false }
+    }
+}
+
+/// How a CUA vision model reports click coordinates (docs/computer-use-design.md §3). Load-bearing:
+/// the computer-mcp denormalizes per this, so it MUST travel with the selected model (gateway-sourced).
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CoordConvention {
+    /// Per-axis 0..1000 (doubao / UI-TARS family). `px = coord/1000 × dim`.
+    Normalized1000,
+    /// Absolute pixels in the sent image's space (Anthropic computer_20* / OpenAI CUA).
+    AbsolutePixels,
+}
+
+impl CoordConvention {
+    /// Stable wire token (also the `computer-mcp` CLI value).
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            CoordConvention::Normalized1000 => "normalized_1000",
+            CoordConvention::AbsolutePixels => "absolute_pixels",
+        }
+    }
+}
+
+/// A CUA-capable vision model usable for computer-use grounding. The registry is **gateway-sourced**
+/// (the gateway manifest is the SSOT for which models are CUA-capable + their convention).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CuaModel {
+    pub(crate) model_id: String,
+    pub(crate) coordinate_convention: CoordConvention,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum EnterpriseAiStatus {

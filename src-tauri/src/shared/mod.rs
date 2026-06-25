@@ -7,6 +7,10 @@ pub(crate) mod agents_config_core;
 pub(crate) mod browser_detect;
 #[allow(dead_code)]
 pub(crate) mod browser_mcp_core;
+// Computer-use is app-only (a daemon can't drive the local desktop); allow keeps the daemon build
+// warning-free until the adapter wiring lands. See docs/computer-use-design.md.
+#[allow(dead_code)]
+pub(crate) mod computer_mcp_core;
 pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;
 pub(crate) mod config_toml_core;

@@ -310,6 +310,20 @@ export type BrowserReadinessReport = {
   /** "chrome" | "msedge" iff status === "system". */
   channel?: string;
 };
+
+/** Built-in computer-use capability (bundled computer-mcp sidecar, AgentDesk-managed). Off by default. */
+export type ManagedComputerConfig = {
+  enabled: boolean;
+};
+
+/** How a CUA vision model reports click coordinates (docs/computer-use-design.md §3). */
+export type CoordConvention = "normalized_1000" | "absolute_pixels";
+
+/** A CUA-capable vision model for computer-use grounding. Registry is gateway-sourced. */
+export type CuaModel = {
+  modelId: string;
+  coordinateConvention: CoordConvention;
+};
 export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
 export type EnterpriseAiConfig = {
   tenantDomain: string | null;
