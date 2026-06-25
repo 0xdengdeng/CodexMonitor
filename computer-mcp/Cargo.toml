@@ -1,0 +1,17 @@
+[package]
+name = "computer-mcp"
+version = "0.1.0"
+edition = "2021"
+description = "AgentDesk computer-use sidecar: a local stdio MCP server that grounds (via a configured vision model through the gateway) and drives the local desktop. Bundled per-OS via externalBin (like codex-runtime). See docs/computer-use-design.md."
+publish = false
+
+# Standalone crate (NOT part of the src-tauri build — the app must not pull in enigo/xcap). Built
+# per-OS in CI and bundled into src-tauri/binaries. Phase 3 currently ships only the pure
+# coordinate/safety cores; xcap (capture) + enigo (inject) + the gateway grounding client + the
+# stdio MCP loop are added in later commits and require real-machine integration testing.
+
+[[bin]]
+name = "computer-mcp"
+path = "src/main.rs"
+
+[dependencies]
