@@ -1,8 +1,10 @@
 # Browser Capability Design (AI uses a browser)
 
 > Status: **define-first draft, pending subagent review + T1 spike gate.** Not implemented.
-> Goal: let the Codex agent drive a browser (navigate + interact) from within AgentDesk — v1 a fresh
-> isolated Chromium; attaching to the user's real logged-in Chrome is a v2 opt-in. No codex-rs fork.
+> Goal: let the Codex agent drive a browser (navigate + interact) from within AgentDesk — v1 a
+> dedicated, persistent Chrome profile (signed-in state survives across sessions, kept separate from
+> the user's everyday Chrome); attaching to the user's real logged-in Chrome is a v2 opt-in. No
+> codex-rs fork. (Profile persistence supersedes the 2026-06-23 `--isolated` decision — see §2.)
 
 ## 0. TL;DR decision
 
@@ -52,14 +54,14 @@ abandoning the gateway/API-key model for ChatGPT login (privacy + dependency reg
 (Hybrid is also rejected: in managed mode the auth gate kills the native leg, so there is nothing to
 "fall back" to; and even with ChatGPT auth the native leg is remote, not local.)
 
-## 2. Locked product decisions (user, 2026-06-23)
+## 2. Locked product decisions (user, 2026-06-23; auth row updated 2026-06-25)
 
 | Axis | Decision |
 | --- | --- |
 | Packaging | **Built-in capability.** AgentDesk bundles the runtime + owns registration; user never registers an MCP server. Presented as a first-class "Browser" capability, not an editable MCP-server row |
 | Default state | **Off by default; one-click first-class toggle to enable** (decision b, 2026-06-23). `ManagedBrowserConfig.enabled` defaults `false` (mirrors `ManagedRuntimeConfig`). Avoids the agent being able to drive the user's real Chrome out-of-box; the user enables consciously |
 | Backend | Playwright MCP (`@playwright/mcp`), accessibility-tree driven (not screenshots) — an implementation detail, hidden from the user |
-| Browser + auth | **v1: drives the user's installed Chrome in a fresh isolated profile** (`--browser chrome --isolated`) — 0 browser download (app stays light), no access to the user's logged-in sessions. Fallback: download-on-demand Chromium if no Chrome present (T5). `--extension` attach-to-real-Chrome-profile is a v2 opt-in (changed 2026-06-23 after dogfood: `--extension` hangs without the Playwright extension; bundling a full Chromium would add ~240MB) |
+| Browser + auth | **v1: drives the user's installed Chrome in a dedicated, PERSISTENT profile** (`--browser chrome`, no `--isolated`) — 0 browser download (app stays light). Signed-in state survives across sessions (the user asked not to re-login every session). The profile dir is set **explicitly** via `--user-data-dir` to an **app-owned path** (sibling of `codex-home`: `<app-data>/browser-chrome-profile`), NOT Playwright's default — so the separation from the user's everyday Chrome is **enforced by AgentDesk, not borrowed from an upstream default** (security review 2026-06-25; the default could even be a temp dir → no persistence). Different `user-data-dir` from real Chrome → coexists with daily Chrome, never reads the user's real profile/cookies, and is removed when the app's data dir is cleared/uninstalled. **Changed 2026-06-25** (superseding the 2026-06-23 `--isolated` fresh-profile decision). Tradeoffs accepted (full list §9): (a) **single concurrent session** — Chrome singleton-locks the on-disk profile; the second concurrent session's failure mode is **unverified → must-spike §8** (risk: Chrome silently spawns a throwaway profile rather than erroring); (b) **persisted-login blast radius** — the agent's profile retains its logins, on disk at rest, so a prompt-injection in a full-access session could act with them (`--isolated` wiped each turn); (c) disabling the toggle does **not** yet wipe the profile (TODO: clear-on-disable). The real-Chrome-tabs risk is still designed out (separate enforced profile). Fallback: download-on-demand Chromium if no Chrome present (T5). `--extension` attach-to-real-Chrome-profile is a v2 opt-in (`--extension` hangs without the Playwright extension; bundling a full Chromium would add ~240MB) |
 | v1 action scope | navigate + interaction (navigate / snapshot / extract / screenshot + click / type / fill) |
 | Approval | Inherit Codex's existing session approval/access mode (no bespoke gate). Full-access session → no prompt; on-request → prompt |
 | Deployment | App-only; suppressed under `is_remote_mode` (mirrors deploy / file-attachment). The gate is load-bearing: a local browser cannot be driven from the headless/iOS daemon |
@@ -93,10 +95,10 @@ The exact stdio block AgentDesk writes into managed `config.toml` (shape capture
 ```toml
 [mcp_servers.playwright]
 command = "<bundled node>"          # T5 vendors node + @playwright/mcp; spike uses "npx"
-args = ["<playwright-mcp entry>", "--isolated"]   # + v1 tool-scope flag (see 4.3)
+args = ["<playwright-mcp entry>", "--browser", "chrome", "--user-data-dir", "<app-data>/browser-chrome-profile"]   # persistent app-owned profile (no --isolated); + enabled_tools (see 4.3)
 # optional: startup_timeout_sec, tool_timeout_sec
 [mcp_servers.playwright.env]
-# none required for --isolated (no secret). If a backend token is ever needed it goes through
+# no secret required. If a backend token is ever needed it goes through
 # runtime_secret_core + spawn env, NEVER plaintext in config.toml (upstream rejects bearer_token).
 ```
 
@@ -199,8 +201,13 @@ Partly done in the T1 spike; remaining gates:
 5. **Tauri-spawned sidecar PATH:** confirm the sidecar (launched by the app, not a login shell)
    resolves `node`/the Playwright runtime; if not, use an absolute bundled command path
    (`build_codex_path_env`).
+6. **Persistent-profile concurrency failure mode (added 2026-06-25):** launch two browser sessions
+   against the same pinned `--user-data-dir` and confirm the second one **hard-errors clearly** —
+   NOT a silent hang, and NOT Chrome silently spawning a throwaway profile (which would be a silent
+   degrade of the separation/persistence guarantee). Also print the launched profile dir to confirm
+   `--user-data-dir` is honored and is the app-owned path (not the user's real Chrome dir).
 
-Gate the build on spikes 2, 3, 5. Spikes 2/3 consume real gateway credits + launch a browser →
+Gate the build on spikes 2, 3, 5, 6. Spikes 2/3 consume real gateway credits + launch a browser →
 run with the user's explicit go-ahead (ideally inside the running app), not silently.
 
 ## 9. Risks / fail-fast posture
@@ -209,14 +216,39 @@ run with the user's explicit go-ahead (ideally inside the running app), not sile
   clear error (doctor + first-use), never a quiet no-op.
 - Security: a browser tool is open-world + side-effecting. Remote/daemon is hard-gated off so a
   remote operator can never drive a browser on the user's host. `security-reviewer` in T6.
-- **v1 isolated browser designs out the "agent drives your real logged-in tabs" risk.** v1 launches a
-  fresh `--isolated` Chromium — no extension, no access to the user's real Chrome profile/sessions
-  (changed 2026-06-23 after the dogfood showed `--extension` hangs without the extension installed).
-  So even a full-access (`AskForApproval::Never`) session acts only in a clean browser with no
-  banking/email/cookies — pure session-inherit (decision #4) is safe here, and off-by-default
-  (decision b) keeps it dormant until opted in. **The risk returns only if a v2 `--extension`
-  attach-to-real-Chrome opt-in is added** — at that point reconsider forcing on-request via
-  `default_tools_approval_mode` (`mcp_tool_call.rs:986`). `security-reviewer` in T6.
+- **v1 still designs out the "agent drives your real logged-in tabs" risk** — the persistent profile
+  is set to an **explicit app-owned `--user-data-dir` (separate from the user's everyday Chrome,
+  enforced by AgentDesk, not Playwright's default)**, so the agent never reaches the user's real
+  banking/email/cookies even though it now keeps its own state. The separation is pinned in code
+  (`browser_mcp_core.rs` appends `--user-data-dir <app-data>/browser-chrome-profile`) + asserted by
+  a unit test, so it does not depend on an upstream default.
+- **Persistence tradeoff (changed 2026-06-25, superseding the 2026-06-23 `--isolated` decision):**
+  dropping `--isolated` lets the agent's *own* profile accumulate whatever it signs into, so a
+  full-access (`AskForApproval::Never`) session combined with a prompt-injection could act with those
+  **persisted logins** (the in-memory `--isolated` profile wiped each turn). Mitigations in place:
+  off-by-default (decision b), separate-from-real-Chrome profile, and on-request approval surfaces
+  every tool call. **If the persisted-login blast radius proves too wide** (or once a v2 `--extension`
+  attach-to-real-Chrome opt-in lands), reconsider forcing on-request via `default_tools_approval_mode`
+  (`mcp_tool_call.rs:986`) and/or a "clear browser data" action. `security-reviewer` in T6.
+- **Credentials at rest (new vs `--isolated`):** the agent's cookies / session tokens / `Login Data`
+  now live **on disk** in the profile dir between and after sessions (the in-memory profile left
+  nothing behind). On macOS, Chrome's password store is Keychain-encrypted, but session cookies and
+  many auth tokens sit in readable SQLite/leveldb. The dir is under the app's data dir (removed on
+  uninstall / data-clear), but TODO: a **"clear browser data" / wipe-on-disable** action — today,
+  toggling Browser **off** removes only the config block, NOT the on-disk profile (logins outlive the
+  disable). There is also **no per-thread isolation**: all agent browser sessions share one cookie
+  jar, so a login from thread A is visible to thread B. **Caveat:** the "removed on uninstall" claim
+  assumes the *managed* codex-home (`<app-data>/codex-home`); if a user overrides `CODEX_HOME`, the
+  profile sibling lands outside app-data and uninstall won't clean it (the separation guarantee still
+  holds — it's still a dedicated `browser-chrome-profile`, never real Chrome). TODO: derive the
+  profile dir from the app `data_dir` directly to decouple it from `CODEX_HOME`.
+- **Concurrency:** the on-disk profile is Chrome-singleton-locked, so only one agent browser session
+  can run at a time; a second concurrent session should fail to launch. **Failure mode is unverified
+  (must-spike §8.6):** it must surface as a clear error (fail-fast), and must NOT silently fall back
+  to a throwaway profile (which would silently break persistence + separation). The code does not
+  itself detect the lock — the outcome is Playwright/Chromium's. (In-memory `--isolated` had no lock.)
+  Acceptable for single-user
+  dev use; revisit with per-session `user-data-dir`s if concurrent browser agents become common.
 - Bundle size (a real constraint — a full Chromium is ~240MB, vs a ~20MB Tauri app): **do NOT bundle a
   browser.** v1 drives the user's **installed Chrome** (`--browser chrome`), so we ship only the Node
   runtime + the few-MB `@playwright/mcp` JS. T5 decides Node provisioning (detect system Node + fail-fast,
