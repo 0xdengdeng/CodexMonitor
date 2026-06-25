@@ -129,24 +129,24 @@ present:
 ```rust
 fn sync_browser_mcp_from_settings(settings: &AppSettings) -> Result<BrowserSyncOutcome, String> {
     if !settings.managed_browser.enabled {
-        sync_browser_mcp_config(&codex_home, cfg, CMD, &base_args, "chrome")?; // removes block; channel ignored
-        return Ok(BrowserSyncOutcome::Disabled);
+        return sync_browser_mcp_config(&codex_home, cfg, CMD, &base_args, "chrome"); // removes block; channel ignored
     }
-    match detect_browser_readiness() {                      // re-detect; SystemChannel expected here
-        BrowserReadiness::SystemChannel(ch) => {
-            sync_browser_mcp_config(&codex_home, cfg, CMD, &base_args, ch)?;
-            Ok(BrowserSyncOutcome::Enabled(ch))
-        }
-        // Only reachable if the browser vanished in the sub-ms window since the pre-persist check.
-        // Do NOT write the block; caller treats it as fail-fast (next toggle self-corrects).
-        BrowserReadiness::NoBrowser => Ok(BrowserSyncOutcome::NoBrowser),
-    }
+    let launch_channel = match detect_browser_readiness() {  // re-detect; SystemChannel expected here
+        BrowserReadiness::SystemChannel(ch) => ch,
+        // Unreachable on the enable path — the pre-persist gate already coerced enabled=false on
+        // NoBrowser, so this fn isn't even called. Only the sub-ms vanish race reaches it; "chrome"
+        // reproduces today's "Playwright errors clearly at first use" (no regression).
+        BrowserReadiness::NoBrowser => "chrome",
+    };
+    sync_browser_mcp_config(&codex_home, cfg, CMD, &base_args, launch_channel)
 }
-enum BrowserSyncOutcome { Enabled(&'static str), Disabled, NoBrowser }
 ```
 
-So persisted state is always consistent (`enabled` matches whether a block was written), and the
-`NoBrowser` write-path arm is dead except for an immaterial sub-millisecond race.
+**Shipped vs draft:** the v2 draft proposed a `BrowserSyncOutcome { Enabled/Disabled/NoBrowser }`
+return enum. Implementation dropped it (`sync_browser_mcp_from_settings` keeps `Result<(), String>`):
+the detect-before-persist gate makes the `NoBrowser` arm unreachable on the enable path, so the enum
+carried no information any caller used. Simpler form shipped. Persisted state is still always
+consistent (`enabled` matches whether a block was written) — guaranteed by the gate, not the enum.
 
 ## 4. Tauri command contract (one new command)
 
@@ -198,10 +198,14 @@ The SPA gates **before** flipping `enabled` (avoids enable-then-rollback). On to
    - **the check itself `Err`s** → toggle stays off, surface the error (no silent enable).
 2. Backend safety net (closes the race where the browser vanishes between the SPA check and the
    write): `update_app_settings` re-detects **before persisting** (§3.1) and, on `NoBrowser`,
-   persists `enabled=false` instead of `true`. The returned `AppSettings` therefore comes back with
-   `managedBrowser.enabled === false` despite the SPA having requested `true`; the SPA detects that
-   mismatch, re-runs `checkBrowserReadiness()`, and shows the install prompt. No `enabled=true` is
-   ever persisted without a writable block — no half-enabled state, no config that fails at first use.
+   persists `enabled=false` instead of `true`. The returned `AppSettings` comes back with
+   `managedBrowser.enabled === false` despite the SPA having requested `true`, and the root settings
+   handler reconciles SPA state to the backend's returned value — so the toggle snaps back off. No
+   `enabled=true` is ever persisted without a writable block — no half-enabled state, no config that
+   fails at first use. **Shipped note:** the SPA does not *additionally* re-run `checkBrowserReadiness`
+   to re-show the install prompt on this snap-back (the proactive gate in step 1 is the primary
+   prompt trigger); this only matters in the sub-ms vanish race, where the toggle flickers off
+   without re-prompting. Acceptable for v1.
 
 ## 7. Fail-fast posture
 

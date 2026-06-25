@@ -128,6 +128,7 @@ export function SettingsServerSection({
   // do NOT enable. Disabling never needs a check.
   const [browserChecking, setBrowserChecking] = useState(false);
   const [browserNeedsInstall, setBrowserNeedsInstall] = useState(false);
+  const [browserError, setBrowserError] = useState<string | null>(null);
 
   const setBrowserEnabled = (enabled: boolean) =>
     onUpdateAppSettings({
@@ -137,6 +138,7 @@ export function SettingsServerSection({
 
   const tryEnableBrowser = async (): Promise<void> => {
     setBrowserChecking(true);
+    setBrowserError(null);
     try {
       const readiness = await checkBrowserReadiness();
       if (readiness.status === "system") {
@@ -145,6 +147,9 @@ export function SettingsServerSection({
       } else {
         setBrowserNeedsInstall(true); // no browser — guide to install, leave the toggle off
       }
+    } catch (error) {
+      // Fail-fast: surface the failure instead of a silent unhandled rejection (design §6.1/§7).
+      setBrowserError(error instanceof Error ? error.message : String(error));
     } finally {
       setBrowserChecking(false);
     }
@@ -153,6 +158,7 @@ export function SettingsServerSection({
   const onToggleBrowser = () => {
     if (appSettings.managedBrowser.enabled) {
       setBrowserNeedsInstall(false);
+      setBrowserError(null);
       void setBrowserEnabled(false);
     } else {
       void tryEnableBrowser();
@@ -300,6 +306,11 @@ export function SettingsServerSection({
               {t("settings.features.browser.recheck")}
             </button>
           </div>
+        </div>
+      ) : null}
+      {browserError ? (
+        <div className="settings-help" role="alert">
+          {t("settings.features.browser.checkFailed", { error: browserError })}
         </div>
       ) : null}
 
