@@ -9,6 +9,7 @@ import {
   ToastViewport,
 } from "../../design-system/components/toast/ToastPrimitives";
 import { useI18n } from "@/features/i18n/i18n";
+import { buildElicitationMessage } from "./elicitationMessage";
 
 type ElicitationToastsProps = {
   elicitations: ElicitationRequest[];
@@ -20,10 +21,11 @@ type ElicitationToastsProps = {
 };
 
 /**
- * Renders MCP `mcpServer/elicitation/request` prompts (e.g. browser-tool approvals). Codex builds
- * `params.message` with the tool name + arguments, so rendering `message` is enough. Unlike
- * ApprovalToasts there is no global Enter shortcut (deliberate — avoids colliding with the approval
- * toast's Enter=accept listener) and three actions (accept / decline / cancel).
+ * Renders MCP `mcpServer/elicitation/request` prompts (e.g. browser-tool approvals). The body line
+ * is localized by `buildElicitationMessage` (codex ships the message in English but also exposes
+ * the structured fields we rebuild it from). Unlike ApprovalToasts there is no global Enter
+ * shortcut (deliberate — avoids colliding with the approval toast's Enter=accept listener) and
+ * three actions (accept / decline / cancel).
  */
 export function ElicitationToasts({
   elicitations,
@@ -44,10 +46,7 @@ export function ElicitationToasts({
     <ToastViewport className="elicitation-toasts" role="region" ariaLive="assertive">
       {elicitations.map((request) => {
         const params = request.params ?? {};
-        const message =
-          typeof params.message === "string" && params.message.trim()
-            ? params.message
-            : t("elicitation.fallback");
+        const message = buildElicitationMessage(params, t);
         const serverName =
           typeof params.serverName === "string" ? params.serverName : null;
         const workspaceName = workspaceLabels.get(request.workspace_id);

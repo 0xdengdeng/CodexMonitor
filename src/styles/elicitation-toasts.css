@@ -1,0 +1,71 @@
+/* Styles for ElicitationToasts — MCP `mcpServer/elicitation/request` permission prompts
+   (e.g. the built-in browser tool asking to act). Mirrors approval-toasts.css so the two
+   decision cards share one visual language; the accent treatment marks this as a *grant*
+   request, not an error (a red error palette would misread). The component shipped without
+   this sheet, so the card fell back to the bare ds-toast-viewport (no positioning) and
+   rendered inline in the layout flow — this restores the centered floating card. */
+
+.elicitation-toasts {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100vw - 48px));
+  max-height: min(480px, calc(100vh - 140px));
+  overflow: auto;
+  z-index: var(--ds-layer-toast, 11000);
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  transform: translate(-50%, -50%);
+}
+
+.elicitation-toast {
+  --ds-toast-enter-duration: 0.2s;
+  border-color: var(--border-accent, var(--ds-toast-border));
+  box-shadow:
+    var(--ds-toast-shadow),
+    0 0 0 1px var(--border-accent-soft, transparent);
+}
+
+.elicitation-toast-header {
+  margin-bottom: 6px;
+}
+
+.elicitation-toast-title {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-accent);
+}
+
+.elicitation-toast-workspace {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.elicitation-toast-server {
+  display: inline-block;
+  font-family: var(--code-font-family);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-card-muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.elicitation-toast-message {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 960px) {
+  .elicitation-toasts {
+    width: min(420px, calc(100vw - 32px));
+    max-height: min(440px, calc(100vh - 120px));
+  }
+}

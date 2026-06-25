@@ -529,6 +529,10 @@ export type ElicitationParams = {
   requestedSchema?: Record<string, unknown>;
   url?: string;
   elicitationId?: string;
+  // Codex's structured approval metadata (snake_case keys from core/src/mcp_tool_call.rs:
+  // `codex_approval_kind`, `tool_title`, …). Used to localize the message client-side since
+  // codex bakes the English `message` into the pinned binary. See buildElicitationMessage.
+  _meta?: Record<string, unknown>;
 };
 
 export type ElicitationRequest = {

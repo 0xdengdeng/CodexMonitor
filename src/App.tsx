@@ -15,6 +15,7 @@ import "./styles/workspace-home.css";
 import "./styles/main.css";
 import "./styles/messages.css";
 import "./styles/approval-toasts.css";
+import "./styles/elicitation-toasts.css";
 import "./styles/error-toasts.css";
 import "./styles/request-user-input.css";
 import "./styles/update-toasts.css";
