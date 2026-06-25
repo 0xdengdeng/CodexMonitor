@@ -10,7 +10,9 @@ use crate::shared::settings_core::{
     managed_runtime_config_changed, update_app_settings_core,
 };
 use crate::state::AppState;
-use crate::types::{AppSettings, BackendMode, RuntimeApiKeyStatus};
+use crate::types::{
+    AppSettings, BackendMode, BrowserReadinessReport, BrowserReadinessStatus, RuntimeApiKeyStatus,
+};
 use crate::window;
 
 const DEVELOPER_MODE_ENV_VARS: [&str; 2] =
@@ -34,12 +36,27 @@ pub(crate) async fn get_app_settings(
 
 #[tauri::command]
 pub(crate) async fn update_app_settings(
-    settings: AppSettings,
+    mut settings: AppSettings,
     state: State<'_, AppState>,
     app: AppHandle,
     window: Window,
 ) -> Result<AppSettings, String> {
     let previous = state.app_settings.lock().await.clone();
+    // No-Chrome gate (docs/browser-no-chrome-design.md §3.1): detect BEFORE persisting, so
+    // `managed_browser.enabled=true` is never durably written without a launchable browser (which
+    // would leave settings.json saying "on" with no MCP block). On NoBrowser we refuse the enable
+    // here; the SPA observes `enabled` come back false despite requesting true, re-checks, and shows
+    // the install prompt.
+    if !previous.managed_browser.enabled
+        && settings.managed_browser.enabled
+        && !matches!(settings.backend_mode, BackendMode::Remote)
+        && matches!(
+            crate::shared::browser_detect::detect_browser_readiness(),
+            crate::shared::browser_detect::BrowserReadiness::NoBrowser
+        )
+    {
+        settings.managed_browser.enabled = false;
+    }
     let updated =
         update_app_settings_core(settings, &state.app_settings, &state.settings_path).await?;
     if should_reset_remote_backend(&previous, &updated) {
@@ -216,6 +233,27 @@ fn sync_browser_mcp_from_settings(settings: &AppSettings) -> Result<(), String> 
         BROWSER_MCP_DEV_COMMAND,
         &base_args,
         launch_channel,
+    )
+}
+
+/// App-only: report whether a launchable Chromium-family browser (chrome/msedge) is installed, so
+/// the SPA can gate the Browser toggle and guide the user to install Chrome when none is found.
+/// Pure path probe (docs/browser-no-chrome-design.md §4) — no side effects.
+#[tauri::command]
+pub(crate) fn check_browser_readiness() -> Result<BrowserReadinessReport, String> {
+    Ok(
+        match crate::shared::browser_detect::detect_browser_readiness() {
+            crate::shared::browser_detect::BrowserReadiness::SystemChannel(channel) => {
+                BrowserReadinessReport {
+                    status: BrowserReadinessStatus::System,
+                    channel: Some(channel.to_string()),
+                }
+            }
+            crate::shared::browser_detect::BrowserReadiness::NoBrowser => BrowserReadinessReport {
+                status: BrowserReadinessStatus::NoBrowser,
+                channel: None,
+            },
+        },
     )
 }
 

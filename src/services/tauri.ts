@@ -3,6 +3,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
+  BrowserReadinessReport,
   CodexUpdateResult,
   CodexDoctorResult,
   DeployApp,
@@ -1030,6 +1031,12 @@ export async function isDeveloperModeEnabled(): Promise<boolean> {
 
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
+}
+
+/** Whether a launchable Chromium-family browser (chrome/msedge) is installed — gates the Browser
+ * toggle so we can guide the user to install Chrome when none is found. */
+export async function checkBrowserReadiness(): Promise<BrowserReadinessReport> {
+  return invoke<BrowserReadinessReport>("check_browser_readiness");
 }
 
 export async function getRuntimeApiKeyStatus(): Promise<RuntimeApiKeyStatus> {

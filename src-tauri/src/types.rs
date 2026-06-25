@@ -487,6 +487,23 @@ impl Default for ManagedBrowserConfig {
     }
 }
 
+/// Result of `check_browser_readiness` (docs/browser-no-chrome-design.md §5). The SPA gates the
+/// Browser toggle on this: `System` → enable; `NoBrowser` → guide the user to install Chrome.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum BrowserReadinessStatus {
+    System,
+    NoBrowser,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserReadinessReport {
+    pub(crate) status: BrowserReadinessStatus,
+    /// Some("chrome"|"msedge") iff `status == System`.
+    pub(crate) channel: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum EnterpriseAiStatus {

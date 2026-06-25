@@ -302,6 +302,14 @@ export type ManagedRuntimeConfig = {
 export type ManagedBrowserConfig = {
   enabled: boolean;
 };
+
+/** Result of `check_browser_readiness` (docs/browser-no-chrome-design.md §5). */
+export type BrowserReadinessStatus = "system" | "no_browser";
+export type BrowserReadinessReport = {
+  status: BrowserReadinessStatus;
+  /** "chrome" | "msedge" iff status === "system". */
+  channel?: string;
+};
 export type EnterpriseAiStatus = "disconnected" | "connected" | "invalid";
 export type EnterpriseAiConfig = {
   tenantDomain: string | null;
