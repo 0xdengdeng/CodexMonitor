@@ -6,3 +6,4 @@ pub mod capture;
 pub mod coords;
 pub mod inject;
 pub mod safety;
+pub mod vision;

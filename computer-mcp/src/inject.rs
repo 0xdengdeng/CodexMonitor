@@ -7,7 +7,7 @@
 //! is automatic. Actual move/click/type wrappers land with the orchestration commit; this module
 //! currently validates the dependency + the Accessibility permission non-destructively.
 
-use enigo::{Coordinate, Enigo, Mouse, Settings};
+use enigo::{Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
 
 /// Read the current cursor location (non-destructive — does NOT move anything). Doubles as an
 /// Accessibility-permission probe: on macOS this path exercises the same CGEvent access injection needs.
@@ -29,6 +29,25 @@ pub fn move_cursor_logical(x: i32, y: i32) -> Result<(), String> {
     enigo
         .move_mouse(x, y, Coordinate::Abs)
         .map_err(|e| format!("move_mouse: {e}"))
+}
+
+/// Move to absolute **logical** coords and left-click. DESTRUCTIVE — consent + safety gate required.
+pub fn click_left_at_logical(x: i32, y: i32) -> Result<(), String> {
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Enigo::new: {e}"))?;
+    enigo
+        .move_mouse(x, y, Coordinate::Abs)
+        .map_err(|e| format!("move_mouse: {e}"))?;
+    enigo
+        .button(Button::Left, Direction::Click)
+        .map_err(|e| format!("click: {e}"))
+}
+
+/// Tap the Escape key (used to dismiss a menu/dialog opened during a verify).
+pub fn press_escape() -> Result<(), String> {
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Enigo::new: {e}"))?;
+    enigo
+        .key(Key::Escape, Direction::Click)
+        .map_err(|e| format!("key escape: {e}"))
 }
 
 #[cfg(test)]
