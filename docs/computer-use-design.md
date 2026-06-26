@@ -226,3 +226,55 @@ x64) — the **`codex-runtime` sidecar is the template** (a real bundled binary 
 4. Managed writer + readiness/TCC gate + toggle + model picker (mirror the no-Chrome config-writer).
 5. Windows backend (DPI/UIPI spike → impl).
 6. `security-reviewer` (mandatory) + `pr-reviewer`.
+
+## 14. Phase 3a — observe-only MVP (2026-06-26, IMPLEMENTED)
+
+The full act+observe vision (§1–§13) stands; we ship it in two cuts and this section pins the first.
+**De-scope decision (user, 2026-06-26):** ship `computer_observe` ALONE first; defer `computer_act` /
+`computer_wait`.
+
+**Why observe-first.** Act carries the hard, irreducible risk — pixel-grounding precision and
+synthetic-click reliability (a click-verify on the macOS menu bar landed on the right coords but the
+synthetic click did not open the menu). Observe needs **none** of it: no coordinates, no
+denormalization, no injection, no Accessibility grant — and it sidesteps most of the Windows risk
+(no `enigo`/SendInput/UIPI/DPI-inject, only `xcap` capture). It is independently useful ("read my
+screen / this error / this UI") and is the foundation act builds on.
+
+**Tool surface (this cut).** Only `computer_observe(question?: string) → text`. The managed
+`enabled_tools` allow-list is trimmed to `["computer_observe"]`; `computer_act` / `computer_wait`
+remain in §4 as the next cut. No coordinate convention is passed (observe needs no grounding coords).
+
+**Vision model = the conversation model (user decision, 2026-06-26; supersedes §3's "default
+doubao-vision" for the MVP).** The observe vision model defaults to the session's own codex `model`
+(consistent with the conversation), NOT a separately-configured default. This drops the model-picker
+UI **and** the §8.2 gateway capability-tagging OFF the MVP critical path — they become an optional
+**override** (for when the conversation model isn't vision-capable, or the user wants a cheaper /
+specialized vision model). So the managed writer sets `--model` to the configured codex model; if that
+model isn't vision-capable, observe fails fast with a clear error and the user sets an override.
+Verified: the dev build's coding model `doubao-seed-2-0-code-preview-260215` is vision-capable, so
+observe works with zero extra config. (The §3 configurable registry still governs the override path.)
+
+**Auth seam (NEW — corrects the old `computer_mcp_core` comment, i.e. the `[mcp_servers.computer].env`
+secret approach §10.1 implied).** codex
+spawns a stdio MCP server with a **clean env** (`env_clear()`,
+`codex-rs/rmcp-client/src/stdio_server_launcher.rs:259`), then forwards only the names listed in the
+server config's `env_vars` (`create_env_for_mcp_server`, `rmcp-client/src/utils.rs`). Therefore:
+- the managed block sets **`env_vars = ["AGENTDESK_RUNTIME_API_KEY"]`** — a forward-by-**name** list;
+  codex passes the dispatch key's **value** from its own process env, so **the secret is never
+  written to config.toml** (only the var name is). Same mechanism as codex's own `bearer_token_env_var`.
+  The earlier idea of `[mcp_servers.computer].env = { KEY = … }` is **rejected** — it would persist the
+  secret on disk.
+- the **gateway base URL + vision model** are non-secret → argv (`--gateway-base-url`, `--model`).
+- the sidecar **enforces https** on the base URL (loopback-http carve-out for local dev) so the key +
+  screen are never sent in cleartext (`security-reviewer` Medium, fixed).
+
+**Safety (this cut).** Only the §7 **egress gate** applies (no actuation ⇒ no actuation gate yet): the
+screenshot-leaves-the-machine rate-limit + per-N re-confirm is THE gate for observe-only, plus the
+privacy enable-copy. (Egress gate enforcement/UI still to wire.)
+
+**Implementation status (2026-06-26).** `computer-mcp` Rust crate, stdio server via **rmcp 1.8.0**
+(`#[tool_router]`/`#[tool]`/`#[tool_handler]`, `transport::stdio`). Built + **protocol-verified**
+(initialize / tools/list / tool schema), **fail-fast-verified** (missing key/base/model exits non-zero),
+and **security-reviewed clean** (no Critical/High) on macOS. **Pending:** gateway-routed `tools/call`
+E2E (gated on §8.4 — grant the vision model to a tenant via the cache-invalidating admin path), the
+managed-writer observe-only update, the toggle/consent UX, and bundling.
