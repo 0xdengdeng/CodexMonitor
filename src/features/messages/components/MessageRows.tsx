@@ -1015,6 +1015,26 @@ export const ToolRow = memo(function ToolRow({
             onOpenThreadLink={onOpenThreadLink}
           />
         )}
+        {item.images && item.images.length > 0 && (
+          // Inline screenshot(s) returned by a tool (e.g. computer_observe) so the user sees what the
+          // agent saw (docs/computer-use-design.md §14).
+          <div className="tool-inline-images" style={{ marginTop: 6 }}>
+            {item.images.map((src, index) => (
+              <img
+                key={index}
+                src={src}
+                alt={t("messages.imageAlt", { index: index + 1 })}
+                loading="lazy"
+                style={{
+                  maxWidth: "100%",
+                  borderRadius: 8,
+                  display: "block",
+                  border: "1px solid var(--border-subtle, rgba(127,127,127,0.25))",
+                }}
+              />
+            ))}
+          </div>
+        )}
         {showToolOutput && isPlan && (summary.output ?? "").trim() && (
           <div className="tool-inline-actions">
             <button

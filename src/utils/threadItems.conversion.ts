@@ -338,6 +338,42 @@ function buildImageGenerationItem(
   };
 }
 
+/** Extract text + image content from an MCP tool result (`CallToolResult.content`, MCP content
+ * blocks). Image blocks (`{type:"image", data, mimeType}`, e.g. computer_observe's screenshot)
+ * become data URLs so the UI can render them inline; everything else flattens to text. Falls back to
+ * the legacy string form when the result isn't structured content. */
+function extractMcpToolResult(item: Record<string, unknown>): {
+  text: string;
+  images: string[];
+} {
+  const result = asRecordValue(item.result);
+  const content = result && Array.isArray(result.content) ? result.content : null;
+  if (!content) {
+    return { text: asString(item.result ?? item.error ?? ""), images: [] };
+  }
+  const texts: string[] = [];
+  const images: string[] = [];
+  for (const entry of content) {
+    const block = asRecordValue(entry);
+    if (!block) {
+      continue;
+    }
+    if (asString(block.type) === "image") {
+      const data = asString(block.data);
+      if (data) {
+        const mime = asString(block.mimeType ?? block.mime_type) || "image/png";
+        images.push(data.startsWith("data:") ? data : `data:${mime};base64,${data}`);
+      }
+    } else {
+      const text = asString(block.text);
+      if (text) {
+        texts.push(text);
+      }
+    }
+  }
+  return { text: texts.join("\n").trim() || asString(item.error ?? ""), images };
+}
+
 function normalizeDynamicToolArguments(value: unknown) {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -725,6 +761,7 @@ export function buildConversationItem(
     const server = asString(item.server ?? "");
     const tool = asString(item.tool ?? "");
     const args = item.arguments ? JSON.stringify(item.arguments, null, 2) : "";
+    const { text, images } = extractMcpToolResult(item);
     return {
       id,
       kind: "tool",
@@ -732,7 +769,8 @@ export function buildConversationItem(
       title: `Tool: ${server}${tool ? ` / ${tool}` : ""}`,
       detail: args,
       status: asString(item.status ?? ""),
-      output: asString(item.result ?? item.error ?? ""),
+      output: text,
+      images: images.length ? images : undefined,
     };
   }
   if (type === "dynamicToolCall") {
