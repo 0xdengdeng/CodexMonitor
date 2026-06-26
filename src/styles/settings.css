@@ -1323,6 +1323,13 @@
 .settings-toggle.on .settings-toggle-knob {
   transform: translateX(20px);
 }
+/* A disabled toggle (e.g. the Browser switch while its readiness check + session restart run) keeps
+   its clean look — the global `button:disabled { opacity: 0.5 }` washed the on-gradient out so it
+   read as "broken". The disabled context is already conveyed by the row subtitle. */
+.settings-toggle:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
 
 @media (max-width: 720px) {
   .settings-window {
