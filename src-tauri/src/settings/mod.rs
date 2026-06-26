@@ -74,6 +74,15 @@ pub(crate) async fn update_app_settings(
         sync_browser_mcp_from_settings(&updated)?;
         managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
     }
+    // App-only built-in computer-use (docs/computer-use-design.md §14): on a local toggle, write or
+    // remove the managed `[mcp_servers.computer]` block (image mode by default) and restart sessions
+    // so codex re-reads config.toml. Greyed in remote mode (the daemon can't capture the screen).
+    if !matches!(updated.backend_mode, BackendMode::Remote)
+        && previous.managed_computer.enabled != updated.managed_computer.enabled
+    {
+        sync_computer_mcp_from_settings(&updated)?;
+        managed_runtime::restart_connected_workspace_sessions(&state, &app).await?;
+    }
     ensure_remote_runtime_for_settings(&updated, state).await;
     let _ = window::apply_window_appearance(&window, updated.theme.as_str());
     Ok(updated)
@@ -234,6 +243,112 @@ fn sync_browser_mcp_from_settings(settings: &AppSettings) -> Result<(), String> 
         &base_args,
         launch_channel,
     )
+}
+
+// Built-in computer-use (docs/computer-use-design.md §14): APP-ONLY. The bundled `computer-mcp`
+// sidecar path comes from externalBin (prod, next to the app exe) or a dev override env var.
+const COMPUTER_MCP_PATH_ENV: &str = "AGENTDESK_COMPUTER_MCP_PATH";
+#[cfg(windows)]
+const BUNDLED_COMPUTER_MCP_FILE_NAME: &str = "computer-mcp.exe";
+#[cfg(not(windows))]
+const BUNDLED_COMPUTER_MCP_FILE_NAME: &str = "computer-mcp";
+
+/// Resolve the `computer-mcp` sidecar command: a dev override env var, else the bundled binary next
+/// to the app executable (externalBin), else a clear error. Mirrors `codex/runtime.rs` resolution.
+fn resolve_computer_mcp_command() -> Result<String, String> {
+    if let Ok(path) = std::env::var(COMPUTER_MCP_PATH_ENV) {
+        let path = path.trim();
+        if !path.is_empty() {
+            return Ok(path.to_string());
+        }
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let bundled = dir.join(BUNDLED_COMPUTER_MCP_FILE_NAME);
+            if bundled.exists() {
+                return Ok(bundled.to_string_lossy().into_owned());
+            }
+            // Dev fallback: in `tauri dev` the app exe is <repo>/src-tauri/target/debug/<app>, so the
+            // cargo-built sidecar sits at <repo>/computer-mcp/target/{debug,release}/computer-mcp.
+            for profile in ["debug", "release"] {
+                let dev = dir
+                    .join("../../../computer-mcp/target")
+                    .join(profile)
+                    .join(BUNDLED_COMPUTER_MCP_FILE_NAME);
+                if dev.exists() {
+                    return Ok(dev.to_string_lossy().into_owned());
+                }
+            }
+        }
+    }
+    Err(format!(
+        "computer-mcp sidecar not found — set {COMPUTER_MCP_PATH_ENV} (dev) or bundle it via externalBin"
+    ))
+}
+
+/// App-only: write/remove the managed `[mcp_servers.computer]` block in the local codex-home. Image
+/// mode by default (the conversation model sees the screenshot directly — §14). The command path is
+/// resolved only when enabling; disable just removes the block.
+fn sync_computer_mcp_from_settings(settings: &AppSettings) -> Result<(), String> {
+    let Some(codex_home) = crate::codex::home::resolve_default_codex_home() else {
+        return Ok(());
+    };
+    let command = if settings.managed_computer.enabled {
+        resolve_computer_mcp_command()?
+    } else {
+        String::new() // ignored on the remove path
+    };
+    crate::shared::computer_mcp_core::sync_computer_mcp_config(
+        &codex_home,
+        &settings.managed_computer,
+        &command,
+        &crate::shared::computer_mcp_core::ComputerObserveMode::Image,
+    )
+}
+
+/// Trigger the macOS Screen-Recording permission prompt (no-op success on other OSes — Windows/Linux
+/// need no permission to capture). Returns whether access is currently granted. The SPA calls this
+/// after the user consents, so they grant up front instead of hitting a capture timeout.
+#[tauri::command]
+pub(crate) fn request_screen_recording_permission() -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(screen_recording::request_access())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(true)
+    }
+}
+
+/// Report whether Screen-Recording access is currently granted (macOS); always true elsewhere.
+#[tauri::command]
+pub(crate) fn screen_recording_status() -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(screen_recording::has_access())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(true)
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod screen_recording {
+    // CoreGraphics TCC entry points (macOS 10.15+): preflight checks current grant; request triggers
+    // the system prompt. A newly-granted permission takes effect after the app restarts (macOS quirk).
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGPreflightScreenCaptureAccess() -> bool;
+        fn CGRequestScreenCaptureAccess() -> bool;
+    }
+    pub(super) fn has_access() -> bool {
+        unsafe { CGPreflightScreenCaptureAccess() }
+    }
+    pub(super) fn request_access() -> bool {
+        unsafe { CGRequestScreenCaptureAccess() }
+    }
 }
 
 /// App-only: report whether a launchable Chromium-family browser (chrome/msedge) is installed, so

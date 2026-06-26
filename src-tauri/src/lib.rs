@@ -214,6 +214,8 @@ pub fn run() {
             settings::get_app_settings,
             settings::update_app_settings,
             settings::check_browser_readiness,
+            settings::request_screen_recording_permission,
+            settings::screen_recording_status,
             settings::runtime_api_key_status,
             settings::runtime_model_list,
             settings::runtime_image_model_list,

@@ -215,6 +215,9 @@ function buildDefaultSettings(): AppSettings {
     managedBrowser: {
       enabled: false,
     },
+    managedComputer: {
+      enabled: false,
+    },
     enterpriseAi: {
       tenantDomain: null,
       status: "disconnected",

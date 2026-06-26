@@ -188,6 +188,9 @@ export type ConversationItem =
       detail: string;
       status?: string;
       output?: string;
+      /** Image content returned by the tool (e.g. computer_observe's screenshot), as data URLs —
+       * rendered inline so the user sees what the agent saw (docs/computer-use-design.md §14). */
+      images?: string[];
       durationMs?: number | null;
       changes?: { path: string; kind?: string; diff?: string }[];
       collabSender?: CollabAgentRef;
@@ -391,6 +394,7 @@ export type AppSettings = {
   activeRemoteBackendId: string | null;
   managedRuntime: ManagedRuntimeConfig;
   managedBrowser: ManagedBrowserConfig;
+  managedComputer: ManagedComputerConfig;
   enterpriseAi: EnterpriseAiConfig;
   keepDaemonRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;

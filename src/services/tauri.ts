@@ -1039,6 +1039,17 @@ export async function checkBrowserReadiness(): Promise<BrowserReadinessReport> {
   return invoke<BrowserReadinessReport>("check_browser_readiness");
 }
 
+/** Trigger the macOS Screen-Recording permission prompt (no-op success elsewhere). Called after the
+ * user consents to Computer use, so they grant up front instead of hitting a capture timeout. */
+export async function requestScreenRecordingPermission(): Promise<boolean> {
+  return invoke<boolean>("request_screen_recording_permission");
+}
+
+/** Whether Screen-Recording access is currently granted (macOS; always true on other OSes). */
+export async function screenRecordingStatus(): Promise<boolean> {
+  return invoke<boolean>("screen_recording_status");
+}
+
 export async function getRuntimeApiKeyStatus(): Promise<RuntimeApiKeyStatus> {
   return invoke<RuntimeApiKeyStatus>("runtime_api_key_status");
 }

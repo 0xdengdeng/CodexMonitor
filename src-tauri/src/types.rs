@@ -521,6 +521,10 @@ impl Default for ManagedComputerConfig {
 
 /// How a CUA vision model reports click coordinates (docs/computer-use-design.md §3). Load-bearing:
 /// the computer-mcp denormalizes per this, so it MUST travel with the selected model (gateway-sourced).
+///
+/// Reserved for the `computer_act` cut (§4/§14): the observe-only MVP needs no grounding coordinates,
+/// so this is defined-ahead (define-first) but not yet wired — drop the allow when act lands.
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum CoordConvention {
@@ -530,6 +534,7 @@ pub(crate) enum CoordConvention {
     AbsolutePixels,
 }
 
+#[allow(dead_code)] // reserved for the computer_act cut (§4/§14)
 impl CoordConvention {
     /// Stable wire token (also the `computer-mcp` CLI value).
     pub(crate) fn as_str(self) -> &'static str {
@@ -542,6 +547,10 @@ impl CoordConvention {
 
 /// A CUA-capable vision model usable for computer-use grounding. The registry is **gateway-sourced**
 /// (the gateway manifest is the SSOT for which models are CUA-capable + their convention).
+///
+/// Reserved for the `computer_act` cut (§4/§14): observe-only passes just a vision model id, not this
+/// CUA-model record. Defined-ahead (define-first); drop the allow when act lands.
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CuaModel {
@@ -892,6 +901,8 @@ pub(crate) struct AppSettings {
     pub(crate) managed_runtime: ManagedRuntimeConfig,
     #[serde(default, rename = "managedBrowser")]
     pub(crate) managed_browser: ManagedBrowserConfig,
+    #[serde(default, rename = "managedComputer")]
+    pub(crate) managed_computer: ManagedComputerConfig,
     #[serde(default, rename = "enterpriseAi")]
     pub(crate) enterprise_ai: EnterpriseAiConfig,
 }
@@ -1456,6 +1467,7 @@ impl Default for AppSettings {
             selected_open_app_id: default_selected_open_app_id(),
             managed_runtime: ManagedRuntimeConfig::default(),
             managed_browser: ManagedBrowserConfig::default(),
+            managed_computer: ManagedComputerConfig::default(),
             enterprise_ai: EnterpriseAiConfig::default(),
         }
     }

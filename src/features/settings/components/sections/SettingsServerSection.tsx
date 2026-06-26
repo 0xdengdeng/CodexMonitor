@@ -15,7 +15,7 @@ import {
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import { SelectMenu } from "@/features/design-system/components/select/SelectMenu";
 import { useI18n } from "@/features/i18n/i18n";
-import { checkBrowserReadiness } from "@/services/tauri";
+import { checkBrowserReadiness, requestScreenRecordingPermission } from "@/services/tauri";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 const CHROME_DOWNLOAD_URL = "https://www.google.com/chrome/";
@@ -162,6 +162,44 @@ export function SettingsServerSection({
       void setBrowserEnabled(false);
     } else {
       void tryEnableBrowser();
+    }
+  };
+
+  // Computer-use toggle: enabling is gated on an explicit consent step (screen is captured + sent to
+  // the model) and, on macOS, the Screen-Recording permission prompt (docs/computer-use-design.md §6).
+  const [computerConsentOpen, setComputerConsentOpen] = useState(false);
+  const [computerBusy, setComputerBusy] = useState(false);
+  const [computerError, setComputerError] = useState<string | null>(null);
+  const [computerPermissionAsked, setComputerPermissionAsked] = useState(false);
+
+  const setComputerEnabled = (enabled: boolean) =>
+    onUpdateAppSettings({
+      ...appSettings,
+      managedComputer: { ...appSettings.managedComputer, enabled },
+    });
+
+  const onToggleComputer = () => {
+    setComputerError(null);
+    if (appSettings.managedComputer.enabled) {
+      void setComputerEnabled(false);
+    } else {
+      setComputerConsentOpen(true); // consent before enabling
+    }
+  };
+
+  const confirmEnableComputer = async (): Promise<void> => {
+    setComputerBusy(true);
+    setComputerError(null);
+    try {
+      // Trigger the macOS Screen-Recording prompt up front so the first capture doesn't time out.
+      await requestScreenRecordingPermission();
+      setComputerPermissionAsked(true);
+      await setComputerEnabled(true);
+      setComputerConsentOpen(false);
+    } catch (error) {
+      setComputerError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setComputerBusy(false);
     }
   };
   const isMobileSimplified = isMobilePlatform;
@@ -311,6 +349,60 @@ export function SettingsServerSection({
       {browserError ? (
         <div className="settings-help" role="alert">
           {t("settings.features.browser.checkFailed", { error: browserError })}
+        </div>
+      ) : null}
+
+      <SettingsToggleRow
+        title={t("settings.features.computer.title")}
+        subtitle={
+          appSettings.backendMode === "remote"
+            ? t("settings.features.computer.remoteUnsupported")
+            : t("settings.features.computer.subtitle")
+        }
+      >
+        <SettingsToggleSwitch
+          pressed={appSettings.managedComputer.enabled}
+          disabled={appSettings.backendMode === "remote" || computerBusy}
+          onClick={onToggleComputer}
+        />
+      </SettingsToggleRow>
+      {computerConsentOpen && appSettings.backendMode !== "remote" ? (
+        <div className="settings-help" role="status">
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            {t("settings.features.computer.consentTitle")}
+          </div>
+          {t("settings.features.computer.consentBody")}
+          <div className="settings-field-actions" style={{ marginTop: 6 }}>
+            <button
+              type="button"
+              className="primary"
+              disabled={computerBusy}
+              onClick={() => void confirmEnableComputer()}
+            >
+              {t("settings.features.computer.consentEnable")}
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              disabled={computerBusy}
+              onClick={() => {
+                setComputerConsentOpen(false);
+                setComputerError(null);
+              }}
+            >
+              {t("settings.features.computer.consentCancel")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {computerPermissionAsked && appSettings.managedComputer.enabled ? (
+        <div className="settings-help" role="status">
+          {t("settings.features.computer.permissionHint")}
+        </div>
+      ) : null}
+      {computerError ? (
+        <div className="settings-help" role="alert">
+          {t("settings.features.computer.enableFailed", { error: computerError })}
         </div>
       ) : null}
 
